@@ -108,7 +108,8 @@ class ProcessorWithExternalBreakpad (processor.Processor):
     if returncode is not None and returncode != 0:
       processorErrorMessages.append("%s failed with return code %s when processing dump %s" %(self.config.minidump_stackwalkPathname, subprocessHandle.returncode, uuid))
       additionalReportValuesAsDict['success'] = False
-      #raise processor.ErrorInBreakpadStackwalkException("%s failed with return code %s when processing dump %s" %(self.config.minidump_stackwalkPathname, subprocessHandle.returncode, uuid))
+      if additionalReportValuesAsDict["signature"].startswith("EMPTY"):
+        additionalReportValuesAsDict["signature"] = "EMPTY: stackwalk failed"
     return additionalReportValuesAsDict
 
 
@@ -168,10 +169,9 @@ class ProcessorWithExternalBreakpad (processor.Processor):
         reportUpdateValues['reason'] = socorro.lib.util.limitStringOrNone(values[1], 255)
         reportUpdateValues['address'] = socorro.lib.util.limitStringOrNone(values[2], 20)
         reportUpdateSqlParts.extend(['reason = %(reason)s','address = %(address)s'])
-        crashedThread = None
         try:
           crashedThread = int(values[3])
-        except:
+        except Exception:
           crashedThread = None
       elif values[0] == 'Module':
         # grab only the flash version, which is not quite as easy as it looks
@@ -306,8 +306,7 @@ class ProcessorWithExternalBreakpad (processor.Processor):
                                         crashedThread, processorErrorMessages)
     #logger.debug("  %s", (signature, '; '.join(processorErrorMessages), reportId, date_processed))
     if not analyzeReturnedLines:
-      message = "%s returned no frame lines for reportid: %s" % (self.config.minidump_stackwalkPathname, reportId)
-      processorErrorMessages.append(message)
+      processorErrorMessages.append("No frame data available")
       logger.warning("%s", message)
     #processor_notes = '; '.join(processorErrorMessages)
     #databaseCursor.execute("update reports set signature = %%s, processor_notes = %%s where id = %%s and date_processed = timestamp without time zone '%s'" % (date_processed),(signature, processor_notes,reportId))
@@ -317,6 +316,7 @@ class ProcessorWithExternalBreakpad (processor.Processor):
              "topmost_filenames":topmost_sourcefiles,
            }
 
+  #---------------------------------------------------------------------------
   def generate_signature(self,
                          signature_list,
                          app_notes,
@@ -333,13 +333,14 @@ class ProcessorWithExternalBreakpad (processor.Processor):
       if crashedThread is None:
         message = ("No signature could be created because we do not know which"
                    " thread crashed")
+        signature = "EMPTY: no crashing thread identified"
       else:
         message = ("No proper signature could be created because no good data "
                    "for the crashing thread (%d) was found" % crashed_thread)
         try:
           signature = signature_list[0]
         except IndexError:
-          pass
+          signature = "EMPTY: no frame data available"
       processor_notes_list.append(message)
       logger.warning("%s", message)
     return signature
