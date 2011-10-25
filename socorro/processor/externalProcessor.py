@@ -330,7 +330,7 @@ class ProcessorWithExternalBreakpad (processor.Processor):
       # generate a Java signature
       signature = app_notes[:app_notes.find('{')].strip()
     if signature == '' or signature is None:
-      if crashedThread is None:
+      if crashed_thread is None:
         message = ("No signature could be created because we do not know which"
                    " thread crashed")
         signature = "EMPTY: no crashing thread identified"
