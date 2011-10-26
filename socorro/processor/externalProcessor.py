@@ -109,7 +109,8 @@ class ProcessorWithExternalBreakpad (processor.Processor):
       processorErrorMessages.append("%s failed with return code %s when processing dump %s" %(self.config.minidump_stackwalkPathname, subprocessHandle.returncode, uuid))
       additionalReportValuesAsDict['success'] = False
       if additionalReportValuesAsDict["signature"].startswith("EMPTY"):
-        additionalReportValuesAsDict["signature"] = "EMPTY: stackwalk failed"
+        additionalReportValuesAsDict["signature"] = \
+          additionalReportValuesAsDict["signature"] + "; corrupt dump"
     return additionalReportValuesAsDict
 
 
