@@ -306,7 +306,8 @@ class ProcessorWithExternalBreakpad (processor.Processor):
                                         crashedThread, processorErrorMessages)
     #logger.debug("  %s", (signature, '; '.join(processorErrorMessages), reportId, date_processed))
     if not analyzeReturnedLines:
-      processorErrorMessages.append("No frame data available")
+      message = "No frame data available"
+      processorErrorMessages.append(message)
       logger.warning("%s", message)
     #processor_notes = '; '.join(processorErrorMessages)
     #databaseCursor.execute("update reports set signature = %%s, processor_notes = %%s where id = %%s and date_processed = timestamp without time zone '%s'" % (date_processed),(signature, processor_notes,reportId))
