@@ -22,7 +22,7 @@ def fillProcessorTable(cursor, processorCount, stamp=None, processorMap = {},log
   if not logger:
     logger = logging.getLogger()
 
-  if not stamp: stamp = dt.datetime.now()
+  if not stamp: stamp = dt.datetime.now(utctz)
   if not processorCount and not processorMap: return
   sql = "INSERT INTO processors (name,startdatetime,lastseendatetime) VALUES (%s,%s,%s);"
   data = []

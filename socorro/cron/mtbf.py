@@ -147,7 +147,7 @@ class Mtbf(object):
     Other kwargs/context values are passed unchanged to processOneMtbfWindow
     """
     cur = self.connection.cursor()
-    now = datetime.datetime.now()
+    now = datetime.datetime.now(utctz)
     startDate, deltaDate, endDate = cron_util.getProcessingDates(self.configContext,resultTable,cur,self.logger,**kwargs)
     startWindow,deltaWindow,endWindow = cron_util.getProcessingWindow(self.configContext,resultTable,cur,self.logger,**kwargs)
     if not startDate and not startWindow:

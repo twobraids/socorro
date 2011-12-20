@@ -5,7 +5,7 @@ import psycopg2, psycopg2.extensions
 import time, datetime
 
 start_timestamp = datetime.datetime.fromtimestamp(time.mktime(time.strptime(sys.argv[1], '%Y-%m-%d %H:%M:%S')))
-end_timestamp = datetime.datetime.now() - datetime.timedelta(hours=2)
+end_timestamp = datetime.datetime.now(utctz) - datetime.timedelta(hours=2)
 
 print "Starting timestamp: %s" % str(start_timestamp)
 print "Ending timestamp: %s" % str(end_timestamp)

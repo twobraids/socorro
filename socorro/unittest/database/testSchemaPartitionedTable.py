@@ -94,7 +94,7 @@ class TestPartitionedTable:
       - check that the constructor works as expected
     """
     # make sure we don't fail if we are being run 'too close for comfort' to midnight
-    now = dt.datetime.now()
+    now = dt.datetime.now(utctz)
     midnight = dt.datetime(now.year,now.month,now.day,0,0,00)
     midnight += dt.timedelta(days=1)
     middiff = midnight - now

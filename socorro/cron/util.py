@@ -18,7 +18,7 @@ def getProcessingDates(configContext, tableName, productVersionRestriction, curs
 
   Returns (startDate, deltaDate, endDate) using this heuristic:
   kwargs beats configContext
-  if none are provided, calculates based on latest row of table, now()
+  if none are provided, calculates based on latest row of table, now(utctz)
   if only one is provided, logs the insufficiency and aborts
   if two among startDate, deltaDate, endDate: they are used
   Checks the table for most recent window_end
@@ -144,7 +144,7 @@ def getDefaultDateInterval(cursor,tableName,delay,initialDeltaDate,defaultDeltaW
   returns (startDate, endDate, latestWindowEnd)
   """
   #raise IndexError
-  now = datetime.datetime.now() - delay
+  now = datetime.datetime.now(utctz) - delay
   myMidnight = now.replace(hour=0,minute=0,second=0,microsecond=0)
   latestWindowEnd,deltaWindow = getLastWindowAndSizeFromTable(cursor, tableName, productVersionRestriction, logger)
   if latestWindowEnd:

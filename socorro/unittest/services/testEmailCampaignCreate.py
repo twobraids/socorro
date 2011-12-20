@@ -29,8 +29,8 @@ def testCreateEmailCampaign():
   product = 'Foobar'
   versions = '5'
   signature = 'JohnHancock'
-  start_date = datetime.now()
-  end_date = datetime.now() + timedelta(hours=1)
+  start_date = datetime.now(utctz)
+  end_date = datetime.now(utctz) + timedelta(hours=1)
   # FIXME where should this go?
   end_date = datetime(end_date.year, end_date.month, end_date.day, 23, 59, 59)
   subject = 'test subject'
@@ -92,8 +92,8 @@ def testDetermineEmails():
   product = 'Foobar'
   versions = '5'
   signature = 'JohnHancock'
-  start_date = datetime.now()
-  end_date = datetime.now() + timedelta(hours=1)
+  start_date = datetime.now(utctz)
+  end_date = datetime.now(utctz) + timedelta(hours=1)
 
   parameters = {
     'product': product,
@@ -164,8 +164,8 @@ def testSaveCampaign():
   signature = 'JohnHancock'
   subject = 'email subject'
   body = 'email body'
-  start_date = datetime.now()
-  end_date = datetime.now() + timedelta(hours=1)
+  start_date = datetime.now(utctz)
+  end_date = datetime.now(utctz) + timedelta(hours=1)
   author = 'me@example.com'
   email_count = 0
 

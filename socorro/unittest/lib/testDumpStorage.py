@@ -364,7 +364,7 @@ class TestDumpStorage:
       dateS = v[0]
       if expected[ooid]:
         exEnd = datetime.datetime(*[int(x) for x in dateS.split('-')])
-        passDate = datetime.datetime.now()
+        passDate = datetime.datetime.now(utctz)
         if 0 == count%3:
           passDate = None
         else:

@@ -10,6 +10,9 @@ import socorro.lib.dumpStorage as socorro_dumpStorage
 import socorro.lib.filesystem as socorro_fs
 import socorro.lib.util as socorro_util
 import socorro.lib.ooid as socorro_ooid
+import socorro.lib.datetimeutil as sdt
+
+utctz = sdt.UTC()
 
 class NoSuchUuidFound(Exception):
   pass
@@ -212,7 +215,7 @@ class JsonDumpStorage(socorro_dumpStorage.DumpStorage):
     self.logger.debug('%s - fetched pathToDate ', threading.currentThread().getName())
     if not stamp:
       if not aDate:
-        aDate = datetime.datetime.now()
+        aDate = datetime.datetime.now(utctz)
       stamp = aDate
     self.logger.debug('%s - about to copyFrom ', threading.currentThread().getName())
     self.copyFrom(ooid,jsonFromFile, dumpFromFile, webheadHostName, stamp, createLinks, removeOld)
@@ -309,9 +312,9 @@ class JsonDumpStorage(socorro_dumpStorage.DumpStorage):
       #print 'daily: %s' % daily
       for dir,dirs,files in self.osModule.walk(os.sep.join((self.root,daily,self.dateName))):
         #print dir,dirs,files
-        if os.path.split(dir)[0] == os.path.split(self.datePath(datetime.datetime.now())[0]):
+        if os.path.split(dir)[0] == os.path.split(self.datePath(datetime.datetime.now(utctz))[0]):
           #print 'skipping dir %s' % dir
-          #print 'because: %s == %s' % (os.path.split(dir)[0],os.path.split(self.datePath(datetime.datetime.now())[0]))
+          #print 'because: %s == %s' % (os.path.split(dir)[0],os.path.split(self.datePath(datetime.datetime.now(utctz))[0]))
           continue
         # the links are all to (relative) directories, so we need not look at files
         for d in dirs:

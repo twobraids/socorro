@@ -15,7 +15,7 @@ def find_duplicates(config):
   try:
     connection, cursor= databaseConnectionPool.connectionCursorPair()
 
-    startTime = datetime.now() - timedelta(hours=3)
+    startTime = datetime.now(utctz) - timedelta(hours=3)
     endTime = startTime + timedelta(hours=1)
     cursor.callproc('update_reports_duplicates', (startTime, endTime))
     connection.commit()

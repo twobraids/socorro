@@ -279,7 +279,7 @@ class TestTopCrashesBySignature(unittest.TestCase):
     assert_raises(SystemExit,topcrasher.TopCrashesBySignature,bogusMap)
 
     #check without specific config items
-    now = dt.datetime.now()
+    now = dt.datetime.now(utctz)
     tc = topcrasher.TopCrashesBySignature(me.config)
     expectedStart = now.replace(hour=0,minute=0,second=0,microsecond=0) - tc.configContext.get('initialDeltaDate',dt.timedelta(days=4))
     expectedEnd = now.replace(hour=0,minute=0,second=0,microsecond=0)

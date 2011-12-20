@@ -82,7 +82,7 @@ class TestProcessedDumpStorage(unittest.TestCase):
     slot = int(mm) - int(mm)%minutesPerSlot
     return [hh,"%02d"%slot]
   def hourSlotFromNow(self,minutesPerSlot):
-    hh,mm = datetime.datetime.now().isoformat('T').split('T')[1].split(':')[:2]
+    hh,mm = datetime.datetime.now(utctz).isoformat('T').split('T')[1].split(':')[:2]
     slot = int(mm) - int(mm)%minutesPerSlot
     return hh,"%02d"%slot
 
@@ -152,10 +152,10 @@ class TestProcessedDumpStorage(unittest.TestCase):
     expectedFile = os.path.join(expectedPath,ooid+storage.fileSuffix)
     assert not os.path.exists(expectedPath), 'Better not exist at start of test'
     data = {"header":"header","data":['line ONE','lineTWO','last line']}
-    now = datetime.datetime.now()
+    now = datetime.datetime.now(utctz)
     if now.second > 57:
       time.sleep(60-now.second)
-    now = datetime.datetime.now()
+    now = datetime.datetime.now(utctz)
     storage.putDumpToFile(ooid,data,now) # default timestamp
     datePath = None
     seenDirs = set()

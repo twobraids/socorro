@@ -9,7 +9,7 @@ def deferredJobStorageCleanup (config, logger):
     logger.info("beginning deferredJobCleanup")
     j = jds.JsonDumpStorage(root = config.deferredStorageRoot)
     numberOfDaysAsTimeDelta = dt.timedelta(days=int(config.maximumDeferredJobAge))
-    threshold = dt.datetime.now() - numberOfDaysAsTimeDelta
+    threshold = dt.datetime.now(utctz) - numberOfDaysAsTimeDelta
     logger.info("  removing older than: %s", threshold)
     j.removeOlderThan(threshold)
   except (KeyboardInterrupt, SystemExit):

@@ -95,11 +95,11 @@ def testFillProcessorTable_NoMap():
   stamps = [None,None,dt.datetime(2008,1,2,3,4,5,666),dt.datetime(2009,1,2,3), None, dt.datetime(2010,12,11,10,9,8,777)]
   try:
     for i in range(len(stamps)):
-      before = dt.datetime.now()
+      before = dt.datetime.now(utctz)
       time.sleep(.01)
       dbtu.fillProcessorTable(cursor,i,stamp=stamps[i])
       time.sleep(.01)
-      after =  dt.datetime.now()
+      after =  dt.datetime.now(utctz)
       cursor.execute(ssql)
       data = cursor.fetchall()
       assert i == len(data)

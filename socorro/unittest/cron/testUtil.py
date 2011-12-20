@@ -91,7 +91,7 @@ class TestUtil(unittest.TestCase):
     cursor = self.connection.cursor()
     self.connection.rollback()
     self.createBunny()
-    now = datetime.datetime.now()
+    now = datetime.datetime.now(utctz)
     midnight = now.replace(hour=0,minute=0,second=0,microsecond=0)
     defStart = midnight - cron_util.globalInitialDeltaDate
     defEnd = midnight
@@ -323,7 +323,7 @@ class TestUtil(unittest.TestCase):
 
     # check with empty table
     self.createBunny()
-    now = datetime.datetime.now()
+    now = datetime.datetime.now(utctz)
     midNight = now.replace(hour=0,minute=0,second=0,microsecond=0)
     defStart = midNight - initialDeltaDate
     defEnd = midNight
@@ -338,7 +338,7 @@ class TestUtil(unittest.TestCase):
     cursor.execute("INSERT INTO %s (window_end,window_size) VALUES(%%s,%%s)"%self.tableName,(end0,delta0))
     self.connection.commit()
     ddi = cron_util.getDefaultDateInterval(cursor,self.tableName,datetime.timedelta(0),initialDeltaDate,defaultDeltaWindow,None,me.fileLogger)
-    now = datetime.datetime.now()
+    now = datetime.datetime.now(utctz)
     midNight = now.replace(hour=0,minute=0,second=0,microsecond=0)
     defEnd = midNight
     while defEnd+delta0 < now:

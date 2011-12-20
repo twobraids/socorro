@@ -13,7 +13,7 @@ import socorro.lib.util as sutil
 import socorro.lib.ooid as sooid
 import socorro.storage.crashstorage as cstore
 
-#utctz = sdt.UTC()
+utctz = sdt.UTC()
 
 #===============================================================================
 class Collector(object):
@@ -33,8 +33,7 @@ class Collector(object):
     theform = web.input()
 
     dump = theform[self.context.dumpField]
-    #currentTimestamp = dt.datetime.now(utctz)
-    currentTimestamp = dt.datetime.now()
+    currentTimestamp = dt.datetime.now(utctz)
     jsonDataDictionary = crashStorage.makeJsonDictFromForm(theform)
     jsonDataDictionary.submitted_timestamp = currentTimestamp.isoformat()
     #for future use when we start sunsetting products

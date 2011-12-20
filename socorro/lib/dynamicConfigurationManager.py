@@ -130,7 +130,7 @@ class DynamicConfig(socorro_config.Config):
     if self.internal.updateDelta:
       if self.internal.updateDelta < datetime.timedelta(0):
         raise ValueError("updateInterval must be non-negative, but %s"%self.internal.updateDelta)
-      self.internal.nextUpdate = datetime.datetime.now() + self.internal.updateDelta
+      self.internal.nextUpdate = datetime.datetime.now(utctz) + self.internal.updateDelta
 
     # finally: make sure we are current
     if self.internal.signalNumber:
@@ -156,7 +156,7 @@ class DynamicConfig(socorro_config.Config):
     try:
       nu = self.internal.nextUpdate
       if nu:
-        now = datetime.datetime.now()
+        now = datetime.datetime.now(utctz)
         if now >= nu:
           DynamicConfig.doUpdate(self) # as does this line
           self.internal.nextUpdate = now + self.internal.updateDelta

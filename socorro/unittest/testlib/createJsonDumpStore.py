@@ -77,13 +77,13 @@ def createTestSet(testData,jsonKwargs,rootDir):
   jsonFileGenerator = jsonKwargs.get('jsonFileGenerator',None)
   if 'default' == jsonFileGenerator:
     jsonFileGenerator = minimalJsonFileContents()
-  thedt = datetime.datetime.now()
+  thedt = datetime.datetime.now(utctz)
   for uuid,data in testData.items():
     if data[0].startswith('+'):
       if thedt.second >= 58:
         print "\nSleeping for %d seconds" %(61-thedt.second)
         time.sleep(61-thedt.second)
-        thedt = datetime.datetime.now()
+        thedt = datetime.datetime.now(utctz)
       slot = {
         '+0': getSlot(storage.minutesPerSlot,thedt.minute),
         '+5': getSlot(storage.minutesPerSlot,thedt.minute+5),

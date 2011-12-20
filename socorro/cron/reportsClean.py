@@ -13,7 +13,7 @@ def update_reports_clean(config):
   try:
     connection, cursor= databaseConnectionPool.connectionCursorPair()
 
-    startTime = datetime.now() - timedelta(hours=2)
+    startTime = datetime.now(utctz) - timedelta(hours=2)
     cursor.callproc('update_reports_clean', [startTime])
     connection.commit()
   finally:

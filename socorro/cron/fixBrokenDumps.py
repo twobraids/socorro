@@ -53,7 +53,7 @@ def fix(configContext, logger, query, fixer):
       logger.debug('fixer: %s' % fixer)
       with open(fname, 'rb') as fixed_dump_file:
         fixed_dump = fixed_dump_file.read()
-        hbc.put_fixed_dump(ooid, fixed_dump, add_to_unprocessed_queue = True, submitted_timestamp = datetime.now())
+        hbc.put_fixed_dump(ooid, fixed_dump, add_to_unprocessed_queue = True, submitted_timestamp = datetime.now(utctz))
       logger.debug('put fixed dump file into hbase: %s' % fname)
       os.unlink(fname)
       logger.debug('removed dump file: %s' % fname)
@@ -67,7 +67,7 @@ def get_last_run_date(config):
     with open(config.persistentBrokenDumpPathname, 'r') as f:
       return cPickle.load(f)
   except IOError:
-    return datetime.now() - timedelta(days=config.daysIntoPast)
+    return datetime.now(utctz) - timedelta(days=config.daysIntoPast)
 
 def save_last_run_date(config, date):
   with open(config.persistentBrokenDumpPathname, 'w') as f:

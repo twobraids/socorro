@@ -85,7 +85,7 @@ class DumpStorage(object):
     if not timestamp:
       timestamp = socorro_ooid.dateFromOoid(ooid)
       if not timestamp:
-        timestamp = datetime.datetime.now()
+        timestamp = datetime.datetime.now(utctz)
     if not self.osModule.path.isdir(self.root):
       um = self.osModule.umask(0)
       try:
@@ -132,13 +132,13 @@ class DumpStorage(object):
   def dailyPart(self, ooid, timestamp=None):
     """
     return YYYYMMDD
-    use the timestamp if any, else the ooid's last 6 chars if reasonable, else now()
+    use the timestamp if any, else the ooid's last 6 chars if reasonable, else now(utctz)
     """
     year,month,day = None,None,None
     if not timestamp:
       timestamp = socorro_ooid.dateFromOoid(ooid)
     if not timestamp:
-      timestamp = datetime.datetime.now()
+      timestamp = datetime.datetime.now(utctz)
     (year,month,day) = (timestamp.year,timestamp.month,timestamp.day)
     return "%4d%02d%02d"%(year,month,day)
 

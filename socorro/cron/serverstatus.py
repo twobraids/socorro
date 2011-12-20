@@ -71,7 +71,7 @@ FROM server_status ORDER BY date_created DESC LIMIT 1;
   except:
     socorro.lib.util.reportExceptionAndAbort(logger)
 
-  startTime = datetime.datetime.now()
+  startTime = datetime.datetime.now(utctz)
   startTime -= configContext.processingInterval
   timeInserting = 0
   if configContext.debug:

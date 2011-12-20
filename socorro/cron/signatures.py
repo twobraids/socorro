@@ -26,7 +26,7 @@ def update_signatures(config):
     SELECT max(first_report) FROM signature_build
     """);
     last_run = databaseCursor.fetchone()[0]
-    now = datetime.now()
+    now = datetime.now(utctz)
     delta = now - last_run
     total_seconds = delta.days * 86400 + delta.seconds
     total_hours = total_seconds / 3600 - hours_back

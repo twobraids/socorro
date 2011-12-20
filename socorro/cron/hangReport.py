@@ -15,7 +15,7 @@ def run(config):
   try:
     connection, cursor = databaseConnectionPool.connectionCursorPair()
 
-    startTime = datetime.now() - timedelta(days=1)
+    startTime = datetime.now(utctz) - timedelta(days=1)
     cursor.callproc('update_hang_report', [startTime])
     connection.commit()
   finally:

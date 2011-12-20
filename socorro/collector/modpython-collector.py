@@ -44,7 +44,7 @@ def handler(req):
       dump = dump.file.read()
       #dump = cstore.RepeatableStreamReader(dump.file)
 
-      currentTimestamp = dt.datetime.now()
+      currentTimestamp = dt.datetime.now(utctz)
 
       jsonDataDictionary = crashStorage.makeJsonDictFromForm(theform)
       jsonDataDictionary.submitted_timestamp = currentTimestamp.isoformat()

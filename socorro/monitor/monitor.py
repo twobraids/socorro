@@ -287,7 +287,7 @@ class Monitor (object):
     processorIdAssignedToThisJob = processorIdSequenceGenerator.next()
     try:
       databaseCursor.execute("insert into jobs (pathname, uuid, owner, priority, queuedDateTime) values (%s, %s, %s, %s, %s)",
-                             ('', uuid, processorIdAssignedToThisJob, priority, datetime.datetime.now()))
+                             ('', uuid, processorIdAssignedToThisJob, priority, datetime.datetime.now(utctz)))
       logger.debug("executed insert for %s", uuid)
       databaseCursor.connection.commit()
     except:
