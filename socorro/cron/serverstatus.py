@@ -24,6 +24,7 @@ import psycopg2
 import psycopg2.extras
 
 import socorro.lib.util
+from socorro.lib.datetimeutil import utctz
 
 
 def update(configContext, logger):

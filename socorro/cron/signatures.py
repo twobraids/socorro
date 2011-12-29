@@ -15,6 +15,8 @@ logger = logging.getLogger("signatures")
 
 import socorro.lib.psycopghelper as psy
 import socorro.lib.util as util
+from socorro.lib.datetimeutil import utctz
+
 
 hours_back = 3
 

@@ -9,6 +9,8 @@ import threading
 
 import socorro.lib.filesystem as socorro_fs
 import socorro.lib.ooid as socorro_ooid
+from socorro.lib.datetimeutil import utctz
+
 
 class DumpStorage(object):
   """

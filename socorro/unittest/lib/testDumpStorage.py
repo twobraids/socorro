@@ -12,6 +12,7 @@ import socorro.lib.util as socorro_util
 
 import socorro.unittest.testlib.util as test_util
 import socorro.unittest.testlib.createJsonDumpStore as createJDS
+from socorro.lib.datetimeutil import utctz
 
 def setup_module():
   print test_util.getModuleFromFile(__file__)
@@ -191,7 +192,7 @@ class TestDumpStorage:
         got = d.dailyPart(ooid,date)
         assert expected == got, 'Expected "%s" but got "%s"'%(expected,got)
       else:
-        now = datetime.date.today()
+        now = datetime.datetime.now(utctz)
         expected = "%4d%02d%02d"%(now.year,now.month,now.day)
         assert expected == d.dailyPart(ooid,date), 'From (%s,%s) Expected "%s" but got "%s"'%(ooid,date,expected,got)
   def testPathToDate(self):

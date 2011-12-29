@@ -3,6 +3,7 @@
 import logging
 from datetime import datetime
 from datetime import timedelta
+from socorro.lib.datetimeutil import utctz
 
 logger = logging.getLogger("duplicates")
 

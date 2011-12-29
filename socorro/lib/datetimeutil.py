@@ -53,6 +53,8 @@ class UTC(dt.tzinfo):
   def dst(self, dt):
     return UTC.ZERO
 
+utctz = UTC()
+
 
 def string_to_datetime(date):
     """

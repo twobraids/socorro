@@ -4,6 +4,8 @@ import sys
 import psycopg2, psycopg2.extensions
 import time, datetime
 
+from socorro.lib.datetimeutil import utctz
+
 start_timestamp = datetime.datetime.fromtimestamp(time.mktime(time.strptime(sys.argv[1], '%Y-%m-%d %H:%M:%S')))
 end_timestamp = datetime.datetime.now(utctz) - datetime.timedelta(hours=2)
 

@@ -9,6 +9,8 @@ import socorro.collector.initializer as init
 import socorro.storage.crashstorage as cstore
 import socorro.lib.util as sutil
 import socorro.lib.ooid as ooid
+from socorro.lib.datetimeutil import utctz
+
 
 #-----------------------------------------------------------------------------------------------------------------
 if __name__ != "__main__":

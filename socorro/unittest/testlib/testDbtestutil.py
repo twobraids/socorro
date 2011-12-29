@@ -11,6 +11,7 @@ from socorro.unittest.testlib.testDB import TestDB
 import libTestconfig as testConfig
 import socorro.unittest.testlib.createJsonDumpStore as createJDS
 import socorro.unittest.testlib.util as tutil
+from socorro.lib.datetimeutil import utctz
 
 import psycopg2
 
@@ -92,7 +93,12 @@ def testFillProcessorTable_NoMap():
   ssql = "SELECT id,name,startdatetime,lastseendatetime FROM processors"
   dsql = "DELETE FROM processors"
   dropSql = "DROP TABLE IF EXISTS %s"
-  stamps = [None,None,dt.datetime(2008,1,2,3,4,5,666),dt.datetime(2009,1,2,3), None, dt.datetime(2010,12,11,10,9,8,777)]
+  stamps = [None,
+            None,
+            dt.datetime(2008,1,2,3,4,5,666,tzinfo=utctz),
+            dt.datetime(2009,1,2,3,tzinfo=utctz),
+            None,
+            dt.datetime(2010,12,11,10,9,8,777,tzinfo=utctz)]
   try:
     for i in range(len(stamps)):
       before = dt.datetime.now(utctz)
@@ -133,17 +139,17 @@ def testFillProcessorTable_WithMap():
   ssql = "SELECT id,name,startdatetime,lastseendatetime FROM processors"
   dsql = "DELETE FROM processors"
   dropSql = "DROP TABLE IF EXISTS %s"
-  tmap = {12:dt.datetime(2008,3,4,5,6,12),37:dt.datetime(2009,5,6,7,8,37)}
+  tmap = {12:dt.datetime(2008,3,4,5,6,12,tzinfo=utctz),37:dt.datetime(2009,5,6,7,8,37,tzinfo=utctz)}
   try:
-    dbtu.fillProcessorTable(cursor,7,stamp=dt.datetime(2009,4,5,6,7),processorMap=tmap)
+    dbtu.fillProcessorTable(cursor,7,stamp=dt.datetime(2009,4,5,6,7,tzinfo=utctz),processorMap=tmap)
     cursor.execute(ssql)
     data = cursor.fetchall()
     me.connection.commit()
     assert 2 == len(data)
-    expectSet = set([dt.datetime(2008,3,4,5,6,12),dt.datetime(2009,5,6,7,8,37)])
+    expectSet = set([dt.datetime(2008,3,4,5,6,12,tzinfo=utctz),dt.datetime(2009,5,6,7,8,37,tzinfo=utctz)])
     gotSet = set()
     for d in data:
-      assert dt.datetime(2009,4,5,6,7) == d[2]
+      assert dt.datetime(2009,4,5,6,7,tzinfo=utctz) == d[2]
       gotSet.add(d[3])
       assert d[0] in [1,2]
     assert expectSet == gotSet

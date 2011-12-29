@@ -29,6 +29,8 @@ import sys
 import cStringIO
 import datetime
 
+from socorro.lib.datetimeutil import utctz
+
 #============================================================================================
 class ConfigFileMissingError (IOError):
   pass
@@ -438,7 +440,7 @@ def dateTimeConverter(inputString):
       second = int(inputString[17:19])
     except ValueError:
       pass
-    return datetime.datetime(year, month, day, hour, minute, second)
+    return datetime.datetime(year, month, day, hour, minute, second, tzinfo=utctz)
   return inputString
 
 #------------------------------------------------------------------------------------------

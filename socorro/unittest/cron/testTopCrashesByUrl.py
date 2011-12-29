@@ -13,6 +13,7 @@ import socorro.database.database as sdatabase
 
 import socorro.lib.ConfigurationManager as configurationManager
 import socorro.database.cachedIdAccess as socorro_cia
+from socorro.lib.datetimeutil import utctz
 
 import cronTestconfig as testConfig
 
@@ -107,7 +108,7 @@ class TestTopCrashesByUrl:
 
     # test /w/ 'normal' params
     t = tcbu.TopCrashesByUrl(config)
-    startWindow = datetime.datetime(2008,1,1)
+    startWindow = datetime.datetime(2008,1,1,tzinfo=utctz)
     deltaWindow = datetime.timedelta(days=1)
     endWindow = startWindow + deltaWindow
     data = t.countCrashesByUrlInWindow(startWindow = startWindow, deltaWindow = deltaWindow)
@@ -118,14 +119,14 @@ class TestTopCrashesByUrl:
     # test /w/ small maximumUrls
     config = copy.copy(me.config)
     t = tcbu.TopCrashesByUrl(config, maximumUrls=50)
-    data = t.countCrashesByUrlInWindow(startWindow = datetime.datetime(2008,1,1), endWindow = endWindow)
+    data = t.countCrashesByUrlInWindow(startWindow = datetime.datetime(2008,1,1,tzinfo=utctz), endWindow = endWindow)
     assert 24 == len(data), 'This is (just) a regression test. Did you change the data somehow? (%s)'%len(data)
     for d in data:
       assert 1 == d[0]
     # test /w/ minimumHitsPerUrl larger
     config = copy.copy(me.config)
     t = tcbu.TopCrashesByUrl(config, minimumHitsPerUrl=2)
-    data = t.countCrashesByUrlInWindow(startWindow = datetime.datetime(2008,1,1),endWindow = endWindow)
+    data = t.countCrashesByUrlInWindow(startWindow = datetime.datetime(2008,1,1,tzinfo=utctz),endWindow = endWindow)
     assert 24 == len(data), len(data)
     for d in data:
       assert 1 == d[0]
@@ -134,7 +135,7 @@ class TestTopCrashesByUrl:
     config = copy.copy(me.config)
     halfDay = datetime.timedelta(hours=12)
     t = tcbu.TopCrashesByUrl(config, deltaWindow = halfDay)
-    data = t.countCrashesByUrlInWindow(startWindow = datetime.datetime(2008,1,1))
+    data = t.countCrashesByUrlInWindow(startWindow = datetime.datetime(2008,1,1,tzinfo=utctz))
     assert 12 == len(data), 'This is (just) a regression test. Did you change the data somehow? (%s)'%len(data)
     for d in data:
       assert 1 == d[0]
@@ -142,7 +143,7 @@ class TestTopCrashesByUrl:
     # test a different day, to be sure we get different data
     config = copy.copy(me.config)
     t = tcbu.TopCrashesByUrl(config)
-    data = t.countCrashesByUrlInWindow(startWindow = datetime.datetime(2008,1,11),deltaWindow=deltaWindow)
+    data = t.countCrashesByUrlInWindow(startWindow = datetime.datetime(2008,1,11,tzinfo=utctz),deltaWindow=deltaWindow)
     assert 57 == len(data), 'This is (just) a regression test. Did you change the data somehow? (%s)'%len(data)
     for d in data[:3]:
       assert 2 == d[0]
@@ -191,7 +192,7 @@ class TestTopCrashesByUrl:
     cursor.executemany(sqli,addData)
     self.connection.commit()
     config = copy.copy(me.config)
-    startWindow = datetime.datetime(2008,1,1)
+    startWindow = datetime.datetime(2008,1,1,tzinfo=utctz)
     deltaWindow = datetime.timedelta(days=1)
 
     ## On your mark...
@@ -281,7 +282,7 @@ class TestTopCrashesByUrl:
     cursor.executemany(sqli,addData)
     self.connection.commit()
     config = copy.copy(me.config)
-    startWindow = datetime.datetime(2008,1,1)
+    startWindow = datetime.datetime(2008,1,1,tzinfo=utctz)
     deltaWindow = datetime.timedelta(days=1)
 
     ## On your mark...
@@ -346,7 +347,7 @@ class TestTopCrashesByUrl:
     cursor.execute("SELECT COUNT(*) from top_crashes_by_url")
     self.connection.rollback()
     assert 0 == cursor.fetchone()[0]
-    t.processDateInterval(startDate = datetime.datetime(2008,1,1), endDate=datetime.datetime(2008,1,6))
+    t.processDateInterval(startDate = datetime.datetime(2008,1,1,tzinfo=utctz), endDate=datetime.datetime(2008,1,6,tzinfo=utctz))
 
     cursor.execute("SELECT COUNT(id) from top_crashes_by_url")
     self.connection.rollback()
@@ -361,7 +362,7 @@ class TestTopCrashesByUrl:
     cursor.execute("delete from top_crashes_by_url; delete from top_crashes_by_url_signature")
     self.connection.commit()
     t = tcbu.TopCrashesByUrl(copy.copy(me.config))
-    t.processDateInterval(startDate = datetime.datetime(2008,1,4), endDate=datetime.datetime(2008,1,8))
+    t.processDateInterval(startDate = datetime.datetime(2008,1,4,tzinfo=utctz), endDate=datetime.datetime(2008,1,8,tzinfo=utctz))
 
     cursor.execute("SELECT COUNT(id) from top_crashes_by_url")
     self.connection.rollback()
@@ -377,7 +378,7 @@ class TestTopCrashesByUrl:
     self.connection.commit()
 
     t = tcbu.TopCrashesByUrl(copy.copy(me.config))
-    t.processDateInterval(startDate = datetime.datetime(2008,1,1), endDate=datetime.datetime(2008,3,3))
+    t.processDateInterval(startDate = datetime.datetime(2008,1,1,tzinfo=utctz), endDate=datetime.datetime(2008,3,3,tzinfo=utctz))
 
     cursor.execute("SELECT COUNT(id) from top_crashes_by_url")
     self.connection.rollback()

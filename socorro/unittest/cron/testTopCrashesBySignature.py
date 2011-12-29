@@ -18,6 +18,8 @@ import socorro.cron.topCrashesBySignature as topcrasher
 from   socorro.unittest.testlib.testDB import TestDB
 import socorro.unittest.testlib.dbtestutil as dbtestutil
 import socorro.unittest.testlib.util as tutil
+from socorro.lib.datetimeutil import utctz
+
 import cronTestconfig as testConfig
 
 testBaseDate = dt.datetime(2008,1,1,1,1,1,1)

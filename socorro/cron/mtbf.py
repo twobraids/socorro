@@ -10,6 +10,8 @@ import socorro.database.cachedIdAccess as socorro_cia
 import socorro.lib.util as soc_util
 import socorro.cron.util as cron_util
 
+from socorro.lib.datetimeutil import utctz
+
 configTable = 'product_visibility'
 resultTable = 'time_before_failure'
 

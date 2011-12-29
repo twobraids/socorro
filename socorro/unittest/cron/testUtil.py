@@ -12,6 +12,7 @@ import socorro.lib.ConfigurationManager as configurationManager
 import socorro.unittest.testlib.dbtestutil as dbtestutil
 import socorro.unittest.testlib.util as tutil
 import socorro.database.database as sdatabase
+from socorro.lib.datetimeutil import utctz
 
 import socorro.cron.util as cron_util
 import cronTestconfig as testConfig

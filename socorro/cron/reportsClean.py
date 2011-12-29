@@ -6,6 +6,8 @@ logger = logging.getLogger("reports_clean")
 
 import socorro.lib.psycopghelper as psy
 import socorro.lib.util as util
+from socorro.lib.datetimeutil import utctz
+
 
 #-----------------------------------------------------------------------------------------------------------------
 def update_reports_clean(config):

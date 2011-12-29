@@ -6,7 +6,7 @@ import socorro.storage.hbaseClient as hbc
 import socorro.storage.crashstorage as cstore
 import socorro.lib.datetimeutil as sdt
 import socorro.database.schema as sch
-
+from socorro.lib.datetimeutil import utctz
 
 import datetime as dt
 import threading as thr
@@ -1096,7 +1096,7 @@ def testGetJsonOrWarn():
 
 expected_report_tuple = ('ooid1',
                          dt.datetime(2011, 2, 16, 4, 44, 52,
-                                     tzinfo=proc.Processor.utctz),
+                                     tzinfo=utctz),
                          dt.datetime(2011, 2, 15, 1, 0),
                          'Firefox',
                          '3.6.6',
@@ -1121,7 +1121,7 @@ expected_report_tuple = ('ooid1',
 
 expected_report_dict =  {'client_crash_date':
                                        dt.datetime(2011, 2, 16, 4, 44, 52,
-                                                   tzinfo=proc.Processor.utctz),
+                                                   tzinfo=utctz),
                          'product': 'Firefox',
                          'install_age': 20069290,
                          'distributor': None,

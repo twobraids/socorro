@@ -8,6 +8,8 @@ logger = logging.getLogger("hangReport")
 
 import socorro.lib.psycopghelper as psy
 import socorro.lib.util as util
+from socorro.lib.datetimeutil import utctz
+
 
 #-----------------------------------------------------------------------------------------------------------------
 def run(config):

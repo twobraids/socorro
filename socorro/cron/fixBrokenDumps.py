@@ -11,6 +11,8 @@ import psycopg2.extras
 
 import socorro.lib.util
 import socorro.storage.hbaseClient as hbaseClient
+from socorro.lib.datetimeutil import utctz
+
 
 from datetime import datetime, timedelta
 

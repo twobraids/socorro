@@ -25,6 +25,8 @@ import socorro.storage.hbaseClient as hbc
 import socorro.processor.signatureUtilities as sig
 import socorro.processor.registration as reg
 
+from socorro.lib.datetimeutil import utctz
+
 # NOTE - this will be cached for the lifetime of the process
 # restart processor to refresh from the database
 productIdMap = {}
@@ -73,7 +75,6 @@ class Processor(object):
   #-----------------------------------------------------------------------------------------------------------------
   # static data. Beware threading!
   buildDatePattern = re.compile('^(\\d{4})(\\d{2})(\\d{2})(\\d{2})')
-  utctz = sdt.UTC()
 
   _config_requirements = ("databaseHost",
                           "databaseName",
@@ -687,7 +688,7 @@ class Processor(object):
     crash_time = int(Processor.getJsonOrWarn(jsonDocument,'CrashTime',processorErrorMessages,timestampTime,10))
     startupTime = int(jsonDocument.get('StartupTime',crash_time)) # must have started up some time before crash
     installTime = int(jsonDocument.get('InstallTime',startupTime)) # must have installed some time before startup
-    crash_date = datetime.datetime.fromtimestamp(crash_time, Processor.utctz)
+    crash_date = datetime.datetime.fromtimestamp(crash_time, utctz)
     install_age = crash_time - installTime
     email = sutil.lookupLimitedStringOrNone(jsonDocument, 'Email', 100)
     hangid = jsonDocument.get('HangID',None)
@@ -873,7 +874,7 @@ class Processor(object):
       logger.error('Unable to load product_productid_map from postgres', exc_info=True)
       db_conn.rollback()
       raise
-    
+
     for result in productIdList:
       resultDict = dict(x for x in zip(columns, result))
       key = resultDict['productid']

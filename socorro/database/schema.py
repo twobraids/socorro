@@ -289,7 +289,7 @@ class ReportsTable(PartitionedTable):
                                           CREATE TABLE reports (
                                               id serial NOT NULL,
                                               client_crash_date timestamp with time zone,
-                                              date_processed timestamp without time zone,
+                                              date_processed timestamp with time zone,
                                               uuid character varying(50) NOT NULL,
                                               product character varying(30),
                                               version character varying(16),
@@ -306,10 +306,10 @@ class ReportsTable(PartitionedTable):
                                               os_name character varying(100),
                                               os_version character varying(100),
                                               email character varying(100),
-                                              build_date timestamp without time zone,
+                                              build_date timestamp with time zone,
                                               user_id character varying(50),
-                                              started_datetime timestamp without time zone,
-                                              completed_datetime timestamp without time zone,
+                                              started_datetime timestamp with time zone,
+                                              completed_datetime timestamp with time zone,
                                               success boolean,
                                               truncated boolean,
                                               processor_notes text,
@@ -329,7 +329,7 @@ class ReportsTable(PartitionedTable):
                                           --    FOR EACH ROW EXECUTE PROCEDURE partition_insert_trigger();""",
                                        partitionCreationSqlTemplate="""
                                           CREATE TABLE %(partitionName)s (
-                                              CONSTRAINT %(partitionName)s_date_check CHECK (TIMESTAMP without time zone '%(startDate)s' <= date_processed and date_processed < TIMESTAMP without time zone '%(endDate)s'),
+                                              CONSTRAINT %(partitionName)s_date_check CHECK (TIMESTAMP with time zone '%(startDate)s' <= date_processed and date_processed < TIMESTAMP with time zone '%(endDate)s'),
                                               CONSTRAINT %(partitionName)s_unique_uuid unique (uuid),
                                               PRIMARY KEY(id)
                                           )
@@ -425,8 +425,8 @@ class ProcessorsTable(Table):
                                             CREATE TABLE processors (
                                                 id serial NOT NULL PRIMARY KEY,
                                                 name varchar(255) NOT NULL UNIQUE,
-                                                startdatetime timestamp without time zone NOT NULL,
-                                                lastseendatetime timestamp without time zone
+                                                startdatetime timestamp with time zone NOT NULL,
+                                                lastseendatetime timestamp with time zone
                                             );""")
   def updateDefinition(self, databaseCursor):
     indexesList = socorro_pg.indexesForTable(self.name, databaseCursor)
@@ -448,9 +448,9 @@ class JobsTable(Table):
                                             uuid varchar(50) NOT NULL UNIQUE,
                                             owner integer,
                                             priority integer DEFAULT 0,
-                                            queueddatetime timestamp without time zone,
-                                            starteddatetime timestamp without time zone,
-                                            completeddatetime timestamp without time zone,
+                                            queueddatetime timestamp with time zone,
+                                            starteddatetime timestamp with time zone,
+                                            completeddatetime timestamp with time zone,
                                             success boolean,
                                             message text,
                                             FOREIGN KEY (owner) REFERENCES processors (id)
@@ -550,13 +550,13 @@ class ServerStatusTable(Table):
                                        creationSql="""
                                           CREATE TABLE server_status (
                                               id serial NOT NULL,
-                                              date_recently_completed timestamp without time zone,
-                                              date_oldest_job_queued timestamp without time zone,
+                                              date_recently_completed timestamp with time zone,
+                                              date_oldest_job_queued timestamp with time zone,
                                               avg_process_sec real,
                                               avg_wait_sec real,
                                               waiting_job_count integer NOT NULL,
                                               processors_count integer NOT NULL,
-                                              date_created timestamp without time zone NOT NULL
+                                              date_created timestamp with time zone NOT NULL
                                           );
                                           ALTER TABLE ONLY server_status
                                               ADD CONSTRAINT server_status_pkey PRIMARY KEY (id);
@@ -864,10 +864,10 @@ databaseDependenciesForSetup[OsDimsTable] = []
 #                                               cpu_info TEXT, -- varchar(100)
 #                                               reason TEXT,   -- varchar(255)
 #                                               address TEXT,  -- varchar(20)
-#                                               build_date TIMESTAMP without time zone,
-#                                               started_datetime TIMESTAMP without time zone,
-#                                               completed_datetime TIMESTAMP without time zone,
-#                                               date_processed TIMESTAMP without time zone,
+#                                               build_date TIMESTAMP with time zone,
+#                                               started_datetime TIMESTAMP with time zone,
+#                                               completed_datetime TIMESTAMP with time zone,
+#                                               date_processed TIMESTAMP with time zone,
 #                                               success BOOLEAN,
 #                                               truncated BOOLEAN,
 #                                               processor_notes TEXT,
@@ -889,7 +889,7 @@ databaseDependenciesForSetup[OsDimsTable] = []
 #                                           --    FOR EACH ROW EXECUTE PROCEDURE partition_insert_trigger();""",
 #                                        partitionCreationSqlTemplate="""
 #                                           CREATE TABLE %(partitionName)s (
-#                                               CONSTRAINT %(partitionName)s_date_check CHECK (TIMESTAMP without time zone '%(startDate)s' <= date_processed and date_processed < TIMESTAMP without time zone '%(endDate)s'),
+#                                               CONSTRAINT %(partitionName)s_date_check CHECK (TIMESTAMP with time zone '%(startDate)s' <= date_processed and date_processed < TIMESTAMP with time zone '%(endDate)s'),
 #                                               CONSTRAINT %(partitionName)s_unique_uuid unique (uuid),
 #                                               PRIMARY KEY(id)
 #                                           )
@@ -931,7 +931,7 @@ class ExtensionsTable(PartitionedTable):
                                           creationSql="""
                                               CREATE TABLE extensions (
                                                   report_id integer NOT NULL,
-                                                  date_processed timestamp without time zone,
+                                                  date_processed timestamp with time zone,
                                                   extension_key integer NOT NULL,
                                                   extension_id text NOT NULL,
                                                   extension_version text
@@ -941,7 +941,7 @@ class ExtensionsTable(PartitionedTable):
                                               --    FOR EACH ROW EXECUTE PROCEDURE partition_insert_trigger();""",
                                           partitionCreationSqlTemplate="""
                                               CREATE TABLE %(partitionName)s (
-                                                  CONSTRAINT %(partitionName)s_date_check CHECK (TIMESTAMP without time zone '%(startDate)s' <= date_processed and date_processed < TIMESTAMP without time zone '%(endDate)s'),
+                                                  CONSTRAINT %(partitionName)s_date_check CHECK (TIMESTAMP with time zone '%(startDate)s' <= date_processed and date_processed < TIMESTAMP with time zone '%(endDate)s'),
                                                   PRIMARY KEY (report_id, extension_key)
                                                   )
                                                   INHERITS (extensions);
@@ -956,7 +956,7 @@ class ExtensionsTable(PartitionedTable):
     columnNameTypeDictionary = socorro_pg.columnNameTypeDictionaryForTable(tableName, databaseCursor)
     #if 'date_processed' not in columnNameTypeDictionary:
       #databaseCursor.execute("""ALTER TABLE %s
-                                    #ADD COLUMN date_processed TIMESTAMP without time zone;""" % tableName)
+                                    #ADD COLUMN date_processed TIMESTAMP with time zone;""" % tableName)
   #-----------------------------------------------------------------------------------------------------------------
   def updateDefinition(self, databaseCursor):
     self.updateColumnDefinitions(databaseCursor)
@@ -993,7 +993,7 @@ class FramesTable(PartitionedTable):
                                       creationSql="""
                                           CREATE TABLE frames (
                                               report_id integer NOT NULL,
-                                              date_processed timestamp without time zone,
+                                              date_processed timestamp with time zone,
                                               frame_num integer NOT NULL,
                                               signature varchar(255)
                                           );
@@ -1002,7 +1002,7 @@ class FramesTable(PartitionedTable):
                                           --    FOR EACH ROW EXECUTE PROCEDURE partition_insert_trigger();""",
                                       partitionCreationSqlTemplate="""
                                           CREATE TABLE %(partitionName)s (
-                                              CONSTRAINT %(partitionName)s_date_check CHECK (TIMESTAMP without time zone '%(startDate)s' <= date_processed and date_processed < TIMESTAMP without time zone '%(endDate)s'),
+                                              CONSTRAINT %(partitionName)s_date_check CHECK (TIMESTAMP with time zone '%(startDate)s' <= date_processed and date_processed < TIMESTAMP with time zone '%(endDate)s'),
                                               PRIMARY KEY (report_id, frame_num)
                                           )
                                           INHERITS (frames);
@@ -1017,7 +1017,7 @@ class FramesTable(PartitionedTable):
     columnNameTypeDictionary = socorro_pg.columnNameTypeDictionaryForTable(tableName, databaseCursor)
     #if 'date_processed' not in columnNameTypeDictionary:
       #databaseCursor.execute("""ALTER TABLE %s
-                                    #ADD COLUMN date_processed TIMESTAMP without time zone;""" % tableName)
+                                    #ADD COLUMN date_processed TIMESTAMP with time zone;""" % tableName)
   #-----------------------------------------------------------------------------------------------------------------
   def updateDefinition(self, databaseCursor):
     self.updateColumnDefinitions(databaseCursor)
@@ -1054,7 +1054,7 @@ databaseDependenciesForSetup[FramesTable] = []
 #                                      creationSql="""
 #                                          CREATE TABLE dumps (
 #                                              report_id integer NOT NULL PRIMARY KEY,
-#                                              date_processed timestamp without time zone,
+#                                              date_processed timestamp with time zone,
 #                                              data text
 #                                          );
 #                                          --CREATE TRIGGER dumps_insert_trigger
@@ -1062,7 +1062,7 @@ databaseDependenciesForSetup[FramesTable] = []
 #                                          --   FOR EACH ROW EXECUTE PROCEDURE partition_insert_trigger();""",
 #                                      partitionCreationSqlTemplate="""
 #                                          CREATE TABLE %(partitionName)s (
-#                                              CONSTRAINT %(partitionName)s_date_check CHECK (TIMESTAMP without time zone '%(startDate)s' <= date_processed and date_processed < TIMESTAMP without time zone '%(endDate)s')
+#                                              CONSTRAINT %(partitionName)s_date_check CHECK (TIMESTAMP with time zone '%(startDate)s' <= date_processed and date_processed < TIMESTAMP with time zone '%(endDate)s')
 #                                          )
 #                                          INHERITS (dumps);
 #                                          CREATE INDEX %(partitionName)s_report_id_date_key ON %(partitionName)s (report_id, date_processed);
@@ -1075,7 +1075,7 @@ databaseDependenciesForSetup[FramesTable] = []
 #     columnNameTypeDictionary = socorro_pg.columnNameTypeDictionaryForTable(tableName, databaseCursor)
 #     #if 'date_processed' not in columnNameTypeDictionary:
 #       #databaseCursor.execute("""ALTER TABLE %s
-#                                     #ADD COLUMN date_processed TIMESTAMP without time zone;""" % tableName)
+#                                     #ADD COLUMN date_processed TIMESTAMP with time zone;""" % tableName)
 #   #-----------------------------------------------------------------------------------------------------------------
 #   def updateDefinition(self, databaseCursor):
 #     self.updateColumnDefinitions(databaseCursor)
@@ -1115,7 +1115,7 @@ class TimeBeforeFailureTable(Table):
                                               report_count integer NOT NULL,
                                               productdims_id integer,
                                               osdims_id integer,
-                                              window_end TIMESTAMP WITHOUT TIME ZONE NOT NULL,
+                                              window_end TIMESTAMP with TIME ZONE NOT NULL,
                                               window_size INTERVAL NOT NULL
                                               );
                                           CREATE INDEX time_before_failure_window_end_window_size_key ON time_before_failure (window_end,window_size);
@@ -1252,7 +1252,7 @@ class TopCrashesByUrlTable(Table):
                                   urldims_id integer,
                                   productdims_id integer,
                                   osdims_id integer,
-                                  window_end TIMESTAMP WITHOUT TIME ZONE NOT NULL,
+                                  window_end TIMESTAMP with TIME ZONE NOT NULL,
                                   window_size INTERVAL NOT NULL
                                   );
                                   ALTER TABLE ONLY top_crashes_by_url
@@ -1302,7 +1302,7 @@ class TopCrashesBySignatureTable(Table):
                                                osdims_id integer,
                                                hang_count integer DEFAULT 0,
                                                plugin_count integer DEFAULT 0,
-                                               window_end TIMESTAMP WITHOUT TIME ZONE NOT NULL,
+                                               window_end TIMESTAMP with TIME ZONE NOT NULL,
                                                window_size INTERVAL NOT NULL
                                              );
                                              ALTER TABLE ONLY top_crashes_by_signature ADD CONSTRAINT productdims_id_fkey FOREIGN KEY (productdims_id) REFERENCES productdims(id) ON DELETE CASCADE;
@@ -1345,13 +1345,13 @@ class PluginsReportsTable(PartitionedTable):
                                               CREATE TABLE plugins_reports (
                                                   report_id integer NOT NULL,
                                                   plugin_id integer NOT NULL,
-                                                  date_processed timestamp without time zone,
+                                                  date_processed timestamp with time zone,
                                                   version TEXT NOT NULL
                                               );""",
 
                                           partitionCreationSqlTemplate="""
                                               CREATE TABLE %(partitionName)s (
-                                                  CONSTRAINT %(partitionName)s_date_check CHECK (TIMESTAMP without time zone '%(startDate)s' <= date_processed and date_processed < TIMESTAMP without time zone '%(endDate)s'),
+                                                  CONSTRAINT %(partitionName)s_date_check CHECK (TIMESTAMP with time zone '%(startDate)s' <= date_processed and date_processed < TIMESTAMP with time zone '%(endDate)s'),
                                                   PRIMARY KEY (report_id, plugin_id)
                                                   )
                                                   INHERITS (plugins_reports);
@@ -1385,7 +1385,7 @@ class AlexaTopsitesTable(Table):
                                               CREATE TABLE alexa_topsites (
                                                 domain text NOT NULL PRIMARY KEY,
                                                 rank integer DEFAULT 10000,
-                                                last_updated timestamp without time zone
+                                                last_updated timestamp with time zone
                                                 );
                                               """
                                             )
@@ -1398,7 +1398,7 @@ class RawAduTable(Table):
                                      creationSql = """
                                        CREATE TABLE raw_adu (
                                          adu_count integer,
-                                         date timestamp without time zone,
+                                         date timestamp with time zone,
                                          product_name text,
                                          product_os_platform text,
                                          product_os_version text,
@@ -1428,7 +1428,7 @@ class BuildsTable(Table):
                                                 buildid BIGINT,
                                                 platform_changeset text,
                                                 filename text,
-                                                date timestamp without time zone DEFAULT now(),
+                                                date timestamp with time zone DEFAULT now(),
                                                 app_changeset_1 text,
                                                 app_changeset_2 text
                                             );
@@ -1494,7 +1494,7 @@ class DailyCrashesTable(Table):
                                                 report_type CHAR(1) NOT NULL DEFAULT 'C',
                                                 productdims_id INTEGER REFERENCES productdims(id),
                                                 os_short_name CHAR(3),
-                                                adu_day TIMESTAMP WITHOUT TIME ZONE NOT NULL,
+                                                adu_day TIMESTAMP with TIME ZONE NOT NULL,
                                                 CONSTRAINT day_product_os_report_type_unique UNIQUE (adu_day, productdims_id, os_short_name, report_type));
                                         """)
     self.insertSql = """INSERT INTO TABLENAME (count, report_type, productdims_id, os_short_name, adu_day) values (%s, %s, %s, %s, %s)"""
@@ -1531,7 +1531,7 @@ databaseDependenciesForSetup[DailyCrashesTable] = [ProductDimsTable]
 #                                               trend character varying(30),
 #                                               uptime real,
 #                                               users integer,
-#                                               last_updated timestamp without time zone
+#                                               last_updated timestamp with time zone
 #                                           );
 #                                           ALTER TABLE ONLY topcrashers
 #                                               ADD CONSTRAINT topcrashers_pkey PRIMARY KEY (id);
@@ -1628,12 +1628,12 @@ class EmailCampaignsTable(Table):
                                                 signature TEXT NOT NULL,
                                                 subject TEXT NOT NULL,
                                                 body TEXT NOT NULL,
-                                                start_date timestamp without time zone NOT NULL,
-                                                end_date timestamp without time zone NOT NULL,
+                                                start_date timestamp with time zone NOT NULL,
+                                                end_date timestamp with time zone NOT NULL,
                                                 email_count INTEGER DEFAULT 0,
                                                 author TEXT NOT NULL,
                                                 status TEXT NOT NULL DEFAULT 'stopped',
-                                                date_created timestamp without time zone NOT NULL DEFAULT now());
+                                                date_created timestamp with time zone NOT NULL DEFAULT now());
                                             CREATE INDEX email_campaigns_product_signature_key ON email_campaigns (product, signature);
                                         """)
     self.insertSql = """INSERT INTO email_campaigns (product, versions, signature, subject, body, start_date, end_date, email_count, author)

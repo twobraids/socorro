@@ -7,6 +7,7 @@ import os
 import time
 import psycopg2
 import socorro.unittest.testlib.createJsonDumpStore as createJDS
+from socorro.lib.datetimeutil import utctz
 
 def datetimeNow(cursor):
   cursor.execute("SELECT LOCALTIMESTAMP(6)")

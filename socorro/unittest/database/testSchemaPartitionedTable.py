@@ -16,6 +16,7 @@ import socorro.database.postgresql as socorro_psg
 from socorro.unittest.testlib.testDB import TestDB
 import socorro.unittest.testlib.util as tutil
 import socorro.unittest.testlib.dbtestutil as dbtestutil
+from socorro.lib.datetimeutil import utctz
 
 import dbTestconfig as testConfig
 
@@ -95,7 +96,7 @@ class TestPartitionedTable:
     """
     # make sure we don't fail if we are being run 'too close for comfort' to midnight
     now = dt.datetime.now(utctz)
-    midnight = dt.datetime(now.year,now.month,now.day,0,0,00)
+    midnight = dt.datetime(now.year,now.month,now.day,0,0,0,tzinfo=utctz)
     midnight += dt.timedelta(days=1)
     middiff = midnight - now
     if middiff < dt.timedelta(0,2):

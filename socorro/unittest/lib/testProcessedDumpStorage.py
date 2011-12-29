@@ -12,6 +12,7 @@ import socorro.unittest.testlib.util as tutil
 
 import socorro.lib.util as socorro_util
 import socorro.lib.processedDumpStorage as dumpStorage
+from socorro.lib.datetimeutil import utctz
 
 def setup_module():
   tutil.nosePrintModule(__file__)
@@ -70,7 +71,7 @@ class TestProcessedDumpStorage(unittest.TestCase):
       pass # ok if there is no such test directory
 
   def dailyFromNow(self):
-    return ''.join(datetime.date.today().isoformat().split('-'))
+    return ''.join(datetime.datetime.now(utctz).date().isoformat().split('-'))
 
   def dailyFromDate(self,dateString):
     """given "YYYY-mm-dd-hh-mm" return YYYYmmdd string"""
@@ -116,7 +117,7 @@ class TestProcessedDumpStorage(unittest.TestCase):
       hourPart,slot = self.relativeDateParts(tdate,storage.minutesPerSlot)
       datepart = "%s_0"%(os.path.join(hourPart,slot))
       expectedDateDir = os.sep.join((storage.root,dailyPart,storage.dateName,datepart))
-      testStamp = datetime.datetime(*[int(x) for x in tdate.split('-')])
+      testStamp = datetime.datetime(*[int(x) for x in tdate.split('-')],tzinfo=utctz)
       fh = None
       try:
         fh = storage.newEntry(ooid,testStamp)
@@ -175,7 +176,8 @@ class TestProcessedDumpStorage(unittest.TestCase):
       assert ooid == os.path.split(p)[1]
       assert storage.dateName in p
 
-    assert os.path.exists(expectedFile), 'Just a nicer way to say your test is FUBAR'
+    print expectedPath
+    assert os.path.exists(expectedFile), 'expected file not found: %s' % expectedFile
     f = gzip.open(expectedFile)
     lines = " ".join(f.readlines())
     f.close()
@@ -190,7 +192,7 @@ class TestProcessedDumpStorage(unittest.TestCase):
       seqs[ooid] = seq
       expectedDir = os.sep.join((storage.root,self.dailyFromDate(tdate),storage.dateName,hh,"%s_0"%slot))
       expectedPath = os.path.join(expectedDir,"%s%s"%(ooid,storage.fileSuffix))
-      stamp = datetime.datetime(*[int(x) for x in tdate.split('-')])
+      stamp = datetime.datetime(*[int(x) for x in tdate.split('-')],tzinfo=utctz)
       fh = storage.newEntry(ooid,stamp)
       fh.write("Sequence Number %d\n"%seq)
       fh.close()

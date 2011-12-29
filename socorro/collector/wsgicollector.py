@@ -13,7 +13,7 @@ import socorro.lib.util as sutil
 import socorro.lib.ooid as sooid
 import socorro.storage.crashstorage as cstore
 
-utctz = sdt.UTC()
+from socorro.lib.datetimeutil import utctz
 
 #===============================================================================
 class Collector(object):

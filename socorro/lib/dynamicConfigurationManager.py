@@ -4,6 +4,7 @@ import signal
 import socorro.lib.ConfigurationManager as socorro_config
 from socorro.lib.ConfigurationManager import ConfigFileMissingError, ConfigFileOptionNameMissingError, NotAnOptionError, OptionError, CannotConvert, Option
 from socorro.lib.ConfigurationManager import ioConverter, dateTimeConverter, timeDeltaConverter, booleanConverter
+from socorro.lib.datetimeutil import utctz
 
 def newConfiguration(**kwargs):
   """ This used as an alternate constructor for class Config so that applications can

@@ -3,6 +3,8 @@
 import socorro.lib.util as lib_util
 import socorro.lib.ConfigurationManager as cm
 import socorro.lib.psycopghelper as psy
+from socorro.lib.datetimeutil import utctz
+
 import datetime
 import logging
 import time

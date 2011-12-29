@@ -10,9 +10,8 @@ import socorro.lib.dumpStorage as socorro_dumpStorage
 import socorro.lib.filesystem as socorro_fs
 import socorro.lib.util as socorro_util
 import socorro.lib.ooid as socorro_ooid
-import socorro.lib.datetimeutil as sdt
 
-utctz = sdt.UTC()
+from socorro.lib.datetimeutil import utctz
 
 class NoSuchUuidFound(Exception):
   pass

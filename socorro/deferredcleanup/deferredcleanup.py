@@ -1,6 +1,7 @@
 import datetime as dt
 
 import socorro.lib.JsonDumpStorage as jds
+from socorro.lib.datetimeutil import utctz
 
 def deferredJobStorageCleanup (config, logger):
   """

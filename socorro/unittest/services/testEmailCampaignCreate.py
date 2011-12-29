@@ -1,6 +1,7 @@
 import socorro.unittest.testlib.expectations as expect
 import socorro.services.emailCampaignCreate as ecc
 import socorro.lib.util as util
+from socorro.lib.datetimeutil import utctz
 
 from socorro.database.schema import EmailCampaignsTable
 
