@@ -51,6 +51,10 @@ def parseInfoFile(url, nightly=False, urllib=urllib2):
 def getRelease(dirname, url, urllib=urllib2):
     candidate_url = '%s/%s' % (url, dirname)
     builds = getLinks(candidate_url, startswith='build', urllib=urllib)
+    if not builds:
+        logger.info('No build dirs in %s' % candidate_url)
+        return
+
     latest_build = builds.pop()
     build_url = '%s/%s' % (candidate_url, latest_build)
 
@@ -73,21 +77,28 @@ def getNightly(dirname, url, urllib=urllib2, backfill_date=None):
 
     info_files = getLinks(nightly_url, endswith='.txt', urllib=urllib)
     for f in info_files:
+        pv = None
+        platform = None
         if 'en-US' in f:
             (pv, platform) = f.strip('.txt').split('.en-US.')
-            product = pv.split('-')[:-1]
-            version = pv.split('-')[-1]
-            repository = []
+        elif 'multi' in f:
+            (pv, platform) = f.strip('.txt').split('.multi.')
+        else:
+            return
 
-            for field in dirname.split('-'):
-                if not field.isdigit():
-                    repository.append(field)
-            repository = '-'.join(repository).strip('/')
+        product = pv.split('-')[:-1]
+        version = pv.split('-')[-1]
+        repository = []
 
-            info_url = '%s/%s' % (nightly_url, f)
-            kvpairs = parseInfoFile(info_url, nightly=True)
+        for field in dirname.split('-'):
+            if not field.isdigit():
+                repository.append(field)
+        repository = '-'.join(repository).strip('/')
 
-            yield (platform, repository, version, kvpairs)
+        info_url = '%s/%s' % (nightly_url, f)
+        kvpairs = parseInfoFile(info_url, nightly=True)
+
+        yield (platform, repository, version, kvpairs)
 
 
 def recordBuilds(config, backfill_date):
