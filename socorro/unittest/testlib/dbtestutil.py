@@ -190,7 +190,8 @@ def fillMtbfTables(cursor, limit=12):
     productDimData.append(p)
   versionSet = set([x[2] for x in productDimData]) # lose duplicates
   versions = [x for x in versionSet][:8] # Get the right number
-  baseDate = dt.date(2008,1,1)
+  #baseDate = dt.date(2008,1,1)
+  baseDate = dt.datetime(2008,1,1,tzinfo=utctz)
   lintervals = [(baseDate + dt.timedelta(days=0), baseDate + dt.timedelta(days=30)),
                 (baseDate + dt.timedelta(days=10),baseDate + dt.timedelta(days=40)),
                 (baseDate + dt.timedelta(days=20),baseDate + dt.timedelta(days=50)),
@@ -395,8 +396,10 @@ def fillReportsTable(cursor, doFillMtbfTables=True, createUrls=False, numUrls=30
         for ptIndex in range(len(processTimes)):
           pt = processTimes[ptIndex].replace(microsecond = 10000*mm)
           ct = crashTimes[ptIndex].replace(microsecond = 9000*mm)
-          dp = "%s %s"%(d.isoformat(),pt.isoformat())
-          ccd = "%s %s"%(d.isoformat(),ct.isoformat())
+          #dp = "%s %s"%(d.isoformat(),pt.isoformat())
+          dp = dt.datetime(d.year, d.month, d.day, pt.hour, pt.minute, pt.second)
+          #ccd = "%s %s"%(d.isoformat(),ct.isoformat())
+          ccd = dt.datetime(d.year, d.month, d.day, ct.hour, ct.minute, ct.second)
           tup = (uuidGen.next(), uptime,dp,product[1],product[2],product[5],product[6])
           tup2 = (tup[0], ccd, 10000, 100, uptime, dp, True, sigGen.next(), urlGen.next(), product[1], product[2], product[5], product[6])
           data2.append(tup2)
