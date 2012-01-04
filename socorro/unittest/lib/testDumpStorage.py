@@ -212,7 +212,7 @@ class TestDumpStorage:
     for (pathInfo,dateParts) in testCases:
       path = os.sep.join(pathInfo)
       if dateParts:
-        expected = datetime.datetime(*dateParts)
+        expected = datetime.datetime(*dateParts, tzinfo=utctz)
         got = d.pathToDate(path)
         assert expected == got, 'Expected: %s but got %s'%(expected,got)
       else:
@@ -225,7 +225,7 @@ class TestDumpStorage:
     for ooid,v in createJDS.jsonFileData.items():
       dateS = v[0]
       if 0 == count%2:
-        nd,dd = d.newEntry(ooid,datetime.datetime(*[int(x) for x in dateS.split('-')]))
+        nd,dd = d.newEntry(ooid,datetime.datetime(*[int(x) for x in dateS.split('-')], tzinfo=utctz))
         expected[ooid] = nd
       elif 0 == count%5:
         expected[ooid] = None
@@ -236,7 +236,7 @@ class TestDumpStorage:
       count += 1
     for ooid,v in createJDS.jsonFileData.items():
       dateS = v[0]
-      testDate = datetime.datetime(*[int(x) for x in dateS.split('-')])
+      testDate = datetime.datetime(*[int(x) for x in dateS.split('-')], tzinfo=utctz)
       got,ignore =  d.lookupNamePath(ooid,testDate)
       assert expected[ooid] == got, 'For %s, expected path %s, got %s'%(ooid,expected,got)
 
@@ -350,7 +350,7 @@ class TestDumpStorage:
     for ooid,v in createJDS.jsonFileData.items():
       dateS = v[0]
       if 0 == count%2:
-        nd,dd = d.newEntry(ooid,datetime.datetime(*[int(x) for x in dateS.split('-')]))
+        nd,dd = d.newEntry(ooid,datetime.datetime(*[int(x) for x in dateS.split('-')], tzinfo=utctz))
         expected[ooid] = dd
       elif 0 == count%5:
         expected[ooid] = None
@@ -364,7 +364,7 @@ class TestDumpStorage:
     for ooid in createJDS.jsonFileData.keys():
       dateS = v[0]
       if expected[ooid]:
-        exEnd = datetime.datetime(*[int(x) for x in dateS.split('-')])
+        exEnd = datetime.datetime(*[int(x) for x in dateS.split('-')], tzinfo=utctz)
         passDate = datetime.datetime.now(utctz)
         if 0 == count%3:
           passDate = None

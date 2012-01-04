@@ -166,7 +166,7 @@ class DumpStorage(object):
         hour = int(parts[-3])
       except ValueError:
         pass
-    return datetime.datetime(int(parts[1][:4]),int(parts[1][4:6]),int(parts[1][-2:]),int(hour),minute)
+    return datetime.datetime(int(parts[1][:4]),int(parts[1][4:6]),int(parts[1][-2:]),int(hour),minute,tzinfo=utctz)
 
   def lookupNamePath(self,ooid,timestamp=None):
     """

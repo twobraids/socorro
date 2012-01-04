@@ -57,8 +57,8 @@ class AduByDayDetails(AduByDayBase):
     sql = """
       SELECT adu_day, os_short_name, %(selectListPhrase)s
       FROM daily_crashes
-      WHERE timestamp without time zone %%(start_date)s < adu_day AND
-            adu_day <= timestamp without time zone %%(end_date)s AND
+      WHERE timestamp with time zone %%(start_date)s < adu_day AND
+            adu_day <= timestamp with time zone %%(end_date)s AND
             productdims_id = %%(productdims_id)s AND
              %(os_phrase)s AND
              %(report_types_phrase)s

@@ -88,8 +88,8 @@ class AduByDay(webapi.JsonServiceBase):
     sql = """
       SELECT adu_day::DATE, os_short_name, SUM(count)
       FROM daily_crashes
-      WHERE timestamp without time zone %%(start_date)s <= adu_day AND
-            adu_day <= timestamp without time zone %%(end_date)s AND
+      WHERE timestamp with time zone %%(start_date)s <= adu_day AND
+            adu_day <= timestamp with time zone %%(end_date)s AND
             productdims_id = %%(productdims_id)s AND
              %(os_phrase)s AND
              %(report_type_phrase)s

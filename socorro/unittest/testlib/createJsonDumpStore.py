@@ -93,7 +93,7 @@ def createTestSet(testData,jsonKwargs,rootDir):
       d3h = '%d/%02d/%02d/%02d/%s' %(thedt.year,thedt.month,thedt.day,thedt.hour,slot[data[0]])
       data[3] = "%s/%s" % (d3h,data[3])
     else:
-      thedt = datetime.datetime(*[int(x) for x in data[0].split('-')])
+      thedt = datetime.datetime(*[int(x) for x in data[0].split('-')], tzinfo=utctz)
     fj,fd = storage.newEntry(uuid,webheadHostName=data[1],timestamp = thedt)
     try:
       if jsonIsEmpty:

@@ -13,6 +13,8 @@ import socorro.lib.util
 import socorro.unittest.testlib.createJsonDumpStore as createJDS
 import socorro.unittest.testlib.util as tutil
 
+from socorro.lib.datetimeutil import utctz
+
 def setup_module():
   print tutil.getModuleFromFile(__file__)
 
@@ -119,7 +121,7 @@ class TestJsonDumpStorage(unittest.TestCase):
     for uuid,data in createJDS.jsonFileData.items():
       datetimedata = [int(x) for x in data[0].split('-')]
       uuid = ''.join((uuid[:-7],'2',uuid[-6:]))
-      stamp = datetime.datetime(*datetimedata)
+      stamp = datetime.datetime(*datetimedata, tzinfo=utctz)
       try:
         fj,fd = storage.newEntry(uuid,webheadHostName=data[1],timestamp = stamp)
       except IOError:
@@ -180,7 +182,7 @@ class TestJsonDumpStorage(unittest.TestCase):
       df.write('dump file: %s\n'%uuid)
       jf.close()
       df.close()
-      stamp = datetime.datetime(*[int(x) for x in stampS.split('-')])
+      stamp = datetime.datetime(*[int(x) for x in stampS.split('-')], tzinfo=utctz)
       newjpath = None
       try:
         ok = storage.copyFrom(uuid,jpath,dpath,head,stamp,doLink,doRm)

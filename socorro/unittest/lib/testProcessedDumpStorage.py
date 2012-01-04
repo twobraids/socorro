@@ -148,7 +148,7 @@ class TestProcessedDumpStorage(unittest.TestCase):
     storage = dumpStorage.ProcessedDumpStorage(self.testDir,**self.initKwargs[2])
     ooid = '0bae7049-bbff-49f2-dead-7e9fe2081125' # is coded for depth 2, so no special thought needed
     data = createJDS.jsonFileData[ooid]
-    stamp = datetime.datetime(*[int(x) for x in data[0].split('-')])
+    stamp = datetime.datetime(*[int(x) for x in data[0].split('-')], tzinfo=utctz)
     expectedPath = os.sep.join((storage.root,self.dailyFromNow(),storage.indexName,data[2]))
     expectedFile = os.path.join(expectedPath,ooid+storage.fileSuffix)
     assert not os.path.exists(expectedPath), 'Better not exist at start of test'
@@ -209,7 +209,7 @@ class TestProcessedDumpStorage(unittest.TestCase):
   def createDumpSet(self, dumpStorage):
     for ooid,data in createJDS.jsonFileData.items():
       bogusData["uuid"] = ooid
-      stamp = datetime.datetime(*[int(x) for x in data[0].split('-')])
+      stamp = datetime.datetime(*[int(x) for x in data[0].split('-')], tzinfo=utctz)
       dumpStorage.putDumpToFile(ooid,bogusData,stamp)
 
   def testRemoveDumpFile(self):
@@ -248,7 +248,7 @@ class TestProcessedDumpStorage(unittest.TestCase):
   def testSecondNewEntryAfterRemove(self):
     storage = dumpStorage.ProcessedDumpStorage(self.testDir,**self.initKwargs[0])
     ooid,(tdate,ig1,pathprefix,longDatePath) = createJDS.jsonFileData.items()[1]
-    testStamp = datetime.datetime(*[int(x) for x in tdate.split('-')])
+    testStamp = datetime.datetime(*[int(x) for x in tdate.split('-')], tzinfo=utctz)
     fh = storage.newEntry(ooid,testStamp)
     fh.close()
     storage.removeDumpFile(ooid)

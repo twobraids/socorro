@@ -349,7 +349,7 @@ def testAduByDay_fetchCrashHistory():
                            })
   sql = """
       select
-          CAST(ceil(EXTRACT(EPOCH FROM (window_end - timestamp without time zone %(start_date)s - interval %(socorroTimeToUTCInterval)s)) / 86400) AS INT) * interval '24 hours' + timestamp without time zone %(start_date)s as day,
+          CAST(ceil(EXTRACT(EPOCH FROM (window_end - timestamp with time zone %(start_date)s - interval %(socorroTimeToUTCInterval)s)) / 86400) AS INT) * interval '24 hours' + timestamp without time zone %(start_date)s as day,
           case when os.os_name = 'Windows NT' then
             'Windows'
           when os.os_name = 'Mac OS X' then
