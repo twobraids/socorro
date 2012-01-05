@@ -8,6 +8,7 @@ import signal
 import threading
 import time
 import urllib2
+import functools
 
 logger = logging.getLogger("processor")
 
@@ -27,6 +28,7 @@ import socorro.processor.registration as reg
 
 from socorro.lib.datetimeutil import utctz
 
+now_func = functools.partial(datetime.datetime.now, utctz)
 # NOTE - this will be cached for the lifetime of the process
 # restart processor to refresh from the database
 productIdMap = {}
@@ -101,7 +103,7 @@ class Processor(object):
 
   #-----------------------------------------------------------------------------------------------------------------
   def __init__ (self, config, sdb=sdb, cstore=cstore, signal=signal,
-                sthr=sthr, os=os, nowFunc=datetime.datetime.now):
+                sthr=sthr, os=os, nowFunc=now_func):
     """
     """
     super(Processor, self).__init__()

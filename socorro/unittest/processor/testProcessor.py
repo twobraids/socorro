@@ -761,7 +761,7 @@ def testProcessJob06():
     c.fakeConnection.expect('commit', (), {}, None)
     c.fakeCursor.expect('execute',
                         ("update reports set started_datetime = timestamp "
-                         " %s, completed_datetime = "
+                         "with time zone %s, completed_datetime = "
                          "timestamp with time zone %s, success = False, "
                          "processor_notes = %s where id = %s and "
                          "date_processed = timestamp with time zone %s",
