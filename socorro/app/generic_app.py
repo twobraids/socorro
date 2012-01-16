@@ -4,6 +4,10 @@ import inspect
 import logging
 import logging.handlers
 import functools
+import signal
+
+from socorro.lib.iteratorWorkerFramework import IteratorWorkerFramework, \
+                                                respondToSIGTERM
 
 from configman import ConfigurationManager, Namespace, RequiredConfig
 from configman.converters import class_converter
@@ -17,6 +21,13 @@ class AppDetailMissingError(AttributeError):
 #==============================================================================
 class App(RequiredConfig):
     """The base class from which Socorro apps are based"""
+
+    OK = 0
+    CRITICAL = 1
+    ERROR = 2
+    RETRY = 3
+    WARNING = 4
+
     #--------------------------------------------------------------------------
     def __init__(self, config):
         self.config = config
@@ -28,36 +39,85 @@ class App(RequiredConfig):
                                   "is required")
 
 
+#==============================================================================
+class SequenceApp(App):
+    required_config = Namespace()
+    required_config.add_option('app_list',
+                               'socorro.app.example_app.ExampleApp, '
+                                   'socorro.app.example_app.ExampleApp, ',
+                               'a sequence of app classnames to be executed'
+                                   ' in sequence',
+                               from_string_onverter=sequence_of_app_classes)
+    def main(self):
+        for an_app_class in self.config.app_list:
+            result = App.RETRY
+            while result == App.RETRY:
+                an_app = an_app_class(config) # TODO: we really want a local 
+                                              # config not this global one
+                result = an_app.main()
+            if result in (App.CRITICAL. App.ERROR):
+                return result
+        return result
+
+
+#==============================================================================
+class ParellelApp(SequenceApp):
+    def main(self):
+        signal.signal(signal.SIGTERM, respondToSIGTERM)  # TODO: import properly
+        signal.signal(signal.SIGHUP, respondToSIGTERM)  # if thread uses iwf 
+                                                        # too, how to signal it
+                                                        # to stop?
+        def instantiate_and_run(app_class):
+            an_app = an_app_class(config)  # TODO: we really want a local config 
+            return an_app.main()
+        iwf = IteratorWorkerFramework(self.config,
+                                      iter(self.config.app_list),
+                                      instantiate_and_run)
+        try:
+            iwf.start()
+            iwf.waitForCompletion()
+        except KeyboardInterrupt:
+            while True:
+                try:
+                    submissionMill.stop()
+                    break
+                except KeyboardInterrupt:
+                    logger.warning('We heard you the first time.  There is no need for '
+                                   'further keyboard or signal interrupts.  We are '
+                                   'waiting for the worker threads to stop.  If this app '
+                                   'does not halt soon, you may have to send SIGKILL '
+                                   '(kill -9)')
+
 #------------------------------------------------------------------------------
 def logging_required_config(app_name):
     lc = Namespace()
     lc.add_option('syslog_host',
-              doc='syslog hostname',
-              default='localhost')
+                  doc='syslog hostname',
+                  default='localhost')
     lc.add_option('syslog_port',
-              doc='syslog port',
-              default=514)
+                  doc='syslog port',
+                  default=514)
     lc.add_option('syslog_facility_string',
-              doc='syslog facility string ("user", "local0", etc)',
-              default='user')
+                  doc='syslog facility string ("user", "local0", etc)',
+                  default='user')
     lc.add_option('syslog_line_format_string',
-              doc='python logging system format for syslog entries',
-              default='%s (pid %%(process)d): '
-                      '%%(asctime)s %%(levelname)s - %%(threadName)s - '
-                      '%%(message)s' % app_name)
+                  doc='python logging system format for syslog entries',
+                  default='%s (pid %%(process)d): '
+                  '%%(asctime)s %%(levelname)s - %%(threadName)s - '
+                  '%%(message)s' % app_name)
     lc.add_option('syslog_error_logging_level',
-              doc='logging level for the log file (10 - DEBUG, 20 '
+                  doc='logging level for the log file (10 - DEBUG, 20 '
                   '- INFO, 30 - WARNING, 40 - ERROR, 50 - CRITICAL)',
-              default=40)
+                  default=40)
     lc.add_option('stderr_line_format_string',
-              doc='python logging system format for logging to stderr',
-              default='%(asctime)s %(levelname)s - %(threadName)s - '
-                      '%(message)s')
+                  doc='python logging system format for logging to stderr',
+                  default='%(asctime)s %(levelname)s - %(threadName)s - '
+                  '%(message)s')
     lc.add_option('stderr_error_logging_level',
-              doc='logging level for the logging to stderr (10 - '
+                  doc='logging level for the logging to stderr (10 - '
                   'DEBUG, 20 - INFO, 30 - WARNING, 40 - ERROR, '
                   '50 - CRITICAL)',
-              default=10)
+                  default=10)
     return lc
 
 
@@ -72,7 +132,7 @@ def setup_logger(app_name, config, local_unused, args_unused):
     logger.addHandler(stderr_log)
 
     syslog = logging.handlers.SysLogHandler(
-                                        facility=config.syslog_facility_string)
+        facility=config.syslog_facility_string)
     syslog.setLevel(config.syslog_error_logging_level)
     syslog_formatter = logging.Formatter(config.syslog_line_format_string)
     syslog.setFormatter(syslog_formatter)
@@ -97,13 +157,13 @@ def main(initial_app):
     app_definition.admin = admin = Namespace()
     admin.add_option('application',
                      doc='the fully qualified module or class of the '
-                         'application',
+                     'application',
                      default=initial_app,
                      from_string_converter=class_converter
-                    )
+                     )
     try:
         app_name = initial_app.app_name  # this will be used as the default
-                                         # b
+                                            # b
         app_version = initial_app.app_version
         app_description = initial_app.app_description
     except AttributeError, x:
@@ -120,7 +180,7 @@ def main(initial_app):
                                           app_name=app_name,
                                           app_version=app_version,
                                           app_description=app_description,
-                                         )
+                                          )
 
     with config_manager.context() as config:
         config_manager.log_config(config.logger)
@@ -135,11 +195,11 @@ def main(initial_app):
         if isinstance(app, type):
             # invocation of the app if the app_object was a class
             instance = app(config)
-            instance.main()
+            return instance.main()
         elif inspect.ismodule(app):
             # invocation of the app if the app_object was a module
-            app.main(config)
+            return app.main(config)
         elif inspect.isfunction(app):
             # invocation of the app if the app_object was a function
-            app(config)
-        return 0
+            return app(config)
+        return App.CRITICAL

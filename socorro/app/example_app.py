@@ -41,6 +41,7 @@ class ExampleApp(App):
         # the configuraton is already setup as self.config
         print 'hello, %s. The time is: %s' % (self.config.name,
                                               self.config.time)
+        return self.OK
 
 
 if __name__ == '__main__':
