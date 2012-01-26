@@ -74,7 +74,7 @@ def move (conf,
       return iwf.FAILURE
   #-----------------------------------------------------------------------------
 
-  submissionMill = iwf.IteratorWorkerFramework(conf,
+  submissionMill = iwf.IteratorWorkerFrameworkWithRetry(conf,
                                                jobSourceIterator=theIterator,
                                                taskFunc=doSubmission,
                                                name='submissionMill')

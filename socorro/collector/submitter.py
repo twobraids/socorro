@@ -144,7 +144,7 @@ def submitter (config):
     theIterator = config.iteratorFunc (config)
     theWorkerFunction = createSubmitterFunction(config)
 
-    submissionMill = iwf.IteratorWorkerFramework(config,
+    submissionMill = iwf.IteratorWorkerFrameworkWithRetry(config,
                                                  jobSourceIterator=theIterator,
                                                  taskFunc=theWorkerFunction,
                                                  name='submissionMill')

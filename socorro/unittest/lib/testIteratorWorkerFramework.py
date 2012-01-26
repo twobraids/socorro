@@ -8,7 +8,7 @@ def testConstuctor1 ():
     config = sutil.DotDict({ 'logger': logger,
                'numberOfThreads': 1
              })
-    iwf = siwf.IteratorWorkerFramework(config,
+    iwf = siwf.IteratorWorkerFrameworkWithRetry(config,
                                        name='Wilma',
                                       )
     try:
@@ -26,7 +26,7 @@ def testStart1 ():
     config = sutil.DotDict({ 'logger': logger,
                'numberOfThreads': 1
              })
-    iwf = siwf.IteratorWorkerFramework(config,
+    iwf = siwf.IteratorWorkerFrameworkWithRetry(config,
                                        name='Wilma',
                                       )
     try:
@@ -50,7 +50,7 @@ def testDoingWorkWithOneWorker():
     def insertIntoList(anItem):
         myList.append(anItem[0])
         return siwf.OK
-    iwf = siwf.IteratorWorkerFramework(config,
+    iwf = siwf.IteratorWorkerFrameworkWithRetry(config,
                                        name='Wilma',
                                        taskFunc=insertIntoList
                                       )
@@ -75,7 +75,7 @@ def testDoingWorkWithTwoWorkers():
     def insertIntoList(anItem):
         myList.append(anItem[0])
         return siwf.OK
-    iwf = siwf.IteratorWorkerFramework(config,
+    iwf = siwf.IteratorWorkerFrameworkWithRetry(config,
                                        name='Wilma',
                                        taskFunc=insertIntoList
                                       )
