@@ -1,21 +1,16 @@
-import signal
 import time
 import threading
-
-
-#logger = logging.getLogger("base")
 
 import socorro.lib.util as sutil
 import socorro.lib.threadlib as thr
 
 from configman import RequiredConfig, Namespace
-from configman.converters import ClassConverter
+from configman.converters import class_converter
 
 #------------------------------------------------------------------------------
 OK = 1
 FAILURE = 0
 RETRY = 2
-
 
 #------------------------------------------------------------------------------
 def default_task_func(jobTuple):
@@ -37,10 +32,6 @@ def respondToSIGTERM(signalNumber, frame):
         a SIGTERM event, will make the program respond to a SIGTERM as neatly
         as it responds to ^C.
     """
-    signame = 'SIGTERM'
-    if signalNumber != signal.SIGTERM:
-        signame = 'SIGHUP'
-    #self.logger.info("%s detected", signame)
     raise KeyboardInterrupt
 
 
@@ -55,11 +46,11 @@ class IteratorWorkerFramework(RequiredConfig):
                                default=default_iterator,
                                doc='an iterator or callable that will '
                                    'return an iterator',
-                               from_string_converter=ClassConverter)
+                               from_string_converter=class_converter)
     required_config.add_option('task_func',
                                default=default_task_func,
                                doc='a callable that accomplishes a task',
-                               from_string_converter=ClassConverter)
+                               from_string_converter=class_converter)
 
     #--------------------------------------------------------------------------
     def __init__ (self, config, job_source_iterator=default_iterator,
@@ -69,13 +60,13 @@ class IteratorWorkerFramework(RequiredConfig):
         self.logger = config.logger
         self.jobSourceIterator = config.setdefault('job_source_iterator',
                                                    job_source_iterator)
-        self.task_func = config.setdefault('taskFunc', task_func)
+        self.task_func = config.setdefault('task_func', task_func)
         
         # setup the task manager to a queue size twice the size of the number
         # of threads in use.  Because some mechanisms that feed the queue are
         # can be destructive (JsonDumpStorage.destructiveDateWalk), we want to 
         # limit the damage in case of error or quit.
-        self.workerPool = thr.TaskManager(self.config.numberOfThreads,
+        self.worker_pool = thr.TaskManager(self.config.numberOfThreads,
                                           self.config.numberOfThreads * 2)
         self.quit = False
         self.logger.debug('finished init')
@@ -113,15 +104,14 @@ class IteratorWorkerFramework(RequiredConfig):
     #--------------------------------------------------------------------------
     def start (self):
         self.logger.debug('start')
-        self.queuingThread = threading.Thread(name="%sQueuingThread" % 
-                                                   self.name,
-                                              target=self.queuing_thread_func)
-        self.queuingThread.start()
+        self.queuing_thread = threading.Thread(name="QueuingThread",
+                                               target=self.queuing_thread_func)
+        self.queuing_thread.start()
 
     #--------------------------------------------------------------------------
     def wait_for_completion (self, waitingFunc=None):
         self.logger.debug("waiting to join queuingThread")
-        self.responsive_join(self.queuingThread, waitingFunc)
+        self.responsive_join(self.queuing_thread, waitingFunc)
 
     #--------------------------------------------------------------------------
     def stop (self):
@@ -147,7 +137,7 @@ class IteratorWorkerFramework(RequiredConfig):
                     self.quit_check()
                     try:
                         self.logger.debug("queuing standard job %s", aJob)
-                        self.workerPool.newTask(self.task_func, 
+                        self.worker_pool.newTask(self.task_func, 
                                                 (aJob,))
                     except Exception:
                         self.logger.warning('%s has failed', aJob)
@@ -161,11 +151,8 @@ class IteratorWorkerFramework(RequiredConfig):
             self.quit = True
             self.logger.debug("we're quitting queuingThread")
             self.logger.debug("waiting for standard worker threads to stop")
-            self.workerPool.waitForCompletion()
+            self.worker_pool.waitForCompletion()
             self.logger.debug("all worker threads stopped")
-
-
-
 
 
 #==============================================================================
@@ -176,16 +163,10 @@ class IteratorWorkerFrameworkWithRetry(IteratorWorkerFramework):
     def __init__ (self, config, 
                   name='mill', 
                   job_source_iterator=default_iterator,
-                  taskFunc=default_task_func):
-        """
-        Note about 'jobSourceIterator': this is perhaps a design flaw.  It 
-        isn't really an iterator.  It is a function that returns an iterator.  
-        Just passing in an iterator that's already activated or a generator 
-        expression will fail.
-        """
+                  task_func=default_task_func):
         super(IteratorWorkerFrameworkWithRetry, self).__init__(config,
                                                         job_source_iterator,
-                                                        taskFunc)
+                                                        task_func)
         self.inner_task_func = self.task_func
         self.task_func = self.retryTaskFuncWrapper
 
