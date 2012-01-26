@@ -15,7 +15,7 @@ def testConstuctor1 ():
         assert iwf.config == config
         assert iwf.name == 'Wilma'
         assert iwf.logger == logger
-        assert iwf.taskFunc == siwf.defaultTaskFunc
+        assert iwf.task_func == siwf.default_task_func
         assert iwf.quit == False
     finally:
         # we got threads to join
