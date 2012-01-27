@@ -125,13 +125,18 @@ class TaskManagerThread(threading.Thread):
         aFunction, arguments = self.manager.taskQueue.get()
         if aFunction is None:
           break
-        aFunction(arguments)
+        try:
+          aFunction(arguments)
+        except Exception, x:
+          print "Unexpected exception in %s:" % threading.currentThread().getName()
+          traceback.print_exc(file=sys.stderr)
+          print x
     except KeyboardInterrupt:
       import thread
       print >>sys.stderr, "%s caught KeyboardInterrupt" % threading.currentThread().getName()
       thread.interrupt_main()
     except Exception, x:
-      print >>sys.stderr, "Something BAD happened in %s:" % threading.currentThread().getName()
+      print >>sys.stdout, "Failure in taskQueue for thread %s:" % threading.currentThread().getName()
       traceback.print_exc(file=sys.stderr)
-      print >>sys.stderr, x
+      print >>sys.stdout, x
 

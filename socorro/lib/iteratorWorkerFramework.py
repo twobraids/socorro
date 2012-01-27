@@ -12,8 +12,9 @@ OK = 1
 FAILURE = 0
 RETRY = 2
 
+
 #------------------------------------------------------------------------------
-def default_task_func(jobTuple):
+def default_task_func(a_param):
     pass
 
 
@@ -26,7 +27,7 @@ def default_iterator():
 
 
 #------------------------------------------------------------------------------
-def respondToSIGTERM(signalNumber, frame):
+def respond_to_SIGTERM(signalNumber, frame):
     """ these classes are instrumented to respond to a KeyboardInterrupt by
         cleanly shutting down.  This function, when given as a handler to for
         a SIGTERM event, will make the program respond to a SIGTERM as neatly
@@ -37,7 +38,8 @@ def respondToSIGTERM(signalNumber, frame):
 
 #==============================================================================
 class IteratorWorkerFramework(RequiredConfig):
-    """ """
+    """Given an iterator over a sequence of job parameters and a function,
+    this class will execute the the function in a set of threads."""
     required_config = Namespace()
     required_config.add_option('idle_delay',
                                default=7,
@@ -53,18 +55,18 @@ class IteratorWorkerFramework(RequiredConfig):
                                from_string_converter=class_converter)
 
     #--------------------------------------------------------------------------
-    def __init__ (self, config, job_source_iterator=default_iterator,
+    def __init__(self, config, job_source_iterator=default_iterator,
                   task_func=default_task_func):
         super(IteratorWorkerFramework, self).__init__()
         self.config = config
         self.logger = config.logger
-        self.jobSourceIterator = config.setdefault('job_source_iterator',
+        self.job_param_source_iter = config.setdefault('job_source_iterator',
                                                    job_source_iterator)
         self.task_func = config.setdefault('task_func', task_func)
 
         # setup the task manager to a queue size twice the size of the number
         # of threads in use.  Because some mechanisms that feed the queue are
-        # can be destructive (JsonDumpStorage.destructiveDateWalk), we want to 
+        # can be destructive (JsonDumpStorage.destructiveDateWalk), we want to
         # limit the damage in case of error or quit.
         self.worker_pool = thr.TaskManager(self.config.numberOfThreads,
                                            self.config.numberOfThreads * 2)
@@ -77,7 +79,7 @@ class IteratorWorkerFramework(RequiredConfig):
             raise KeyboardInterrupt
 
     #--------------------------------------------------------------------------
-    def _responsive_sleep (self, seconds, waitLogInterval=0, waitReason=''):
+    def _responsive_sleep(self, seconds, waitLogInterval=0, waitReason=''):
         for x in xrange(int(seconds)):
             self._quit_check()
             if waitLogInterval and not x % waitLogInterval:
@@ -98,83 +100,79 @@ class IteratorWorkerFramework(RequiredConfig):
                 if waitingFunc:
                     waitingFunc()
             except KeyboardInterrupt:
-                self.logger.debug ('quit detected by responsiveJoin')
+                self.logger.debug('quit detected by responsiveJoin')
                 self.quit = True
 
     #--------------------------------------------------------------------------
-    def blocking_start (self):
+    def blocking_start(self):
         try:
             self.start()
-            self.waitForCompletion() # though, it only ends if someone hits
-                                        # ^C or sends SIGHUP or SIGTERM - any of
-                                        # which will get translated into a
-                                        # KeyboardInterrupt exception
+            self.waitForCompletion()  # though, it only ends if someone hits
+                                      # ^C or sends SIGHUP or SIGTERM - any
+                                      # of which will get translated into a
+                                      # KeyboardInterrupt exception
         except KeyboardInterrupt:
             while True:
                 try:
-                    submissionMill.stop()
+                    self.stop()
                     break
                 except KeyboardInterrupt:
-                    logger.warning('We heard you the first time.  There is no '
-                                   'need for further keyboard or signal '
+                    self.logger.warning('We heard you the first time.  There '
+                                   'is no need for further keyboard or signal '
                                    'interrupts.  We are waiting for the '
                                    'worker threads to stop.  If this app '
                                    'does not halt soon, you may have to send '
                                    'SIGKILL (kill -9)')
 
     #--------------------------------------------------------------------------
-    def start (self):
+    def start(self):
         self.logger.debug('start')
         self.queuing_thread = threading.Thread(name="QueuingThread",
-                                               target=self._queuing_thread_func)
+                                              target=self._queuing_thread_func)
         self.queuing_thread.start()
 
     #--------------------------------------------------------------------------
-    def wait_for_completion (self, waitingFunc=None):
+    def wait_for_completion(self, waitingFunc=None):
         self.logger.debug("waiting to join queuingThread")
         self._responsive_join(self.queuing_thread, waitingFunc)
 
     #--------------------------------------------------------------------------
-    def stop (self):
+    def stop(self):
         self.quit = True
         self.wait_for_completion()
 
     #--------------------------------------------------------------------------
     def _get_iterator(self):
         try:
-            return self.jobSourceIterator(self.confg)
+            return self.job_param_source_iter(self.config)
         except TypeError:
             try:
-                return self.jobSourceIterator()
+                return self.job_param_source_iter()
             except TypeError:
-                return self.jobSourceIterator
+                return self.job_param_source_iter
 
     #--------------------------------------------------------------------------
-    def _queuing_thread_func (self):
-        self.logger.debug('queuingThreadFunc start')
+    def _queuing_thread_func(self):
+        self.logger.debug('_queuing_thread_func start')
         try:
-            try:
-                for aJob in self._get_iterator: # may never raise 
-                                                # StopIteration
-                    if aJob is None:
-                        self.logger.info("there is nothing to do.  Sleeping "
-                                         "for %d seconds" % 
-                                         self.config.idle_delay)
-                        self._responsive_sleep(self.config.idle_delay)
-                        continue
-                    self._quit_check()
-                    try:
-                        self.logger.debug("queuing standard job %s", aJob)
-                        self.worker_pool.newTask(self.task_func, 
-                                                 (aJob,))
-                    except Exception:
-                        self.logger.warning('%s has failed', aJob)
-                        sutil.reportExceptionAndContinue(self.logger)
-            except Exception:
-                self.logger.warning('The jobSourceIterator has failed')
-                sutil.reportExceptionAndContinue(self.logger)
-            except KeyboardInterrupt:
-                self.logger.debug('queuingThread gets quit request')
+            for job_params in self._get_iterator():  # may never raise
+                                                     # StopIteration
+                if job_params is None:
+                    self.logger.info("there is nothing to do.  Sleeping "
+                                     "for %d seconds" %
+                                     self.config.idle_delay)
+                    self._responsive_sleep(self.config.idle_delay)
+                    continue
+                self._quit_check()
+                self.logger.debug("queuing standard job %s",
+                                  job_params)
+                self.worker_pool.newTask(self.task_func,
+                                         (job_params,))
+        except Exception:
+            self.logger.warning('queuing jobs has failed')
+            sutil.reportExceptionAndContinue(self.logger)
+        except KeyboardInterrupt:
+            self.logger.debug('queuingThread gets quit request')
         finally:
             self.quit = True
             self.logger.debug("we're quitting queuingThread")
@@ -184,17 +182,17 @@ class IteratorWorkerFramework(RequiredConfig):
 
 
 #==============================================================================
-class IteratorWorkerFrameworkWithRetry(IteratorWorkerFramework):
-    """ """
+class IteratorWorkerFrameworkWithRetry(IteratorWorkerFramework):  # pragma: no cover
+    """likely deprecated"""
 
     #--------------------------------------------------------------------------
-    def __init__ (self, config, 
-                  name='mill', 
-                  job_source_iterator=default_iterator,
-                  task_func=default_task_func):
+    def __init__(self, config,
+                 name='mill',
+                 job_source_iterator=default_iterator,
+                 task_func=default_task_func):
         super(IteratorWorkerFrameworkWithRetry, self).__init__(config,
-                                                               job_source_iterator,
-                                                               task_func)
+                                                        job_source_iterator,
+                                                        task_func)
         self.inner_task_func = self.task_func
         self.task_func = self.retryTaskFuncWrapper
 
@@ -222,10 +220,7 @@ class IteratorWorkerFrameworkWithRetry(IteratorWorkerFramework):
                                      waitInSeconds)
                 self._responsive_sleep(waitInSeconds,
                                        10,
-                                       "waiting for retry after failure in task")
+                                       "waiting for retry after failure in "
+                                           "task")
         except KeyboardInterrupt:
             return
-
-
-
-

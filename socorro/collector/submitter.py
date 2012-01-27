@@ -112,8 +112,8 @@ def createLimitedFileSystemIterator (config,
 #-------------------------------------------------------------------------------
 def submitter (config):
     logger = config.logger
-    signal.signal(signal.SIGTERM, iwf.respondToSIGTERM)
-    signal.signal(signal.SIGHUP, iwf.respondToSIGTERM)
+    signal.signal(signal.SIGTERM, iwf.respond_to_SIGTERM)
+    signal.signal(signal.SIGHUP, iwf.respond_to_SIGTERM)
 
     statsPool = sutil.DotDict(
         { 'submittedCount': stats.CounterPool(config),

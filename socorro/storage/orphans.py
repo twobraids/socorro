@@ -16,8 +16,8 @@ def move (conf,
   logger = conf.logger
   crashStoragePoolForSource = cstore.CrashStoragePool(conf, sourceCrashStorageClass)
   crashStoragePoolForDest = cstore.CrashStoragePool(conf, destCrashStorageClass)
-  signal.signal(signal.SIGTERM, iwf.respondToSIGTERM)
-  signal.signal(signal.SIGHUP, iwf.respondToSIGTERM)
+  signal.signal(signal.SIGTERM, iwf.respond_to_SIGTERM)
+  signal.signal(signal.SIGHUP, iwf.respond_to_SIGTERM)
 
   #-----------------------------------------------------------------------------
   def theIterator():

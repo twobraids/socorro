@@ -114,3 +114,41 @@ def testDoingWorkWithTwoWorkersAndConfigSetup():
         iwf.worker_pool.waitForCompletion()
         raise
         
+# failure tests
+
+count = 0
+
+def testTaskRaisesUnexpectedException():
+    def new_iter():
+        for x in xrange(10):
+            yield x
+    
+    my_list = []
+    def insert_into_list(anItem):
+        global count
+        count += 1
+        if count == 4:
+            raise Exception('Unexpected')
+        my_list.append(anItem[0])
+        return siwf.OK
+    
+    logger = sutil.SilentFakeLogger()
+    config = sutil.DotDict({ 'logger': logger,
+                             'numberOfThreads': 1,
+                             'job_source_iterator': new_iter,
+                             'task_func': insert_into_list
+                           })
+    iwf = siwf.IteratorWorkerFramework(config)
+    try:
+        iwf.start()
+        time.sleep(2.0)
+        assert len(iwf.worker_pool.threadList) == 1, "expected 1 threads, but found %d" % len(iwf.worker_pool.threadList)
+        #assert iwf.worker_pool.threadList[0].isAlive(), "1st thread is unexpectedly dead"
+        #assert iwf.worker_pool.threadList[1].isAlive(), "2nd thread is unexpectedly dead"
+        assert sorted(my_list) == [0, 1, 2, 4, 5, 6, 7, 8, 9], 'expected %s, but got %s' % ( [0, 1, 2, 5, 6, 7, 8, 9], sorted(my_list))
+        assert len(my_list) == 9, 'expected to do 9 inserts, but %d were done instead' % len(my_list)
+    except Exception:
+        # we got threads to join
+        iwf.worker_pool.waitForCompletion()
+        raise
+            
