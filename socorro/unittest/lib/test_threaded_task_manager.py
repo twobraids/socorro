@@ -126,6 +126,8 @@ def testDoingWorkWithTwoWorkersAndConfigSetup():
 count = 0
 
 def testTaskRaisesUnexpectedException():
+    global count
+    count = 0
     def new_iter():
         for x in xrange(10):
             yield x
