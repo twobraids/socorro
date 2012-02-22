@@ -1,6 +1,7 @@
-#
-# collect.py, collector functions for mod_python collectors
-#
+## NOTE: As of https://bugzilla.mozilla.org/show_bug.cgi?id=705659
+## all of this is considered deprecated and will be replaced by classes that
+## implement configman's RequiredConfig instead.
+## Peter, Jan 2012
 
 try:
   import socorro.lib.uuid as uuid
@@ -691,4 +692,3 @@ class CrashStoragePool(dict):
     crashStorage = self[name]
     crashStorage.close()
     del self[name]
-
