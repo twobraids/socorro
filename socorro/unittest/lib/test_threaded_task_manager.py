@@ -130,7 +130,7 @@ def testTaskRaisesUnexpectedException():
     count = 0
     def new_iter():
         for x in xrange(10):
-            yield ((x,), {})
+            yield (x,)
 
     my_list = []
     def insert_into_list(anItem):

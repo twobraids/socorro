@@ -269,7 +269,11 @@ class TaskThread(threading.Thread):
                 if aFunction is None:
                     break
                 try:
-                    args, kwargs = arguments
+                    try:
+                        args, kwargs = arguments
+                    except ValueError:
+                        args = arguments
+                        kwargs = {}
                     aFunction(*args, **kwargs)
                 except Exception, x:
                     reportExceptionAndContinue(logger=self.config.logger)
