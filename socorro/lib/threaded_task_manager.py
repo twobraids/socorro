@@ -23,7 +23,7 @@ def default_task_func(a_param):
 #------------------------------------------------------------------------------
 def default_iterator():
     for x in range(10):
-        yield x
+        yield ((x,), {})
     while True:
         yield None
 
@@ -168,7 +168,6 @@ class ThreadedTaskManager(RequiredConfig):
             self.task_queue.put((None, None))
         self.logger.debug("waiting for standard worker threads to stop")
         for t in self.thread_list:
-            # print "attempting to join %s" % t.getName()
             t.join()
 
     #--------------------------------------------------------------------------
@@ -186,7 +185,7 @@ class ThreadedTaskManager(RequiredConfig):
                 self._quit_check()
                 self.logger.debug("queuing standard job %s",
                                   job_params)
-                self.task_queue.put((self.task_func, (job_params,)))
+                self.task_queue.put((self.task_func, job_params))
         except Exception:
             self.logger.warning('queuing jobs has failed')
             sutil.reportExceptionAndContinue(self.logger)
@@ -270,9 +269,9 @@ class TaskThread(threading.Thread):
                 if aFunction is None:
                     break
                 try:
-                    aFunction(arguments)
+                    args, kwargs = arguments
+                    aFunction(*args, **kwargs)
                 except Exception, x:
-                    self.config.logger.debug('FUCK!!!')
                     reportExceptionAndContinue(logger=self.config.logger)
         except KeyboardInterrupt:
             self.logger.info('%s caught KeyboardInterrupt')

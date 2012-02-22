@@ -49,7 +49,7 @@ def testDoingWorkWithOneWorker():
                      })
     my_list = []
     def insert_into_list(anItem):
-        my_list.append(anItem[0])
+        my_list.append(anItem)
         return OK
     ttm = ThreadedTaskManager(config,
                               task_func=insert_into_list
@@ -73,12 +73,12 @@ def testDoingWorkWithTwoWorkersAndGenerator():
                      })
     my_list = []
     def insert_into_list(anItem):
-        my_list.append(anItem[0])
+        my_list.append(anItem)
         return OK
     ttm = ThreadedTaskManager(config,
                               task_func=insert_into_list,
-                              job_source_iterator=(x for x in
-                                                     xrange(10))
+                              job_source_iterator=(((x,), {}) for x in
+                                                   xrange(10))
                              )
     try:
         ttm.start()
@@ -88,20 +88,20 @@ def testDoingWorkWithTwoWorkersAndGenerator():
         assert sorted(my_list) == range(10), 'expected %s, but got %s' % (range(10), sorted(my_list))
     except Exception:
         # we got threads to join
-        ttm.worker_pool.wait_for_completion()
+        ttm.wait_for_completion()
         raise
-            
-        
+
+
 def testDoingWorkWithTwoWorkersAndConfigSetup():
     def new_iter():
         for x in xrange(5):
-            yield x
-    
+            yield ((x,), {})
+
     my_list = []
     def insert_into_list(anItem):
-        my_list.append(anItem[0])
+        my_list.append(anItem)
         return OK
-    
+
     logger = SilentFakeLogger()
     config = DotDict({ 'logger': logger,
                        'number_of_threads': 2,
@@ -120,7 +120,7 @@ def testDoingWorkWithTwoWorkersAndConfigSetup():
         # we got threads to join
         ttm.wait_for_completion()
         raise
-        
+
 # failure tests
 
 count = 0
@@ -130,17 +130,17 @@ def testTaskRaisesUnexpectedException():
     count = 0
     def new_iter():
         for x in xrange(10):
-            yield x
-    
+            yield ((x,), {})
+
     my_list = []
     def insert_into_list(anItem):
         global count
         count += 1
         if count == 4:
             raise Exception('Unexpected')
-        my_list.append(anItem[0])
+        my_list.append(anItem)
         return OK
-    
+
     logger = SilentFakeLogger()
     config = DotDict({ 'logger': logger,
                        'number_of_threads': 1,
@@ -161,4 +161,4 @@ def testTaskRaisesUnexpectedException():
         # we got threads to join
         ttm.wait_for_completion()
         raise
-            
+
