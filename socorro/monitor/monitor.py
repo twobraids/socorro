@@ -339,8 +339,8 @@ class Monitor (object):
                 raise
             logger.debug("ended destructiveDateWalk")
           except sdb.exceptions_eligible_for_retry, x:
-            if not sdb.programming_error_eligible_for_retry(x):
-              raise
+            #if not sdb.programming_error_eligible_for_retry(x):
+              #raise
             socorro.lib.util.reportExceptionAndContinue(logger, loggingLevel=logging.CRITICAL)
             logger.info('will attempt to connect again at next iteration')
             self.databaseConnectionPool.dump_connection()
@@ -359,6 +359,11 @@ class Monitor (object):
           databaseConnection.rollback()
         self.quit = True
         raise
+      except Exception:
+        if databaseConnection is not None:
+          databaseConnection.rollback()
+        socorro.lib.util.reportExceptionAndContinue(logger, loggingLevel=logging.CRITICAL)
+        self.quit = True
     finally:
       if databaseConnection is not None:
         databaseConnection.close()
