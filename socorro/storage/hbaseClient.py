@@ -585,7 +585,8 @@ class HBaseConnectionForCrashReports(HBaseConnection):
       self.delete_from_legacy_processing_index(row['_rowkey'])
       yield row['ids:ooid']
 
-  @retry_wrapper_for_generators
+  #@retry_wrapper_for_generators
+  @optional_retry_wrapper
   def acknowledge_ooid_as_legacy_priority_job (self, ooid):
     try:
       state = self.get_report_processing_state(ooid)
