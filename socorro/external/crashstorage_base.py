@@ -1,10 +1,4 @@
-import re
-import random
-import time
-import logging
 import os
-from socorro.lib.util import DotDict
-from socorro.lib import ver_tools
 from configman.config_manager import RequiredConfig
 from configman import Namespace
 
@@ -28,14 +22,7 @@ class CrashStorageBase(RequiredConfig):
         self.hostname = os.uname()[1]
         # XXX ideally refactor to just refer to self.config.logger
         self.logger = config.logger
-        #try:
-        #    if config.logger:
-        #        self.logger = config.logger
-        #    else:
-        #        self.logger = logger
-        #except KeyError:
-        #    self.logger = logger
-        self.exceptionsEligibleForRetry = []
+        self.exceptionsEligibleForRetry = ()
 
     def close(self):
         pass
@@ -65,7 +52,7 @@ class CrashStorageBase(RequiredConfig):
     def has_ooid(self, ooid):
         """return true if the OOID exists indendent of content"""
         # this used to be called `uuidInStorage`
-        raise NotImplementedError#return False
+        raise NotImplementedError
 
     def new_ooids(self):
         """returns an iterator of OOIDs that are considered new.

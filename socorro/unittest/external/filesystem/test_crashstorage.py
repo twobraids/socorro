@@ -1,43 +1,15 @@
 import os
-import functools
 import json
 import shutil
 import tempfile
 import inspect
-from pprint import pprint
 import unittest
 from socorro.external.crashstorage_base import (
   CrashStorageBase, OOIDNotFoundException)
 from socorro.external.filesystem.crashstorage import (
-  CrashStorageForLocalFS, CrashStorageForNFS)
-from configman import Namespace, ConfigurationManager
-
-
-class MockLogging(object):
-
-    def __init__(self):
-        self.messages = {}
-        for each in 'info', 'debug', 'warning', 'error', 'critical':
-            self.messages[each] = []
-
-    def _append(self, bucket, args, kwargs):
-        msg = args[0] % tuple(args[1:])
-        self.messages[bucket].append((msg, kwargs))
-
-    def info(self, *args, **kwargs):
-        self._append('info', args, kwargs)
-
-    def debug(self, *args, **kwargs):
-        self._append('debug', args, kwargs)
-
-    def warning(self, *args, **kwargs):
-        self._append('warning', args, kwargs)
-
-    def error(self, *args, **kwargs):
-        self._append('error', args, kwargs)
-
-    def critical(self, *args, **kwargs):
-        self._append('critical', args, kwargs)
+  CrashStorageForLocalFS)
+from configman import ConfigurationManager
+from mock import Mock
 
 
 class TestLocalFSCrashStorage(unittest.TestCase):
@@ -62,7 +34,8 @@ class TestLocalFSCrashStorage(unittest.TestCase):
         implementor = self._get_class_methods(CrashStorageForLocalFS)
         for name in interface:
             if name not in implementor:
-                print CrashStorageForLocalFS.__name__, "doesn't implement", name
+                print CrashStorageForLocalFS.__name__,
+                print "doesn't implement", name
 
     def _find_file(self, in_, filename):
         found = []
@@ -75,8 +48,7 @@ class TestLocalFSCrashStorage(unittest.TestCase):
         return found
 
     def test_basic_localfs_crashstorage(self):
-
-        mock_logging = MockLogging()
+        mock_logging = Mock()
         required_config = CrashStorageForLocalFS.required_config
         required_config.add_option('logger', default=mock_logging)
 
@@ -106,7 +78,12 @@ class TestLocalFSCrashStorage(unittest.TestCase):
             raw = '{"name":"Peter","ooid":"abc123"}'
             result = crashstorage.save_raw(json.loads(raw), raw)
             self.assertEqual(result, CrashStorageForLocalFS.OK)
-            msg, __ = config.logger.messages['info'][0]
+
+            assert config.logger.info.called
+            assert config.logger.info.call_count >= 1
+            msg_tmpl, msg_arg = config.logger.info.call_args_list[-1][0]
+            # ie logging.info(<template>, <arg>)
+            msg = msg_tmpl % msg_arg
             self.assertTrue('saved' in msg)
             self.assertTrue('abc123' in msg)
 

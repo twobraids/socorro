@@ -1,26 +1,7 @@
-import configman
-import sys
-
 import unittest
 from socorro.external.crashstorage_base import CrashStorageBase
 from configman import Namespace, ConfigurationManager
-
-
-class MockLogging:
-
-    def __init__(self):
-        self.debugs = []
-        self.warnings = []
-        self.errors = []
-
-    def debug(self, *args, **kwargs):
-        self.debugs.append((args, kwargs))
-
-    def warning(self, *args, **kwargs):
-        self.warnings.append((args, kwargs))
-
-    def error(self, *args, **kwargs):
-        self.errors.append((args, kwargs))
+from mock import Mock
 
 
 class TestBase(unittest.TestCase):
@@ -28,9 +9,9 @@ class TestBase(unittest.TestCase):
     def test_basic_crashstorage(self):
 
         required_config = Namespace()
-        mock_logging = MockLogging()
-        XXX
-#        required_config.add_option('logger', default=mock_logging)
+
+        mock_logging = Mock()
+        required_config.add_option('logger', default=mock_logging)
 
         config_manager = ConfigurationManager(
           [required_config],
@@ -57,5 +38,6 @@ class TestBase(unittest.TestCase):
                               crashstorage.get_processed_json, 'ooid')
             self.assertRaises(NotImplementedError,
                               crashstorage.remove, 'ooid')
-            self.assertTrue(not crashstorage.has_ooid('anything'))
+            self.assertRaises(NotImplementedError,
+                              crashstorage.has_ooid, 'anything')
             self.assertRaises(StopIteration, crashstorage.new_ooids)

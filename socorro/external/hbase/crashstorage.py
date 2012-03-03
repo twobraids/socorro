@@ -1,19 +1,11 @@
-import os
-import base64
-try:
-    import json
-except ImportError:
-    import simplejson as json
 from socorro.external.crashstorage_base import (
   CrashStorageBase, OOIDNotFoundException)
 from socorro.storage import hbaseClient
-from socorro.lib import JsonDumpStorage
-from socorro.lib.util import reportExceptionAndContinue
 from configman import Namespace
 
 
 class HBaseCrashStorage(CrashStorageBase):
-    
+
     required_config = Namespace()
     required_config.add_option(
         'number_of_retries',
@@ -35,44 +27,26 @@ class HBaseCrashStorage(CrashStorageBase):
         doc='timeout in milliseconds for an HBase connection',
         default=5000,
     )
-    
-    def __init__(self, config):#, #configPrefix='',
-                 #hbase_client=hbaseClient):
+
+    def __init__(self, config):
         super(HBaseCrashStorage, self).__init__(config)
-        
+
         self.logger.info('connecting to hbase')
         self.hbaseConnection = hbaseClient.HBaseConnectionForCrashReports(
             config.hbase_host,
             config.hbase_port,
             config.hbase_timeout,
-            logger=self.logger)
-                
-#        if not configPrefix:
-#            self.hbaseConnection = hbase_client.HBaseConnectionForCrashReports(
-#                config.hbaseHost,
-#                config.hbasePort,
-#                config.hbaseTimeout,
-#                logger=self.logger)
-#        else:
-#            hbaseHost = '%s%s' % (configPrefix, 'HbaseHost')
-#            #assert hbaseHost in config, "%s is missing from the configuration" % hbaseHost
-#            hbasePort = '%s%s' % (configPrefix, 'HbasePort')
-#            #assert hbasePort in config, "%s is missing from the configuration" % hbasePort
-#            hbaseTimeout = '%s%s' % (configPrefix, 'HbaseTimeout')
-#            #assert hbaseTimeout in config, "%s is missing from the configuration" % hbaseTimeout
-#            self.hbaseConnection = hbase_client.HBaseConnectionForCrashReports(
-#                config[hbaseHost],
-#                config[hbasePort],
-#                config[hbaseTimeout],
-#                logger=self.logger)
+            logger=self.logger
+        )
 
-        self.exceptionsEligibleForRetry += self.hbaseConnection.hbaseThriftExceptions
+        self.exceptionsEligibleForRetry += \
+          self.hbaseConnection.hbaseThriftExceptions
         self.exceptionsEligibleForRetry += (hbaseClient.NoConnectionException,)
 
     def close(self):
         self.hbaseConnection.close()
 
-    def save_raw(self, json_data, dump):#, currentTimestamp=None):
+    def save_raw(self, json_data, dump):
         try:
             ooid = json_data['ooid']
         except KeyError:
@@ -82,36 +56,39 @@ class HBaseCrashStorage(CrashStorageBase):
             assert json_data['submitted_timestamp']
         except KeyError:
             raise ValueError("data must contain a 'submitted_timestamp' key")
-                                        
+
         try:
             self.hbaseConnection.put_json_dump(
-              ooid, json_data, dump, number_of_retries=2)
+              ooid, json_data, dump,
+              number_of_retries=self.config.number_of_retries)
             self.logger.info('saved - %s', ooid)
             return self.OK
         except self.exceptionsEligibleForRetry:
             self.logger.error("Exception eligable for retry", exc_info=True)
             return self.RETRY
         except Exception:
-            raise
             self.logger.error("Other error on put_json_dump", exc_info=True)
             return self.ERROR
 
     def save_processed(self, ooid, json_data):
-        self.hbaseConnection.put_processed_json(
-          ooid, json_data, number_of_retries=2)
+        self.hbaseConnection.put_processed_json(ooid, json_data,
+                               number_of_retries=self.config.number_of_retries)
 
     def get_raw_json(self, ooid):
-        return self.hbaseConnection.get_json(ooid, number_of_retries=2)
+        return self.hbaseConnection.get_json(ooid,
+                               number_of_retries=self.config.number_of_retries)
 
     def get_raw_dump(self, ooid):
-        return self.hbaseConnection.get_dump(ooid, number_of_retries=2)
+        return self.hbaseConnection.get_dump(ooid,
+                               number_of_retries=self.config.number_of_retries)
 
-    def get_processed(self, ooid):
-        return self.hbaseConnection.get_processed_json(
-          ooid, number_of_retries=2)
+    def get_processed_json(self, ooid):
+        return self.hbaseConnection.get_processed_json(ooid,
+                               number_of_retries=self.config.number_of_retries)
 
     def has_ooid(self, ooid):
-        return self.hbaseConnection.acknowledge_ooid_as_legacy_priority_job(ooid)
+        return (self.hbaseConnection
+                .acknowledge_ooid_as_legacy_priority_job(ooid))
 
     def new_ooids(self):
         return self.hbaseConnection.iterator_for_all_legacy_to_be_processed()
