@@ -25,7 +25,7 @@ class CrashStorageBase(RequiredConfig):
         self.exceptionsEligibleForRetry = ()
 
     def close(self):
-        pass
+        raise NotImplementedError("close() is not implemented")
 
     def save_raw(self, raw_json, dump):
         #assert isinstance(raw_json, dict)

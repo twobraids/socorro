@@ -11,7 +11,7 @@ from socorro.unittest.config import commonconfig
 import mock
 
 
-class TestHBaseCrashStorage(unittest.TestCase):
+class TestIntegrationHBaseCrashStorage(unittest.TestCase):
     """
     If you ever get this::
         Traceback (most recent call last):
@@ -141,3 +141,62 @@ class TestHBaseCrashStorage(unittest.TestCase):
             crashstorage.save_processed('abc123', json.loads(raw))
             data = crashstorage.get_processed_json('abc123')
             self.assertEqual(data['name'], u'Peter')
+            assert crashstorage.hbaseConnection.transport.isOpen()
+            crashstorage.close()
+            transport = crashstorage.hbaseConnection.transport
+            self.assertTrue(not transport.isOpen())
+
+
+class TestHBaseCrashStorage(unittest.TestCase):
+
+    def test_basic_hbase_crashstorage(self):
+        mock_logging = mock.Mock()
+        required_config = HBaseCrashStorage.required_config
+        required_config.add_option('logger', default=mock_logging)
+
+        config_manager = ConfigurationManager(
+          [required_config],
+          app_name='testapp',
+          app_version='1.0',
+          app_description='app description',
+          values_source_list=[{
+            'logger': mock_logging,
+            'hbase_timeout': 100,
+            'hbase_host': commonconfig.hbaseHost.default,
+            'hbase_port': commonconfig.hbasePort.default,
+          }]
+        )
+
+        with config_manager.context() as config:
+            hbaseclient_ = 'socorro.external.hbase.crashstorage.hbaseClient'
+            with mock.patch(hbaseclient_) as hclient:
+
+                class SomeThriftError(Exception):
+                    pass
+
+                instance = (hclient
+                            .HBaseConnectionForCrashReports
+                            .return_value)
+                instance.hbaseThriftExceptions = (SomeThriftError,)
+
+                def raiser(*args, **kwargs):
+                    raise ValueError('shit!')
+
+                instance.put_json_dump = raiser
+                crashstorage = HBaseCrashStorage(config)
+                assert hclient.HBaseConnectionForCrashReports.call_count == 1
+
+                raw = ('{"name":"Peter","ooid":"abc123",'
+                       '"submitted_timestamp":"%d"}' % time.time())
+                result = crashstorage.save_raw(json.loads(raw), raw)
+                self.assertEqual(result, CrashStorageBase.ERROR)
+                args, kwargs = config.logger.error.call_args_list[-1]
+                self.assertTrue(args)
+                self.assertTrue(kwargs.get('exc_info'))
+
+                def retry_raiser(*args, **kwargs):
+                    raise SomeThriftError('try again')
+
+                instance.put_json_dump = retry_raiser
+                result = crashstorage.save_raw(json.loads(raw), raw)
+                self.assertEqual(result, CrashStorageBase.RETRY)

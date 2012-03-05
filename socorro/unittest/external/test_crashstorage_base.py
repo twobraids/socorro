@@ -29,7 +29,6 @@ class TestBase(unittest.TestCase):
                              CrashStorageBase.NO_ACTION)
             self.assertEqual(crashstorage.save_processed({}),
                              CrashStorageBase.NO_ACTION)
-
             self.assertRaises(NotImplementedError,
                               crashstorage.get_raw_json, 'ooid')
             self.assertRaises(NotImplementedError,
@@ -41,3 +40,4 @@ class TestBase(unittest.TestCase):
             self.assertRaises(NotImplementedError,
                               crashstorage.has_ooid, 'anything')
             self.assertRaises(StopIteration, crashstorage.new_ooids)
+            self.assertRaises(NotImplementedError, crashstorage.close)

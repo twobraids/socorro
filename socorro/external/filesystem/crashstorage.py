@@ -1,7 +1,7 @@
 import stat
 try:
     import json
-except ImportError:
+except ImportError:  # pragma: no cover
     import simplejson as json
 from socorro.lib import JsonDumpStorage
 from socorro.lib.util import reportExceptionAndContinue
@@ -279,7 +279,6 @@ class CrashStorageForNFS(CrashStorageBase):
 
     def new_ooids(self):
         return self.standardJobStorage.destructiveDateWalk()
-
 
     ## private methods --------------------------------------------------------
 
