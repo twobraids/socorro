@@ -37,7 +37,5 @@ class TestBase(unittest.TestCase):
                               crashstorage.get_processed_json, 'ooid')
             self.assertRaises(NotImplementedError,
                               crashstorage.remove, 'ooid')
-            self.assertRaises(NotImplementedError,
-                              crashstorage.has_ooid, 'anything')
             self.assertRaises(StopIteration, crashstorage.new_ooids)
             self.assertRaises(NotImplementedError, crashstorage.close)

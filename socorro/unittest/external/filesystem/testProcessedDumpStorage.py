@@ -15,8 +15,8 @@ import socorro.lib.processedDumpStorage as dumpStorage
 from socorro.lib.datetimeutil import utc_now, UTC
 
 
-def setup_module():
-  tutil.nosePrintModule(__file__)
+#def setup_module():
+  #tutil.nosePrintModule(__file__)
 
 bogusData= {
   "signature": "nsThread::ProcessNextEvent(int, int*)",

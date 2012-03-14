@@ -5,10 +5,11 @@ try:
   import json
 except ImportError:
   import simplejson as json
-import socorro.lib.dumpStorage as socorro_dumpStorage
+  
+from socorro.external.filesystem.dump_storage_base import DumpStorage
 import socorro.lib.util as socorro_util
 
-class ProcessedDumpStorage(socorro_dumpStorage.DumpStorage):
+class ProcessedDumpStorage(DumpStorage):
   """
   This class, mirrored from JsonDumpStorage in March 2009, implements a gzipped file system storage
   scheme for the 'cooked raw dump data' from stackwalk_minidump. The file format is gzipped json, with
@@ -117,10 +118,6 @@ class ProcessedDumpStorage(socorro_dumpStorage.DumpStorage):
     Find and remove the dump file for the given ooid.
     Quietly continue if unfound. Log problem and continue if irremovable.
     """
-    try:
-      filePath = self.getDumpPath(ooid)
-      os.unlink(filePath)
-    except OSError,x:
-      if 2 != x.errno:
-        socorro_util.reportExceptionAndContinue(self.logger)
+    filePath = self.getDumpPath(ooid)
+    os.unlink(filePath)
 

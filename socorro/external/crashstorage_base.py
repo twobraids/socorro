@@ -49,11 +49,6 @@ class CrashStorageBase(RequiredConfig):
     def remove(self, ooid):
         raise NotImplementedError("remove is not implemented")
 
-    def has_ooid(self, ooid):
-        """return true if the OOID exists indendent of content"""
-        # this used to be called `uuidInStorage`
-        raise NotImplementedError
-
     def new_ooids(self):
         """returns an iterator of OOIDs that are considered new.
 

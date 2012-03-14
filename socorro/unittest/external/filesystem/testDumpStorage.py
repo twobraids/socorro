@@ -16,8 +16,8 @@ import socorro.unittest.testlib.createJsonDumpStore as createJDS
 from socorro.lib.datetimeutil import utc_now, UTC
 
 
-def setup_module():
-  print test_util.getModuleFromFile(__file__)
+#def setup_module():
+  #print test_util.getModuleFromFile(__file__)
 
 class TestDumpStorage:
   def setUp(self):

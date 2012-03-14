@@ -123,11 +123,6 @@ class TestIntegrationHBaseCrashStorage(unittest.TestCase):
             assert isinstance(dump, basestring)
             self.assertTrue('"name":"Peter"' in dump)
 
-            self.assertTrue(crashstorage.has_ooid('abc123'))
-            # call it again, just to be sure
-            self.assertTrue(crashstorage.has_ooid('abc123'))
-            self.assertTrue(not crashstorage.has_ooid('xyz789'))
-
             # hasn't been processed yet
             self.assertRaises(hbaseClient.OoidNotFoundException,
                               crashstorage.get_processed_json,

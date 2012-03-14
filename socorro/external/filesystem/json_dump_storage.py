@@ -6,8 +6,8 @@ import shutil
 from stat import S_IRGRP, S_IXGRP, S_IWGRP, S_IRUSR, S_IXUSR, S_IWUSR, S_ISGID, S_IROTH
 import threading
 
-import socorro.lib.dumpStorage as socorro_dumpStorage
-import socorro.lib.filesystem as socorro_fs
+from socorro.external.filesystem.dump_storage_base import DumpStorage
+from socorro.lib.filesystem import visitPath, cleanEmptySubdirectories
 import socorro.lib.util as socorro_util
 import socorro.lib.ooid as socorro_ooid
 
@@ -17,7 +17,7 @@ class NoSuchUuidFound(Exception):
   pass
 
 #=================================================================================================================
-class JsonDumpStorage(socorro_dumpStorage.DumpStorage):
+class JsonDumpStorage(DumpStorage):
   """
   This class implements a file system storage scheme for the JSON and dump files of the Socorro project.
   It create a tree with two branches: the name branch and the date branch.
@@ -106,9 +106,9 @@ class JsonDumpStorage(socorro_dumpStorage.DumpStorage):
       if self.dumpGID:
         def chown1(path):
           self.osModule.chown(path,-1,self.dumpGID)
-        socorro_fs.visitPath(self.root,os.path.join(nameDir,ooid+self.jsonSuffix),chown1,self.osModule)
+        visitPath(self.root,os.path.join(nameDir,ooid+self.jsonSuffix),chown1,self.osModule)
         self.osModule.chown(os.path.join(nameDir,ooid+self.dumpSuffix),-1,self.dumpGID)
-        #socorro_fs.visitPath(self.root,os.path.join(dateDir,ooid),chown1)
+        #visitPath(self.root,os.path.join(dateDir,ooid),chown1)
     finally:
       if not jf or not df:
         if jf: jf.close()
@@ -133,23 +133,23 @@ class JsonDumpStorage(socorro_dumpStorage.DumpStorage):
     raises OSError if the paths are unreadable or if removeOld is true and either file cannot be unlinked
 
     """
-    self.logger.debug('%s - copyFrom %s %s', threading.currentThread().getName(), jsonpath, dumppath)
+    #self.logger.debug('%s - copyFrom %s %s', threading.currentThread().getName(), jsonpath, dumppath)
     nameDir,nparts = self.makeNameDir(ooid,timestamp) # deliberately leave this dir behind if next line throws
     jsonNewPath = '%s%s%s%s' % (nameDir,os.sep,ooid,self.jsonSuffix)
     dumpNewPath = '%s%s%s%s' % (nameDir,os.sep,ooid,self.dumpSuffix)
     try:
-      self.logger.debug('%s - about to copy json %s to %s', threading.currentThread().getName(), jsonpath,jsonNewPath)
+      #self.logger.debug('%s - about to copy json %s to %s', threading.currentThread().getName(), jsonpath,jsonNewPath)
       shutil.copy2(jsonpath,jsonNewPath)
     except IOError,x:
       if 2 == x.errno:
         nameDir = self.makeNameDir(ooid,timestamp) # deliberately leave this dir behind if next line throws
-        self.logger.debug('%s - oops, needed to make dir first - 2nd try copy json %s to %s', threading.currentThread().getName(), jsonpath,jsonNewPath)
+        #self.logger.debug('%s - oops, needed to make dir first - 2nd try copy json %s to %s', threading.currentThread().getName(), jsonpath,jsonNewPath)
         shutil.copy2(jsonpath,jsonNewPath)
       else:
         raise x
     self.osModule.chmod(jsonNewPath,self.dumpPermissions)
     try:
-      self.logger.debug('%s - about to copy dump %s to %s', threading.currentThread().getName(), dumppath,dumpNewPath)
+      #self.logger.debug('%s - about to copy dump %s to %s', threading.currentThread().getName(), dumppath,dumpNewPath)
       shutil.copy2(dumppath,dumpNewPath)
       self.osModule.chmod(dumpNewPath,self.dumpPermissions)
       if self.dumpGID:
@@ -161,7 +161,7 @@ class JsonDumpStorage(socorro_dumpStorage.DumpStorage):
       finally:
         raise e
     if createLinks:
-      self.logger.debug('%s - building links', threading.currentThread().getName())
+      #self.logger.debug('%s - building links', threading.currentThread().getName())
       dateDir,dparts = self.makeDateDir(timestamp,webheadHostName)
       nameDepth = socorro_ooid.depthFromOoid(ooid)
       if not nameDepth: nameDepth = 4
@@ -176,7 +176,7 @@ class JsonDumpStorage(socorro_dumpStorage.DumpStorage):
         self.osModule.unlink(os.path.join(nameDir,ooid))
         raise e
     if removeOld:
-      self.logger.debug('%s - removing old %s, %s', threading.currentThread().getName(), jsonpath, dumppath)
+      #self.logger.debug('%s - removing old %s, %s', threading.currentThread().getName(), jsonpath, dumppath)
       try:
         self.osModule.unlink(jsonpath)
       except OSError:
@@ -201,22 +201,22 @@ class JsonDumpStorage(socorro_dumpStorage.DumpStorage):
     aDate: Used if unable to parse date from source directories and uuid
     NOTE: Assumes that the path names and suffixes for anotherJsonDumpStorage are the same as for self
     """
-    self.logger.debug('%s - transferOne %s %s', threading.currentThread().getName(), ooid, aDate)
+    #self.logger.debug('%s - transferOne %s %s', threading.currentThread().getName(), ooid, aDate)
     jsonFromFile = anotherJsonDumpStorage.getJson(ooid)
-    self.logger.debug('%s - fetched json', threading.currentThread().getName())
+    #self.logger.debug('%s - fetched json', threading.currentThread().getName())
     dumpFromFile = os.path.splitext(jsonFromFile)[0]+anotherJsonDumpStorage.dumpSuffix
     if createLinks:
-      self.logger.debug('%s - fetching stamp', threading.currentThread().getName())
+      #self.logger.debug('%s - fetching stamp', threading.currentThread().getName())
       stamp = anotherJsonDumpStorage.pathToDate(anotherJsonDumpStorage.lookupOoidInDatePath(None,ooid,None)[0])
     else:
-      self.logger.debug('%s - not bothering to fetch stamp', threading.currentThread().getName())
+      #self.logger.debug('%s - not bothering to fetch stamp', threading.currentThread().getName())
       stamp = None
-    self.logger.debug('%s - fetched pathToDate ', threading.currentThread().getName())
+    #self.logger.debug('%s - fetched pathToDate ', threading.currentThread().getName())
     if not stamp:
       if not aDate:
         aDate = utc_now()
       stamp = aDate
-    self.logger.debug('%s - about to copyFrom ', threading.currentThread().getName())
+    #self.logger.debug('%s - about to copyFrom ', threading.currentThread().getName())
     self.copyFrom(ooid,jsonFromFile, dumpFromFile, webheadHostName, stamp, createLinks, removeOld)
 
   #-----------------------------------------------------------------------------------------------------------------
@@ -225,7 +225,7 @@ class JsonDumpStorage(socorro_dumpStorage.DumpStorage):
     Returns an absolute pathname for the json file for a given ooid.
     Raises OSError if the file is missing
     """
-    self.logger.debug('%s - getJson %s', threading.currentThread().getName(), ooid)
+    #self.logger.debug('%s - getJson %s', threading.currentThread().getName(), ooid)
     fname = "%s%s"%(ooid,self.jsonSuffix)
     path,parts = self.lookupNamePath(ooid)
     if path:
@@ -324,7 +324,7 @@ class JsonDumpStorage(socorro_dumpStorage.DumpStorage):
             if r:
               yield r
         # after finishing a given directory...
-        socorro_fs.cleanEmptySubdirectories(os.path.join(self.root,daily),dir,self.osModule)
+        cleanEmptySubdirectories(os.path.join(self.root,daily),dir,self.osModule)
 
   #-----------------------------------------------------------------------------------------------------------------
   def remove (self,ooid, timestamp=None):
@@ -365,7 +365,7 @@ class JsonDumpStorage(socorro_dumpStorage.DumpStorage):
         self._remove(ooid,namePath,None,datePath,dateParts)
         something += 1
     if not something:
-      self.logger.warning("%s - %s was totally unknown" % (threading.currentThread().getName(), ooid))
+      #self.logger.warning("%s - %s was totally unknown" % (threading.currentThread().getName(), ooid))
       raise NoSuchUuidFound, "no trace of %s was found" % ooid
 
   #-----------------------------------------------------------------------------------------------------------------
@@ -402,7 +402,7 @@ class JsonDumpStorage(socorro_dumpStorage.DumpStorage):
         pass
       if self.cleanIndexDirectories:
         try:
-          socorro_fs.cleanEmptySubdirectories(stopper,namePath,self.osModule) #clean out name side if possible
+          cleanEmptySubdirectories(stopper,namePath,self.osModule) #clean out name side if possible
         except OSError, x:
           pass
     # and the date directory
@@ -413,11 +413,11 @@ class JsonDumpStorage(socorro_dumpStorage.DumpStorage):
       except:
         pass
       try:
-        socorro_fs.cleanEmptySubdirectories(self.root,datePath,self.osModule)
+        cleanEmptySubdirectories(self.root,datePath,self.osModule)
       except:
         pass
     if not seenCount:
-      self.logger.warning("%s - %s was totally unknown" % (threading.currentThread().getName(), ooid))
+      #self.logger.warning("%s - %s was totally unknown" % (threading.currentThread().getName(), ooid))
       raise NoSuchUuidFound, "no trace of %s was found" % ooid
 
   #-----------------------------------------------------------------------------------------------------------------

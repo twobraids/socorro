@@ -86,10 +86,6 @@ class HBaseCrashStorage(CrashStorageBase):
         return self.hbaseConnection.get_processed_json(ooid,
                                number_of_retries=self.config.number_of_retries)
 
-    def has_ooid(self, ooid):
-        return (self.hbaseConnection
-                .acknowledge_ooid_as_legacy_priority_job(ooid))
-
     def new_ooids(self):
         return self.hbaseConnection.iterator_for_all_legacy_to_be_processed()
 

@@ -67,15 +67,15 @@ class DumpStorage(object):
 
     self.logger = kwargs.get('logger', logging.getLogger('dumpStorage'))
     self.currentSubSlots = {}
-    self.logger.debug("""Constructor has set the following values:
-      self.root: %s
-      self.dateName: %s
-      self.indexName: %s
-      self.minutesPerSlot: %s
-      self.subSlotCount: %s
-      self.dirPermissions: %o
-      self.dumpPermissions: %o
-      self.dumpGID: %s"""%(self.root,self.dateName,self.indexName,self.minutesPerSlot,self.subSlotCount,self.dirPermissions,self.dumpPermissions,self.dumpGID))
+    #self.logger.debug("""Constructor has set the following values:
+      #self.root: %s
+      #self.dateName: %s
+      #self.indexName: %s
+      #self.minutesPerSlot: %s
+      #self.subSlotCount: %s
+      #self.dirPermissions: %o
+      #self.dumpPermissions: %o
+      #self.dumpGID: %s"""%(self.root,self.dateName,self.indexName,self.minutesPerSlot,self.subSlotCount,self.dirPermissions,self.dumpPermissions,self.dumpGID))
 
   def newEntry(self,ooid,timestamp=None,webheadName = None):
     """

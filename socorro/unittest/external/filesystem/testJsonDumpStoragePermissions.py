@@ -15,8 +15,8 @@ import socorro.lib.filesystem as socorro_fs
 import socorro.unittest.testlib.util as tutil
 from socorro.lib.datetimeutil import UTC
 
-def setup_module():
-  tutil.nosePrintModule(__file__)
+#def setup_module():
+  #tutil.nosePrintModule(__file__)
 
 class TestJsonDumpStoragePermissions(unittest.TestCase):
   def setUp(self):
