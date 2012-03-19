@@ -24,6 +24,8 @@ class TestFileSystemRawCrashStorage(unittest.TestCase):
 
     def tearDown(self):
         shutil.rmtree(self.std_tmp_dir)
+        shutil.rmtree(self.def_tmp_dir)
+        shutil.rmtree(self.pro_tmp_dir)
 
     @staticmethod
     def _get_class_methods(klass):
@@ -49,7 +51,7 @@ class TestFileSystemRawCrashStorage(unittest.TestCase):
             elif os.path.isfile(path) and filename in path:
                 found.append(path)
         return found
-    
+
     def _common_config_setup(self):
         mock_logging = Mock()
         required_config = FileSystemCrashStorage.get_required_config()
@@ -67,7 +69,7 @@ class TestFileSystemRawCrashStorage(unittest.TestCase):
           }]
         )
         return config_manager
-    
+
     def _common_basic_test(self, config, crashstorage):
         fake_dump = 'this is a fake dump'
         self.assertEqual(list(crashstorage.new_ooids()), [])
@@ -112,11 +114,11 @@ class TestFileSystemRawCrashStorage(unittest.TestCase):
         self.assertTrue("fake dump" in dump)
 
         crashstorage.remove('114559a5-d8e6-428c-8b88-1c1f22120314')
-        self.assertRaises(OSError, 
+        self.assertRaises(OSError,
                           crashstorage.std_crash_store.getJson,
                           '114559a5-d8e6-428c-8b88-1c1f22120314')
-        self.assertRaises(OSError, 
-                          crashstorage.std_crash_store.getDump, 
+        self.assertRaises(OSError,
+                          crashstorage.std_crash_store.getDump,
                           '114559a5-d8e6-428c-8b88-1c1f22120314')
         self.assertRaises(OOIDNotFoundException,
                           crashstorage.remove,
@@ -161,11 +163,11 @@ class TestFileSystemRawCrashStorage(unittest.TestCase):
           os.path.exists(
             crashstorage.def_crash_store.getDump(
                 '114559a5-d8e6-428c-8b88-1c1f22120314')))
-        self.assertRaises(OSError, 
+        self.assertRaises(OSError,
                           crashstorage.std_crash_store.getJson,
                           '114559a5-d8e6-428c-8b88-1c1f22120314')
-        self.assertRaises(OSError, 
-                          crashstorage.std_crash_store.getDump, 
+        self.assertRaises(OSError,
+                          crashstorage.std_crash_store.getDump,
                           '114559a5-d8e6-428c-8b88-1c1f22120314')
 
         meta = crashstorage.get_raw_json(
@@ -179,17 +181,17 @@ class TestFileSystemRawCrashStorage(unittest.TestCase):
         self.assertTrue("fake dump" in dump)
 
         crashstorage.remove('114559a5-d8e6-428c-8b88-1c1f22120314')
-        self.assertRaises(OSError, 
+        self.assertRaises(OSError,
                           crashstorage.def_crash_store.getJson,
                           '114559a5-d8e6-428c-8b88-1c1f22120314')
-        self.assertRaises(OSError, 
-                          crashstorage.def_crash_store.getDump, 
+        self.assertRaises(OSError,
+                          crashstorage.def_crash_store.getDump,
                           '114559a5-d8e6-428c-8b88-1c1f22120314')
-        self.assertRaises(OSError, 
+        self.assertRaises(OSError,
                           crashstorage.std_crash_store.getJson,
                           '114559a5-d8e6-428c-8b88-1c1f22120314')
-        self.assertRaises(OSError, 
-                          crashstorage.std_crash_store.getDump, 
+        self.assertRaises(OSError,
+                          crashstorage.std_crash_store.getDump,
                           '114559a5-d8e6-428c-8b88-1c1f22120314')
 
     def test_filesystem_raw_crashstorage(self):
@@ -211,10 +213,10 @@ class TestFileSystemRawCrashStorage(unittest.TestCase):
             crashstorage = FileSystemCrashStorage(config)
             #self._common_basic_test(config, crashstorage)
             #self._common_throttle_test(config, crashstorage)
-            
+
             crashstorage = FileSystemCrashStorage(config)
             self.assertEqual(list(crashstorage.new_ooids()), [])
-            
+
             processed_crash = {"name": "Peter", "legacy_processing": 1}
             self.assertRaises(
               OOIDNotFoundException,
@@ -227,10 +229,10 @@ class TestFileSystemRawCrashStorage(unittest.TestCase):
             ooid = processed_crash['ooid']
             result = crashstorage.save_processed(processed_crash)
             self.assertEqual(result, FileSystemRawCrashStorage.OK)
-            
+
             returned_procesessed_crash = crashstorage.get_processed_json(ooid)
             self.assertEqual(processed_crash, returned_procesessed_crash)
-            
+
             crashstorage.remove(ooid)
             self.assertRaises(OOIDNotFoundException,
                               crashstorage.get_processed_json,
@@ -239,5 +241,5 @@ class TestFileSystemRawCrashStorage(unittest.TestCase):
                               crashstorage.remove,
                               ooid)
 
-    
+
 
