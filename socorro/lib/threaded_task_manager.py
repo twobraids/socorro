@@ -46,15 +46,6 @@ class ThreadedTaskManager(RequiredConfig):
     required_config.add_option('idle_delay',
                                default=7,
                                doc='the delay in seconds if no job is found')
-    required_config.add_option('job_source_iterator',
-                               default=default_iterator,
-                               doc='an iterator or callable that will '
-                               'return an iterator',
-                               from_string_converter=class_converter)
-    required_config.add_option('task_func',
-                               default=default_task_func,
-                               doc='a callable that accomplishes a task',
-                               from_string_converter=class_converter)
     required_config.add_option('number_of_threads',
                                default=10,
                                doc='the number of threads')
@@ -68,6 +59,7 @@ class ThreadedTaskManager(RequiredConfig):
         super(ThreadedTaskManager, self).__init__()
         self.config = config
         self.logger = config.logger
+        self.job_param_source_iter = job_source_iterator
         self.job_param_source_iter = config.setdefault('job_source_iterator',
                                                    job_source_iterator)
         self.task_func = config.setdefault('task_func', task_func)
@@ -199,49 +191,71 @@ class ThreadedTaskManager(RequiredConfig):
 
 
 #==============================================================================
-class IteratorWorkerFrameworkWithRetry(ThreadedTaskManager):
-    # pragma: no cover
-    """likely deprecated"""
+class ThreadedTaskManagerWithConfigSetup(ThreadedTaskManager):
+    """Given an iterator over a sequence of job parameters and a function,
+    this class will execute the the function in a set of threads."""
+    required_config = Namespace()
+    required_config.add_option('job_source_iterator',
+                               default=default_iterator,
+                               doc='an iterator or callable that will '
+                               'return an iterator',
+                               from_string_converter=class_converter)
+    required_config.add_option('task_func',
+                               default=default_task_func,
+                               doc='a callable that accomplishes a task',
+                               from_string_converter=class_converter)
 
-    #--------------------------------------------------------------------------
-    def __init__(self, config,
-                 name='mill',
-                 job_source_iterator=default_iterator,
-                 task_func=default_task_func):
-        super(IteratorWorkerFrameworkWithRetry, self).__init__(config,
-                                                        job_source_iterator,
-                                                        task_func)
-        self.inner_task_func = self.task_func
-        self.task_func = self.retryTaskFuncWrapper
+    def __init__(self, config):
+        super(ThreadedTaskManagerWithConfigSetup, self).__init__(
+          config=config,
+          job_source_iterator=config.job_source_iterator,
+          task_func=config.task_func)
 
-    #--------------------------------------------------------------------------
-    @staticmethod
-    def backoffSecondsGenerator():
-        seconds = [10, 30, 60, 120, 300]
-        for x in seconds:
-            yield x
-        while True:
-            yield seconds[-1]
 
-#------------------------------------------------------------------------------
-    def retryTaskFuncWrapper(self, *args):
-        backoffGenerator = self.backoffSecondsGenerator()
-        try:
-            while True:
-                result = self.inner_task_func(*args)
-                if self.quit:
-                    break
-                if result in (OK, FAILURE):
-                    return
-                waitInSeconds = backoffGenerator.next()
-                self.logger.critical('failure in task - retry in %s seconds',
-                                     waitInSeconds)
-                self._responsive_sleep(waitInSeconds,
-                                       10,
-                                       "waiting for retry after failure in "
-                                           "task")
-        except KeyboardInterrupt:
-            return
+#==============================================================================
+#class IteratorWorkerFrameworkWithRetry(ThreadedTaskManager):
+    ## pragma: no cover
+    #"""likely deprecated"""
+
+    ##--------------------------------------------------------------------------
+    #def __init__(self, config,
+                 #name='mill',
+                 #job_source_iterator=default_iterator,
+                 #task_func=default_task_func):
+        #super(IteratorWorkerFrameworkWithRetry, self).__init__(config,
+                                                        #job_source_iterator,
+                                                        #task_func)
+        #self.inner_task_func = self.task_func
+        #self.task_func = self.retryTaskFuncWrapper
+
+    ##--------------------------------------------------------------------------
+    #@staticmethod
+    #def backoffSecondsGenerator():
+        #seconds = [10, 30, 60, 120, 300]
+        #for x in seconds:
+            #yield x
+        #while True:
+            #yield seconds[-1]
+
+##------------------------------------------------------------------------------
+    #def retryTaskFuncWrapper(self, *args):
+        #backoffGenerator = self.backoffSecondsGenerator()
+        #try:
+            #while True:
+                #result = self.inner_task_func(*args)
+                #if self.quit:
+                    #break
+                #if result in (OK, FAILURE):
+                    #return
+                #waitInSeconds = backoffGenerator.next()
+                #self.logger.critical('failure in task - retry in %s seconds',
+                                     #waitInSeconds)
+                #self._responsive_sleep(waitInSeconds,
+                                       #10,
+                                       #"waiting for retry after failure in "
+                                           #"task")
+        #except KeyboardInterrupt:
+            #return
 
 
 #==============================================================================
