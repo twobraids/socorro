@@ -33,6 +33,7 @@ from socorro.lib.threaded_task_manager import ThreadedTaskManager, \
 from socorro.app.generic_app import App
 
 
+#==============================================================================
 class FetchTransformSaveApp(App):
     """base class for apps that follow the fetch/transform/save model"""
     app_name = 'generic_fetch_transform_save_app'
@@ -60,6 +61,7 @@ class FetchTransformSaveApp(App):
                                         default=None,
                                         from_string_converter=class_converter)
 
+    #--------------------------------------------------------------------------
     def source_iterator(self):
         """this iterator yields individual ooids from the source crashstorage
         class's 'new_ooids' method."""
@@ -73,6 +75,7 @@ class FetchTransformSaveApp(App):
                 yield None  # if the inner iterator yielded nothing at all,
                             # yield None to give the caller the chance to sleep
 
+    #--------------------------------------------------------------------------
     def transform(self, ooid):
         """this default transform function only transfers raw data from the
         source to the destination without changing the data.  While this may
@@ -82,6 +85,7 @@ class FetchTransformSaveApp(App):
         dump = self.source.get_dump(ooid)
         self.destination.save_raw_crash(raw_crash, dump)
 
+    #--------------------------------------------------------------------------
     def main(self):
         """this main routine sets up the signal handlers, the source and
         destination crashstorage systems at the  theaded task manager.  That
