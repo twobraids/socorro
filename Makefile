@@ -25,6 +25,7 @@ reinstall: install-socorro install-web install-submodules
 	# record current git revision in install dir
 	git rev-parse HEAD > $(PREFIX)/revision.txt
 	REV=`cat $(PREFIX)/revision.txt` && sed -ibak "s/CURRENT_SOCORRO_REVISION/$$REV/" $(PREFIX)/htdocs/application/config/revision.php
+	REV=`cat $(PREFIX)/stackwalk/revision.txt` && sed -ibak "s/CURRENT_BREAKPAD_REVISION/$$REV/" $(PREFIX)/htdocs/application/config/revision.php
 
 install-socorro:
 	# create base directories
@@ -50,7 +51,7 @@ install-web:
 
 install-submodules:
 	# clone submodule dependencies
-	git submodule update --init --recursive configman
+	git submodule update --init --recursive
 	cd configman; python setup.py install --install-lib=$(ABS_PREFIX)/application
 
 virtualenv:
@@ -78,6 +79,7 @@ minidump_stackwalk:
 	svn co http://google-breakpad.googlecode.com/svn/trunk google-breakpad
 	cd google-breakpad && ./configure --prefix=`pwd`/../stackwalk/
 	cd google-breakpad && make install
+	cd google-breakpad && svn info | grep Revision | cut -d' ' -f 2 > ../stackwalk/revision.txt
 
 java_analysis:
 	cd analysis && ant hadoop-jar
