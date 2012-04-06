@@ -1,5 +1,5 @@
 import unittest
-from socorro.external.crashstorage_base import CrashStorageBase
+from socorro.external.crashstorage_base import CrashStorageBase, PolyError
 from configman import Namespace, ConfigurationManager
 from mock import Mock
 
@@ -28,12 +28,37 @@ class TestBase(unittest.TestCase):
             crashstorage.save_raw_crash({}, 'payload')
             crashstorage.save_processed({})
             self.assertRaises(NotImplementedError,
-                              crashstorage.get_raw_json, 'ooid')
+                              crashstorage.get_raw_crash, 'ooid')
             self.assertRaises(NotImplementedError,
                               crashstorage.get_raw_dump, 'ooid')
             self.assertRaises(NotImplementedError,
-                              crashstorage.get_processed_json, 'ooid')
+                              crashstorage.get_processed_crash, 'ooid')
             self.assertRaises(NotImplementedError,
                               crashstorage.remove, 'ooid')
             self.assertRaises(StopIteration, crashstorage.new_ooids)
             self.assertRaises(NotImplementedError, crashstorage.close)
+
+    def test_polyerror(self):
+        p = PolyError('hell')
+        try:
+            try:
+                raise NameError('dwight')
+            except NameError:
+                p.gather_current_exception()
+            try:
+                raise KeyError('wilma')
+            except KeyError:
+                p.gather_current_exception()
+            try:
+                raise AttributeError('sarita')
+            except AttributeError:
+                p.gather_current_exception()
+            raise p
+        except PolyError, x:
+            self.assertEqual(len(x), 3)
+            self.assertFalse(x.is_empty())
+            types = [NameError, KeyError, AttributeError]
+            [self.assertEqual(a[0], b) for a, b in zip(x, types)]
+
+
+

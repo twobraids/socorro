@@ -3,6 +3,9 @@ saving, fetching and iterating over raw crashes, dumps and processed crashes.
 """
 
 import os
+import sys
+import collections
+
 from configman import Namespace,  RequiredConfig
 from configman.converters import classes_in_namespaces_converter, \
                                  class_converter
@@ -153,9 +156,31 @@ class CrashStorageBase(RequiredConfig):
         raise StopIteration
 
 #==============================================================================
-class PolyError(Exception):
-    def __init__(self, exception_collection):
-        self.exceptions = exception_collection
+class PolyError(Exception, collections.MutableSequence):
+    def __init__(self, message):
+        super(PolyError, self).__init__(self, message)
+        self.exceptions = []
+
+    def gather_current_exception(self):
+        self.exceptions.append(sys.exc_info())
+
+    def is_empty(self):
+        return len(self.exceptions) == 0
+
+    def __len__(self):
+        return len(self.exceptions)
+
+    def __iter__(self):
+        return iter(self.exceptions)
+
+    def __contains__(self, value):
+        return self.exceptions.__contains__(value)
+
+    def __getitem__(self, index):
+        return self.exceptions.__getitem__(index)
+
+    def __setitem__(self, index, value):
+        self.exceptions.__setitem__(index, value)
 
 
 #==============================================================================
@@ -231,10 +256,10 @@ class PolyCrashStorage(CrashStorageBase):
             try:
                 a_store.save_raw_crash(raw_crash, dump)
             except Exception, x:
-                exceptions.append(x)
+                exception_tuple = sys.exc_info()
+                exceptions.append(exception_tuple)
         if exceptions:
             raise PolyError(exceptions)
-
 
     #--------------------------------------------------------------------------
     def save_processed(self, processed_json):
