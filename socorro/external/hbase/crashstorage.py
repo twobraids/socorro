@@ -1,6 +1,12 @@
 from socorro.external.crashstorage_base import (
-  CrashStorageBase, OOIDNotFoundException)
-from socorro.storage import hbaseClient
+  CrashStorageBase,
+  OOIDNotFoundException
+)
+from socorro.external.hbase.hbase_client import (
+  HBaseConnectionForCrashReports,
+  NoConnectionException
+)
+from socorro.external.hbase import hbase_client
 from configman import Namespace
 
 
@@ -32,16 +38,16 @@ class HBaseCrashStorage(CrashStorageBase):
         super(HBaseCrashStorage, self).__init__(config)
 
         self.logger.info('connecting to hbase')
-        self.hbaseConnection = hbaseClient.HBaseConnectionForCrashReports(
+        self.hbaseConnection = HBaseConnectionForCrashReports(
             config.hbase_host,
             config.hbase_port,
             config.hbase_timeout,
             logger=self.logger
         )
 
-        self.exceptionsEligibleForRetry += \
+        self.exceptions_eligible_for_retry += \
           self.hbaseConnection.hbaseThriftExceptions
-        self.exceptionsEligibleForRetry += (hbaseClient.NoConnectionException,)
+        self.exceptions_eligible_for_retry += (NoConnectionException,)
 
     def close(self):
         self.hbaseConnection.close()
