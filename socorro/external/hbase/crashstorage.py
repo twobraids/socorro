@@ -2,10 +2,6 @@ from socorro.external.crashstorage_base import (
   CrashStorageBase,
   OOIDNotFoundException
 )
-from socorro.external.hbase.hbase_client import (
-  HBaseConnectionForCrashReports,
-  NoConnectionException
-)
 from socorro.external.hbase import hbase_client
 from configman import Namespace
 
@@ -38,7 +34,7 @@ class HBaseCrashStorage(CrashStorageBase):
         super(HBaseCrashStorage, self).__init__(config)
 
         self.logger.info('connecting to hbase')
-        self.hbaseConnection = HBaseConnectionForCrashReports(
+        self.hbaseConnection = hbase_client.HBaseConnectionForCrashReports(
             config.hbase_host,
             config.hbase_port,
             config.hbase_timeout,
@@ -47,7 +43,7 @@ class HBaseCrashStorage(CrashStorageBase):
 
         self.exceptions_eligible_for_retry += \
           self.hbaseConnection.hbaseThriftExceptions
-        self.exceptions_eligible_for_retry += (NoConnectionException,)
+        self.exceptions_eligible_for_retry += (hbase_client.NoConnectionException,)
 
     def close(self):
         self.hbaseConnection.close()
@@ -69,12 +65,12 @@ class HBaseCrashStorage(CrashStorageBase):
               number_of_retries=self.config.number_of_retries)
             self.logger.info('saved - %s', ooid)
             return self.OK
-        except self.exceptionsEligibleForRetry:
+        except self.exceptions_eligible_for_retry:
             self.logger.error("Exception eligable for retry", exc_info=True)
             return self.RETRY
         except Exception:
             self.logger.error("Other error on put_json_dump", exc_info=True)
-            return self.ERROR
+            return self.ERROR # XXX breaks
 
     def save_processed(self, ooid, json_data):
         self.hbaseConnection.put_processed_json(ooid, json_data,

@@ -169,6 +169,7 @@ class TestHBaseCrashStorage2(unittest.TestCase):
         )
 
         with config_manager.context() as config:
+
             hbaseclient_ = 'socorro.external.hbase.crashstorage.hbase_client'
             with mock.patch(hbaseclient_) as hclient:
 
