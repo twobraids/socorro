@@ -2,19 +2,20 @@ import time
 import json
 import inspect
 import unittest
+import mock
+
+from configman import ConfigurationManager
+
+import socorro.external.hbase.hbase_client as hbclient
 from socorro.external.crashstorage_base import (
   CrashStorageBase,
   OOIDNotFoundException
 )
 from socorro.external.hbase.crashstorage import HBaseCrashStorage
-#from socorro.external.hbase.hbase_client import (
-  #HBaseConnectionForCrashReports,
-  #OoidNotFoundException
-#)
-import socorro.external.hbase.hbase_client as hbclient
-from configman import ConfigurationManager
 from socorro.unittest.config import commonconfig
-import mock
+from socorro.database.transaction_executor import (
+  TransactionExecutorWithLimitedBackoff
+)
 
 
 #class TestIntegrationHBaseCrashStorage(unittest.TestCase):
@@ -95,7 +96,7 @@ import mock
             #raw = '{"name": "Peter"}'
             #self.assertRaises(
               #OOIDNotFoundException,
-              #crashstorage.save_raw,
+              #crashstorage.save_raw_crash,
               #json.loads(raw),
               #raw
             #)
@@ -103,14 +104,14 @@ import mock
             #raw = '{"name":"Peter","ooid":"abc123"}'
             #self.assertRaises(
               #ValueError,  # missing the 'submitted_timestamp' key
-              #crashstorage.save_raw,
+              #crashstorage.save_raw_crash,
               #json.loads(raw),
               #raw
             #)
 
             #raw = ('{"name":"Peter","ooid":"abc123",'
                    #'"submitted_timestamp":"%d"}' % time.time())
-            #result = crashstorage.save_raw(json.loads(raw), raw)
+            #result = crashstorage.save_raw_crash(json.loads(raw), raw)
             #self.assertEqual(result, CrashStorageBase.OK)
 
             #assert config.logger.info.called
@@ -121,7 +122,7 @@ import mock
             #self.assertTrue('saved' in msg)
             #self.assertTrue('abc123' in msg)
 
-            #meta = crashstorage.get_raw_json('abc123')
+            #meta = crashstorage.get_raw_crash('abc123')
             #assert isinstance(meta, dict)
             #self.assertEqual(meta['name'], 'Peter')
 
@@ -131,7 +132,7 @@ import mock
 
             ## hasn't been processed yet
             #self.assertRaises(OoidNotFoundException,
-                              #crashstorage.get_processed_json,
+                              #crashstorage.get_processed_crash,
                               #'abc123')
 
             #raw = ('{"name":"Peter","ooid":"abc123", '
@@ -140,7 +141,7 @@ import mock
                    #(time.time(), time.time()))
 
             #crashstorage.save_processed('abc123', json.loads(raw))
-            #data = crashstorage.get_processed_json('abc123')
+            #data = crashstorage.get_processed_crash('abc123')
             #self.assertEqual(data['name'], u'Peter')
             #assert crashstorage.hbaseConnection.transport.isOpen()
             #crashstorage.close()
@@ -148,7 +149,7 @@ import mock
             #self.assertTrue(not transport.isOpen())
 
 
-class TestHBaseCrashStorage2(unittest.TestCase):
+class TestHBaseCrashStorage1(unittest.TestCase):
 
     def test_basic_hbase_crashstorage(self):
         mock_logging = mock.Mock()
@@ -172,6 +173,46 @@ class TestHBaseCrashStorage2(unittest.TestCase):
 
             hbaseclient_ = 'socorro.external.hbase.crashstorage.hbase_client'
             with mock.patch(hbaseclient_) as hclient:
+                instance = (hclient
+                            .HBaseConnectionForCrashReports
+                            .return_value)
+                instance.put_json_dump.side_effect = ValueError('shit!')
+                crashstorage = HBaseCrashStorage(config)
+                self.assertEqual(
+                  hclient.HBaseConnectionForCrashReports.call_count,
+                  1
+                )
+                raw = ('{"name":"Peter","ooid":"abc123",'
+                       '"submitted_timestamp":"%d"}' % time.time())
+                crashstorage.save_raw_crash(json.loads(raw), raw)
+
+
+class TestHBaseCrashStorage2(unittest.TestCase):
+    def test_basic_hbase_crashstorage(self):
+        mock_logging = mock.Mock()
+        required_config = HBaseCrashStorage.required_config
+        required_config.add_option('logger', default=mock_logging)
+
+        config_manager = ConfigurationManager(
+          [required_config],
+          app_name='testapp',
+          app_version='1.0',
+          app_description='app description',
+          values_source_list=[{
+            'logger': mock_logging,
+            'hbase_timeout': 100,
+            'hbase_host': commonconfig.hbaseHost.default,
+            'hbase_port': commonconfig.hbasePort.default,
+            #'transaction_executor_class':
+                #TransactionExecutorWithLimitedBackoff,
+            #'backoff_delays': [0, 0, 0]
+          }]
+        )
+
+        with config_manager.context() as config:
+
+            hbaseclient_ = 'socorro.external.hbase.crashstorage.hbase_client'
+            with mock.patch(hbaseclient_) as hclient:
 
                 class SomeThriftError(Exception):
                     pass
@@ -181,24 +222,21 @@ class TestHBaseCrashStorage2(unittest.TestCase):
                             .return_value)
                 instance.hbaseThriftExceptions = (SomeThriftError,)
 
-                def raiser(*args, **kwargs):
-                    raise ValueError('shit!')
-
-                instance.put_json_dump = raiser
-                crashstorage = HBaseCrashStorage(config)
-                assert hclient.HBaseConnectionForCrashReports.call_count == 1
+                def retry_raiser(*args, **kwargs):
+                    raise SomeThriftError('try again')
+                instance.put_json_dump = retry_raiser
 
                 raw = ('{"name":"Peter","ooid":"abc123",'
                        '"submitted_timestamp":"%d"}' % time.time())
-                result = crashstorage.save_raw(json.loads(raw), raw)
-                self.assertEqual(result, CrashStorageBase.ERROR)
-                args, kwargs = config.logger.error.call_args_list[-1]
-                self.assertTrue(args)
-                self.assertTrue(kwargs.get('exc_info'))
+                try:
+                    crashstorage.save_raw_crash(json.loads(raw), raw)
+                except BaseException, x:
+                    print "this is my error:", str(x)
+                assert False
+                self.assertRaises(SomeThriftError,
+                  crashstorage.save_raw_crash,
+                  json.loads(raw),
+                  raw
+                )
+                self.assertEqual(instance.put_json_dump.call_count, 3)
 
-                def retry_raiser(*args, **kwargs):
-                    raise SomeThriftError('try again')
-
-                instance.put_json_dump = retry_raiser
-                result = crashstorage.save_raw(json.loads(raw), raw)
-                self.assertEqual(result, CrashStorageBase.RETRY)

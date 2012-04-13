@@ -12,6 +12,7 @@ import threading
 import time
 import tarfile
 import random
+import contextlib
 
 import socket
 
@@ -247,6 +248,9 @@ class HBaseConnection(object):
                                   socket.timeout,
                                   socket.error
                                  )
+    self.operational_exceptions = self.hbaseThriftExceptions
+    self.conditional_exceptions = ()
+
 
     try:
       self.make_connection(timeout=self.timeout)
@@ -313,6 +317,22 @@ class HBaseConnection(object):
     Get back every column value for a specific row_id
     """
     return self._make_rows_nice(self.client.getRow(table_name, row_id))
+
+  def commit(self):
+    pass
+
+  def rollback(self):
+    pass
+
+  @contextlib.contextmanager
+  def __call__(self):
+    yield self
+
+  def in_transaction(self, dummy):
+    return False
+
+  def is_operational_exception(self, msg):
+    return False
 
 class HBaseConnectionForCrashReports(HBaseConnection):
   """
@@ -585,7 +605,8 @@ class HBaseConnectionForCrashReports(HBaseConnection):
       self.delete_from_legacy_processing_index(row['_rowkey'])
       yield row['ids:ooid']
 
-  @retry_wrapper_for_generators
+  #@retry_wrapper_for_generators
+  @optional_retry_wrapper
   def acknowledge_ooid_as_legacy_priority_job (self, ooid):
     try:
       state = self.get_report_processing_state(ooid)
