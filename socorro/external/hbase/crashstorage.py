@@ -74,18 +74,15 @@ class HBaseCrashStorage(CrashStorageBase):
         except KeyError:
             raise ValueError("data must contain a 'submitted_timestamp' key")
 
-        #self.hbaseConnection.put_json_dump(ooid, json_data, dump)
-        self.transaction_executor(
+        in_context = self.transaction_executor(
           hbase_client.HBaseConnectionForCrashReports.put_json_dump,
           ooid,
           json_data,
           dump,
           #number_of_retries=self.config.number_of_retries
           number_of_retries=0
-        )
-        #self.hbaseConnection.put_json_dump(
-          #ooid, json_data, dump,
-          #number_of_retries=self.config.number_of_retries)
+        )()
+
         self.logger.info('saved - %s', ooid)
 
     #--------------------------------------------------------------------------
