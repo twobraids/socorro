@@ -301,3 +301,84 @@ class TestHBaseCrashStorage2(unittest.TestCase):
 
                 crashstorage.save_raw_crash(json.loads(raw), raw)
                 self.assertEqual(klass.put_json_dump.call_count, 3)
+
+    def test_hbase_crashstorage_key_filter(self):
+        mock_logging = mock.Mock()
+        required_config = HBaseCrashStorage.required_config
+        required_config.add_option('logger', default=mock_logging)
+
+        config_manager = ConfigurationManager(
+          [required_config],
+          app_name='testapp',
+          app_version='1.0',
+          app_description='app description',
+          values_source_list=[{
+            'logger': mock_logging,
+            'hbase_timeout': 100,
+            'hbase_host': commonconfig.hbaseHost.default,
+            'hbase_port': commonconfig.hbasePort.default,
+            'transaction_executor_class':
+                TransactionExecutorWithLimitedBackoff,
+            'backoff_delays': [0, 0, 0]
+          }]
+        )
+
+        with config_manager.context() as config:
+
+            hbaseclient_ = 'socorro.external.hbase.crashstorage.hbase_client'
+            with mock.patch(hbaseclient_) as hclient:
+
+                # test save_raw_crash
+                raw_crash = {
+                  "name":"Peter",
+                  "ooid":"abc123",
+                  "email": "bogus@nowhere.org",
+                  "url": "http://embarassing.xxx",
+                  "submitted_timestamp": "2012-05-04T15:10:00",
+                  "user_id": "000-00-0000",
+                }
+                fake_binary_dump = "this a bogus binary dump"
+
+                expected_raw_crash = raw_crash
+                expceted_dump = fake_binary_dump
+
+                crashstorage = HBaseCrashStorage(config)
+                crashstorage.save_raw_crash(raw_crash, fake_binary_dump)
+                self.assertEqual(
+                  hclient.HBaseConnectionForCrashReports.put_json_dump.call_count,
+                  1
+                )
+                a = hclient.HBaseConnectionForCrashReports.put_json_dump.call_args
+                self.assertEqual(len(a[0]), 4)
+                self.assertEqual(a[0][1], "abc123")
+                self.assertEqual(a[0][2], expected_raw_crash)
+                self.assertEqual(a[0][3], expceted_dump)
+                self.assertEqual(a[1], {'number_of_retries': 0})
+
+                # test save_processed
+                processed_crash = {
+                  "name":"Peter",
+                  "ooid":"abc123",
+                  "email": "bogus@nowhere.org",
+                  "url": "http://embarassing.xxx",
+                  "user_id": "000-00-0000",
+                }
+                expected_processed_crash = {
+                  "name":"Peter",
+                  "ooid":"abc123",
+                }
+                crashstorage = HBaseCrashStorage(config)
+                crashstorage.save_processed(processed_crash)
+                self.assertEqual(
+                  hclient.HBaseConnectionForCrashReports.put_processed_json.call_count,
+                  1
+                )
+                a = hclient.HBaseConnectionForCrashReports.put_processed_json.call_args
+                self.assertEqual(len(a[0]), 3)
+                self.assertEqual(a[0][1], "abc123")
+                self.assertEqual(a[0][2], expected_processed_crash)
+                self.assertEqual(a[1], {'number_of_retries': 0})
+
+
+
+
