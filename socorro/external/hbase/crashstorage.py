@@ -131,7 +131,7 @@ class HBaseCrashStorage(CrashStorageBase):
     #--------------------------------------------------------------------------
     def get_processed_crash(self, ooid):
         return self.transaction_executor(
-            hbaseClient.HBaseConnectionForCrashReports.get_processed_json,
+            hbase_client.HBaseConnectionForCrashReports.get_processed_json,
             ooid,
             number_of_retries=self.config.number_of_retries
         )
@@ -143,7 +143,7 @@ class HBaseCrashStorage(CrashStorageBase):
 
     #--------------------------------------------------------------------------
     @staticmethod
-    def sanitize_processed_crash (processed_crash, forbidden_keys):
+    def sanitize_processed_crash(processed_crash, forbidden_keys):
         """returns a copy of a processed_crash with the forbidden keys removed.
 
         parameters:

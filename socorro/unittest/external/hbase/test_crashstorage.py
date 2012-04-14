@@ -302,7 +302,7 @@ class TestHBaseCrashStorage2(unittest.TestCase):
                 crashstorage.save_raw_crash(json.loads(raw), raw)
                 self.assertEqual(klass.put_json_dump.call_count, 3)
 
-    def test_hbase_crashstorage_key_filter(self):
+    def test_hbase_crashstorage_puts_and_gets(self):
         mock_logging = mock.Mock()
         required_config = HBaseCrashStorage.required_config
         required_config.add_option('logger', default=mock_logging)
@@ -340,7 +340,7 @@ class TestHBaseCrashStorage2(unittest.TestCase):
                 fake_binary_dump = "this a bogus binary dump"
 
                 expected_raw_crash = raw_crash
-                expceted_dump = fake_binary_dump
+                expected_dump = fake_binary_dump
 
                 crashstorage = HBaseCrashStorage(config)
                 crashstorage.save_raw_crash(raw_crash, fake_binary_dump)
@@ -352,7 +352,7 @@ class TestHBaseCrashStorage2(unittest.TestCase):
                 self.assertEqual(len(a[0]), 4)
                 self.assertEqual(a[0][1], "abc123")
                 self.assertEqual(a[0][2], expected_raw_crash)
-                self.assertEqual(a[0][3], expceted_dump)
+                self.assertEqual(a[0][3], expected_dump)
                 self.assertEqual(a[1], {'number_of_retries': 0})
 
                 # test save_processed
@@ -378,6 +378,48 @@ class TestHBaseCrashStorage2(unittest.TestCase):
                 self.assertEqual(a[0][1], "abc123")
                 self.assertEqual(a[0][2], expected_processed_crash)
                 self.assertEqual(a[1], {'number_of_retries': 0})
+
+                # test get_raw_crash
+                m = mock.Mock(return_value=raw_crash)
+                hclient.HBaseConnectionForCrashReports.get_json = m
+                r = crashstorage.get_raw_crash("abc123")
+                a = hclient.HBaseConnectionForCrashReports.get_json.call_args
+                self.assertEqual(len(a[0]), 2)
+                self.assertEqual(a[0][1], "abc123")
+                self.assertEqual(
+                  hclient.HBaseConnectionForCrashReports.get_json.call_count,
+                  1
+                )
+                self.assertEqual(r, expected_raw_crash)
+
+                # test get_raw_dump
+                m = mock.Mock(return_value=fake_binary_dump)
+                hclient.HBaseConnectionForCrashReports.get_dump = m
+                r = crashstorage.get_raw_dump("abc123")
+                a = hclient.HBaseConnectionForCrashReports.get_dump.call_args
+                self.assertEqual(len(a[0]), 2)
+                self.assertEqual(a[0][1], "abc123")
+                self.assertEqual(
+                  hclient.HBaseConnectionForCrashReports.get_dump.call_count,
+                  1
+                )
+                self.assertEqual(r, expected_dump)
+
+                # test get_processed_crash
+                m = mock.Mock(return_value=expected_processed_crash)
+                hclient.HBaseConnectionForCrashReports.get_processed_json = m
+                r = crashstorage.get_processed_crash("abc123")
+                a = hclient.HBaseConnectionForCrashReports.get_processed_json.call_args
+                self.assertEqual(len(a[0]), 2)
+                self.assertEqual(a[0][1], "abc123")
+                self.assertEqual(
+                  hclient.HBaseConnectionForCrashReports.get_processed_json.call_count,
+                  1
+                )
+                self.assertEqual(r, expected_processed_crash)
+
+
+
 
 
 
