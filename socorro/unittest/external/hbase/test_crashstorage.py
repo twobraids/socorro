@@ -1,18 +1,14 @@
 import os
 import time
 import json
-import inspect
 import unittest
 import mock
 
 from configman import ConfigurationManager
 
-from socorro.external.hbase import hbase_client# as hbclient
+from socorro.external.hbase import hbase_client
 
-from socorro.external.crashstorage_base import (
-  CrashStorageBase,
-  OOIDNotFoundException
-)
+from socorro.external.crashstorage_base import OOIDNotFoundException
 from socorro.external.hbase.crashstorage import HBaseCrashStorage
 from socorro.unittest.config import commonconfig
 from socorro.database.transaction_executor import (
@@ -35,8 +31,8 @@ else:
         If you ever get this::
             Traceback (most recent call last):
             ...
-            socorro.storage.hbaseClient.FatalException: the connection is not viab\
-            le.  retries fail:
+            socorro.storage.hbaseClient.FatalException: the connection is not
+            viable.  retries fail:
 
         Then try the following:
 
@@ -67,21 +63,7 @@ else:
                 connection.client.deleteAllRow(
                   'crash_reports', index_row_key)
             # because of HBase's async nature, deleting can take time
-            time.sleep(.1)
-
-        @staticmethod
-        def _get_class_methods(klass):
-            return dict((n, ref) for (n, ref)
-                        in inspect.getmembers(klass, inspect.ismethod)
-                        if not n.startswith('_') and n in klass.__dict__)
-
-        def test_abstract_classism(self):
-            # XXX work in progress, might change prints ot asserts
-            interface = self._get_class_methods(CrashStorageBase)
-            implementor = self._get_class_methods(HBaseCrashStorage)
-            for name in interface:
-                if name not in implementor:
-                    print HBaseCrashStorage.__name__, "doesn't implement", name
+            list(connection.iterator_for_all_legacy_to_be_processed())
 
         def test_basic_hbase_crashstorage(self):
             mock_logging = mock.Mock()
@@ -123,8 +105,7 @@ else:
 
                 raw = ('{"name":"Peter","ooid":"abc123",'
                        '"submitted_timestamp":"%d"}' % time.time())
-                result = crashstorage.save_raw_crash(json.loads(raw), raw)
-                self.assertEqual(result, CrashStorageBase.OK)
+                crashstorage.save_raw_crash(json.loads(raw), raw)
 
                 assert config.logger.info.called
                 assert config.logger.info.call_count > 1
@@ -143,7 +124,7 @@ else:
                 self.assertTrue('"name":"Peter"' in dump)
 
                 # hasn't been processed yet
-                self.assertRaises(OoidNotFoundException,
+                self.assertRaises(OOIDNotFoundException,
                                   crashstorage.get_processed_crash,
                                   'abc123')
 
@@ -152,7 +133,7 @@ else:
                        '"completeddatetime": "%d"}' %
                        (time.time(), time.time()))
 
-                crashstorage.save_processed('abc123', json.loads(raw))
+                crashstorage.save_processed(json.loads(raw))
                 data = crashstorage.get_processed_crash('abc123')
                 self.assertEqual(data['name'], u'Peter')
                 assert crashstorage.hbaseConnection.transport.isOpen()
@@ -161,7 +142,7 @@ else:
                 self.assertTrue(not transport.isOpen())
 
 
-class TestHBaseCrashStorage2(unittest.TestCase):
+class TestHBaseCrashStorage(unittest.TestCase):
     def test_hbase_crashstorage_basic_error(self):
         mock_logging = mock.Mock()
         required_config = HBaseCrashStorage.required_config
@@ -189,6 +170,7 @@ class TestHBaseCrashStorage2(unittest.TestCase):
                     pass
 
                 klass = hclient.HBaseConnectionForCrashReports
+
                 def retry_raiser(*args, **kwargs):
                     raise SomeThriftError('try again')
 
@@ -241,7 +223,7 @@ class TestHBaseCrashStorage2(unittest.TestCase):
                 def retry_raiser_iterator(*args, **kwargs):
                     return SomeThriftError('try again')
 
-                hclient.HBaseConnectionForCrashReports.put_json_dump.side_effect = retry_raiser_iterator()
+                klass.put_json_dump.side_effect = retry_raiser_iterator()
                 crashstorage = HBaseCrashStorage(config)
                 raw = ('{"name":"Peter","ooid":"abc123",'
                        '"submitted_timestamp":"%d"}' % time.time())
@@ -287,14 +269,14 @@ class TestHBaseCrashStorage2(unittest.TestCase):
                 klass.operational_exceptions = (SomeThriftError,)
 
                 _attempts = [SomeThriftError, SomeThriftError]
+
                 def retry_raiser_iterator(*args, **kwargs):
                     try:
                         raise _attempts.pop(0)
                     except IndexError:
                         return klass
 
-                hclient.HBaseConnectionForCrashReports.put_json_dump.side_effect = \
-                  retry_raiser_iterator
+                klass.put_json_dump.side_effect = retry_raiser_iterator
                 crashstorage = HBaseCrashStorage(config)
                 raw = ('{"name":"Peter","ooid":"abc123",'
                        '"submitted_timestamp":"%d"}' % time.time())
@@ -330,8 +312,8 @@ class TestHBaseCrashStorage2(unittest.TestCase):
 
                 # test save_raw_crash
                 raw_crash = {
-                  "name":"Peter",
-                  "ooid":"abc123",
+                  "name": "Peter",
+                  "ooid": "abc123",
                   "email": "bogus@nowhere.org",
                   "url": "http://embarassing.xxx",
                   "submitted_timestamp": "2012-05-04T15:10:00",
@@ -342,13 +324,16 @@ class TestHBaseCrashStorage2(unittest.TestCase):
                 expected_raw_crash = raw_crash
                 expected_dump = fake_binary_dump
 
+                # saves us from loooong lines
+                klass = hclient.HBaseConnectionForCrashReports
+
                 crashstorage = HBaseCrashStorage(config)
                 crashstorage.save_raw_crash(raw_crash, fake_binary_dump)
                 self.assertEqual(
-                  hclient.HBaseConnectionForCrashReports.put_json_dump.call_count,
+                  klass.put_json_dump.call_count,
                   1
                 )
-                a = hclient.HBaseConnectionForCrashReports.put_json_dump.call_args
+                a = klass.put_json_dump.call_args
                 self.assertEqual(len(a[0]), 4)
                 self.assertEqual(a[0][1], "abc123")
                 self.assertEqual(a[0][2], expected_raw_crash)
@@ -357,23 +342,20 @@ class TestHBaseCrashStorage2(unittest.TestCase):
 
                 # test save_processed
                 processed_crash = {
-                  "name":"Peter",
-                  "ooid":"abc123",
+                  "name": "Peter",
+                  "ooid": "abc123",
                   "email": "bogus@nowhere.org",
                   "url": "http://embarassing.xxx",
                   "user_id": "000-00-0000",
                 }
                 expected_processed_crash = {
-                  "name":"Peter",
-                  "ooid":"abc123",
+                  "name": "Peter",
+                  "ooid": "abc123",
                 }
                 crashstorage = HBaseCrashStorage(config)
                 crashstorage.save_processed(processed_crash)
-                self.assertEqual(
-                  hclient.HBaseConnectionForCrashReports.put_processed_json.call_count,
-                  1
-                )
-                a = hclient.HBaseConnectionForCrashReports.put_processed_json.call_args
+                self.assertEqual(klass.put_processed_json.call_count, 1)
+                a = klass.put_processed_json.call_args
                 self.assertEqual(len(a[0]), 3)
                 self.assertEqual(a[0][1], "abc123")
                 self.assertEqual(a[0][2], expected_processed_crash)
@@ -381,46 +363,30 @@ class TestHBaseCrashStorage2(unittest.TestCase):
 
                 # test get_raw_crash
                 m = mock.Mock(return_value=raw_crash)
-                hclient.HBaseConnectionForCrashReports.get_json = m
+                klass.get_json = m
                 r = crashstorage.get_raw_crash("abc123")
-                a = hclient.HBaseConnectionForCrashReports.get_json.call_args
+                a = klass.get_json.call_args
                 self.assertEqual(len(a[0]), 2)
                 self.assertEqual(a[0][1], "abc123")
-                self.assertEqual(
-                  hclient.HBaseConnectionForCrashReports.get_json.call_count,
-                  1
-                )
+                self.assertEqual(klass.get_json.call_count, 1)
                 self.assertEqual(r, expected_raw_crash)
 
                 # test get_raw_dump
                 m = mock.Mock(return_value=fake_binary_dump)
-                hclient.HBaseConnectionForCrashReports.get_dump = m
+                klass.get_dump = m
                 r = crashstorage.get_raw_dump("abc123")
-                a = hclient.HBaseConnectionForCrashReports.get_dump.call_args
+                a = klass.get_dump.call_args
                 self.assertEqual(len(a[0]), 2)
                 self.assertEqual(a[0][1], "abc123")
-                self.assertEqual(
-                  hclient.HBaseConnectionForCrashReports.get_dump.call_count,
-                  1
-                )
+                self.assertEqual(klass.get_dump.call_count, 1)
                 self.assertEqual(r, expected_dump)
 
                 # test get_processed_crash
                 m = mock.Mock(return_value=expected_processed_crash)
-                hclient.HBaseConnectionForCrashReports.get_processed_json = m
+                klass.get_processed_json = m
                 r = crashstorage.get_processed_crash("abc123")
-                a = hclient.HBaseConnectionForCrashReports.get_processed_json.call_args
+                a = klass.get_processed_json.call_args
                 self.assertEqual(len(a[0]), 2)
                 self.assertEqual(a[0][1], "abc123")
-                self.assertEqual(
-                  hclient.HBaseConnectionForCrashReports.get_processed_json.call_count,
-                  1
-                )
+                self.assertEqual(klass.get_processed_json.call_count, 1)
                 self.assertEqual(r, expected_processed_crash)
-
-
-
-
-
-
-
