@@ -130,11 +130,15 @@ class HBaseCrashStorage(CrashStorageBase):
 
     #--------------------------------------------------------------------------
     def get_processed_crash(self, ooid):
-        return self.transaction_executor(
-            hbase_client.HBaseConnectionForCrashReports.get_processed_json,
-            ooid,
-            number_of_retries=self.config.number_of_retries
-        )
+        try:
+            return self.transaction_executor(
+               hbase_client.HBaseConnectionForCrashReports.get_processed_json,
+               ooid,
+               number_of_retries=self.config.number_of_retries
+            )
+        except hbase_client.OoidNotFoundException:
+            # we want a consistent set of exceptions for the API
+            raise OOIDNotFoundException(ooid)
 
     #--------------------------------------------------------------------------
     def new_ooids(self):
