@@ -3,10 +3,20 @@ import os
 import collections as col
 
 import socorro.database.database as sdb
-import socorro.lib.ConfigurationManager as scm
-import socorro.lib.util as sutil
 
 from socorro.lib.datetimeutil import utc_now, UTC
+
+
+from configman import Namespace
+from configman.converters import class_converter, timedelta_converter
+
+from socorro.external.postgresql.connection_context import ConnectionContext
+from socorro.database.transaction_executor import TransactionExecutor
+from socorro.external.postgresql.dbapi2_util import (
+  single_value_sql,
+  execute_no_results,
+  SQLDidNotReturnSingleValue
+)
 
 
 #==============================================================================
@@ -16,75 +26,74 @@ class RegistrationError(Exception):
 
 
 #==============================================================================
-class ProcessorRegistrationAgent(object):
-    """This class encapsulates the processor's registration system in Postgres.
-    There exists a table in Posgres called 'processors'.  Each processor, when
-    it comes online, adds an entry about itself in that table.  This allows
-    the monitor to know of the processor.  The monitor will then assign jobs to
-    the registered processor.
-
-    Processors must periodically update their registrations to indicate that
-    they are still alive.  The update interval is controlled by the
-    configuration parameter 'processorCheckInTime', a timedelta object.  The
-    table in Postgres has a column called 'lastseendatetime'.  If the value
-    in that column plus the 'processorCheckInTime' is less than 'now', then
-    the processor is considered to be dead."""
-
-    NOW_SQL = "select now() - interval %s"
+class ProcessorAppRegistrationClient(object):
+    required_config = Namespace()
+    required_config.namespace('registrar')
+    required_config.registrar.add_option(
+      'database',
+      doc="the class of the registrar's database",
+      default=ConnectionContext,
+      from_string_converter=class_converter
+    )
+    required_config.registrar.add_option(
+      'transaction_executor_class',
+      default=TransactionExecutor,
+      doc='a class that will manage transactions',
+      from_string_converter=class_converter
+    )
+    required_config.registrar.add_option(
+      'processor_id',
+      doc='the id number for the processor (must already exist) (0 for create '
+          'new Id, "auto" for autodetection, "host" for same host)',
+      default='host'
+    )
+    required_config.registrar.add_option(
+      'check_in_frequency',
+      doc='the time after which a processor is considered dead (hh:mm:ss)',
+      default="00:05:00",
+      from_string_converter=timedelta_converter
+    )
 
     #--------------------------------------------------------------------------
-    def __init__(self, config, db_conn_source, now_func=utc_now,
-                 os_module=os, sdb_module=sdb):
+    def __init__(self, config, quit_check_callback=None):
         """constructor for a registration object.
 
         Parameters:
             config - dict-like object containing key/value pairs.  the keys
                      are accessible via dot syntax: config.some_key.
                      From the config, this classes uses the keys:
-                     logger - a logger object
-            db_conn_source - a connection pool object from which this class
-                             get database connections
-            now_func - the function that this class will use to get the
-                       current timestamp. In production, the default is fine.
-                       In testing, it is useful to use a custom and  more
-                       predictable function.
-            os_module - a reference to a module that provides the same services
-                        as the built in 'os' module.  For production, the
-                        default is fine. For testing, it is useful to pass in a
-                        mocked object of some sort.
-            sdb_module - a reference to the module that provides the Socorro
-                         database connection services.  The default is fine
-                         for production, but during testing, it is useful to
-                         pass in a mocked object."""
+                     logger - a logger object"""
         self.config = config
-        self.db_pool = db_conn_source
+
+        self.database = config.registrar.database(config)
+        self.transaction = config.registrar.transaction_executor_class(
+            config,
+            self.database,
+            abandonment_callback=quit_check_callback
+        )
         self.last_checkin_ts = dt.datetime(1999, 1, 1, tzinfo=UTC)
         self.logger = config.logger
-        self.now_func = now_func
-        self.os_module = os_module
-        self.sdb_module = sdb_module
         self.processor_id = None
         self.processor_name = 'unknown'
         self.registration()
 
     #--------------------------------------------------------------------------
-    @sdb.db_transaction_retry_wrapper
     def registration(self):
         """This function accomplishes the actual registration in the table
         inside Postgres.  There are four types of registrations, selected
-        by the value of the configuration parameter 'processorId'.
+        by the value of the configuration parameter 'processor_id'.
             assume_new_identity - when processorId is 0.  The processor should
                                   just register in the table as a brand new
                                   processor.  A new id will be assigned to this
                                   processor.
-            assume_specific_identity - when processorId is a non-zero integer.
+            assume_specific_identity - when processor_id is a non-zero integer.
                                        the processor should take over for a
                                        defunct processor with a specific ID.
-            assume_any_identity - when the processorId is "auto".  The
+            assume_any_identity - when the processor_id is "auto".  The
                                   processor should look for any other
                                   registered processor that has died and take
                                   over for it.
-            assume_identity_by_host - when the processorId is "host".
+            assume_identity_by_host - when the processor_id is "host".
                                       the processor should look for another
                                       registered processor that has a name
                                       indicating that it came from the same
@@ -96,44 +105,48 @@ class ProcessorRegistrationAgent(object):
         must all have the same parameters, hense a fat interface.  Not all
         parameters will be used by all methods."""
         self.logger.info("connecting to database")
-        db_conn, db_cur = self.db_pool.connectionCursorPair()
 
-        requested_id = self.requested_processor_id(self.config.processorId)
-        hostname = self.os_module.uname()[1]
-        self.processor_name = "%s_%d" % (hostname, self.os_module.getpid())
-        threshold = self.sdb_module.singleValueSql(db_cur,
-                                            self.NOW_SQL,
-                                            (self.config.processorCheckInTime,)
-                                            )
+        requested_id = self._requested_processor_id(
+          self.config.registrar.processor_id
+        )
+        hostname = os.uname()[1]
+        self.processor_name = "%s_%d" % (hostname, os.getpid())
+
+        threshold = self.transaction(
+          single_value_sql,
+          "select now() - interval %s",
+          (self.config.registrar.check_in_frequency,)
+        )
+
         dispatch_table = col.defaultdict(
-            lambda: self.assume_specific_identity,
-            {'auto': self.assume_any_identity,
-             'host': self.assume_identity_by_host,
-             0: self.assume_new_identity}
-            )
+          lambda: self._assume_specific_identity,
+          {'auto': self._assume_any_identity,
+           'host': self._assume_identity_by_host,
+           0: self._assume_new_identity}
+        )
 
         self.logger.info("registering with 'processors' table")
         try:
-            self.processor_id = dispatch_table[requested_id](db_cur,
-                                                            threshold,
-                                                            hostname,
-                                                            requested_id)
-            db_conn.commit()
-        except sdb.exceptions_eligible_for_retry:
-            raise
+            self.processor_id = self.transaction(
+              dispatch_table[requested_id],
+              threshold,
+              hostname,
+              requested_id
+            )
         except Exception:
-            db_conn.rollback()
-            self.logger.critical('unable to complete registration')
-            sutil.reportExceptionAndAbort(self.logger)
+            self.logger.critical('unable to complete registration',
+                                 exc_info=True)
+            raise
 
     #--------------------------------------------------------------------------
-    def assume_identity_by_host(self, cursor, threshold, hostname, req_id):
+    def _assume_identity_by_host(self, connection, threshold, hostname,
+                                req_id):
         """This function implements the case where a newly registering
         processor wants to take over for a dead processor with the same host
         name as the registering processor.
 
         Parameters:
-            cursor - a cursor object
+            connection - a connection object
             threshold - a datetime instance that represents an absolute date
                         made from the current datetime minus the timedelta
                         that defines how often a processor must update its
@@ -152,15 +165,16 @@ class ProcessorRegistrationAgent(object):
                    " where lastseendatetime < %s"
                    " and name like %s limit 1")
             hostname_phrase = hostname + '%'
-            processor_id = self.sdb_module.singleValueSql(cursor,
-                                                          sql,
-                                                          (threshold,
-                                                           hostname_phrase))
+            processor_id = single_value_sql(
+              connection,
+              sql,
+              (threshold, hostname_phrase)
+            )
             self.logger.info("will step in for processor %d", processor_id)
             # a dead processor for this host was found
-            self.take_over_dead_processor(cursor, processor_id)
+            self._take_over_dead_processor(connection, processor_id)
             return processor_id
-        except sdb.SQLDidNotReturnSingleValue:
+        except SQLDidNotReturnSingleValue:
             # no dead processor was found for this host, is there already
             # a live processor for it?
             self.logger.debug("no dead processor found for host, %s",
@@ -168,25 +182,24 @@ class ProcessorRegistrationAgent(object):
             try:
                 sql = ("select id from processors"
                        " where name like '%s%%'" % hostname)
-                self.processor_id = self.sdb_module.singleValueSql(cursor,
-                                                                   sql)
+                self.processor_id = single_value_sql(connection, sql)
                 message = ('a live processor already exists for host %s' %
                            hostname)
                 # there was a live processor found for this host, we cannot
                 # complete registration
                 raise RegistrationError(message)
-            except sdb.SQLDidNotReturnSingleValue:
+            except SQLDidNotReturnSingleValue:
                 # there was no processor for this host was found, make new one
-                return self.assume_new_identity(cursor, threshold,
+                return self._assume_new_identity(connection, threshold,
                                                 hostname, req_id)
 
     #--------------------------------------------------------------------------
-    def assume_any_identity(self, cursor, threshold, hostname, req_id):
+    def _assume_any_identity(self, connection, threshold, hostname, req_id):
         """This function implements the case where we're interested in taking
         over for any dead processor regardless of what host it was running on.
 
         Parameters:
-            cursor - a cursor object
+            connection - a connection object
             threshold - a datetime instance that represents an absolute date
                         made from the current datetime minus the timedelta
                         that defines how often a processor must update its
@@ -205,19 +218,20 @@ class ProcessorRegistrationAgent(object):
         try:
             sql = ("select id from processors"
                    " where lastseendatetime < %s limit 1")
-            processor_id = self.sdb_module.singleValueSql(cursor,
-                                                          sql,
-                                                          (threshold,))
+            processor_id = single_value_sql(connection,
+                                            sql,
+                                            (threshold,))
             self.logger.info("will step in for processor %d", processor_id)
-            self.take_over_dead_processor(cursor, processor_id)
+            self._take_over_dead_processor(connection, processor_id)
             return processor_id
-        except sdb.SQLDidNotReturnSingleValue:
+        except SQLDidNotReturnSingleValue:
             self.logger.debug("no dead processor found, registering as new")
-            return self.assume_new_identity(cursor, threshold, hostname,
+            return self._assume_new_identity(connection, threshold, hostname,
                                             req_id)
 
     #--------------------------------------------------------------------------
-    def assume_specific_identity(self, cursor, threshold, hostname, id_req):
+    def _assume_specific_identity(self, connection, threshold, hostname,
+                                 id_req):
         """This function implements the case where we want the processor to
         take over for a specific existing but dead processor without regard
         to what host the dead processor was running on.  If the dead processor
@@ -225,7 +239,7 @@ class ProcessorRegistrationAgent(object):
         raise a RegistrationError and decline to register the new processor.
 
         Parameters:
-            cursor - a cursor object
+            connection - a connection object
             threshold - a datetime instance that represents an absolute date
                         made from the current datetime minus the timedelta
                         that defines how often a processor must update its
@@ -247,18 +261,18 @@ class ProcessorRegistrationAgent(object):
             check_sql = ("select id from processors "
                          "where lastSeenDateTime < %s "
                          "and id = %s")
-            processor_id = self.sdb_module.singleValueSql(cursor,
-                                                          check_sql,
-                                                          (threshold, id_req))
+            processor_id = single_value_sql(connection,
+                                            check_sql,
+                                            (threshold, id_req))
             self.logger.info("stepping in for processor %d", processor_id)
-            self.take_over_dead_processor(cursor, processor_id)
+            self._take_over_dead_processor(connection, processor_id)
             return processor_id
         except sdb.SQLDidNotReturnSingleValue:
             raise RegistrationError("%d doesn't exist or is not dead" %
                                     id_req)
 
     #--------------------------------------------------------------------------
-    def assume_new_identity(self, cursor, threshold, hostname, req_id):
+    def _assume_new_identity(self, connection, threshold, hostname, req_id):
         """This function implements the method of registering a brand new
         processor.  It will cause a new row to be entered into the 'processors'
         table within the database.
@@ -276,30 +290,32 @@ class ProcessorRegistrationAgent(object):
             an integer representing the new id of the newly registered
             processor."""
         self.logger.debug("becoming a new processor")
-        return self.sdb_module.singleValueSql(cursor,
-                                              "insert into processors"
-                                              "    (id,"
-                                              "     name,"
-                                              "     startdatetime,"
-                                              "     lastseendatetime) "
-                                              "values"
-                                              "    (default,"
-                                              "     %s,"
-                                              "     now(),"
-                                              "     now()) "
-                                              "returning id",
-                                              (self.processor_name,))
+        return single_value_sql(connection,
+                                "insert into processors"
+                                "    (id,"
+                                "     name,"
+                                "     startdatetime,"
+                                "     lastseendatetime) "
+                                "values"
+                                "    (default,"
+                                "     %s,"
+                                "     now(),"
+                                "     now()) "
+                                "returning id",
+                                (self.processor_name,))
 
     #--------------------------------------------------------------------------
-    def take_over_dead_processor(self, cursor, req_id):
+    def _take_over_dead_processor(self, connection, req_id):
         """This function implement the method to take over for a dead
         processor within the 'processors' table in the database.
 
         Parameters:
-            cursor - a database cursor object used to talk to the database
+            connection - a database connection object used to talk to the
+                         database
             req_id - the id of the processor that is to be taken over.  This
                      is the 'id' column of the 'processors' table."""
-        self.logger.debug("taking over a dead processor")
+        cursor = connection.cursor()
+        self.logger.debug("trying to take over for a dead processor")
         cursor.execute("update processors set name = %s, "
                        "startdatetime = now(), lastseendatetime = now()"
                        " where id = %s",
@@ -313,7 +329,7 @@ class ProcessorRegistrationAgent(object):
 
     #--------------------------------------------------------------------------
     @staticmethod
-    def requested_processor_id(requested_id):
+    def _requested_processor_id(requested_id):
         """This method makes sure that the configuration parameter
         'processorID' is in the proper form.  If it is an integer, it is cast
         into the integer type.  If it is a string, it is ensured to be one
@@ -330,26 +346,23 @@ class ProcessorRegistrationAgent(object):
             if requested_id in ('auto', 'host'):
                 return requested_id
             else:
-                raise scm.OptionError("'%s' is not a valid value"
-                                      % requested_id)
+                raise ValueError("'%s' is not a valid value" % requested_id)
 
     #--------------------------------------------------------------------------
-    @sdb.db_transaction_retry_wrapper
     def checkin(self):
         """ a processor must keep its database registration current.  If a
         processor has not updated its record in the database in the interval
-        specified in as self.config.processorCheckInTime, the monitor will
-        consider it to be expired.  The monitor will stop assigning jobs to it
-        and reallocate its unfinished jobs to other processors.
+        specified in as self.config.registrar.check_in_frequency, the monitor
+        will consider it to be expired.  The monitor will stop assigning jobs
+        to it and reallocate its unfinished jobs to other processors.
         """
-        if (self.last_checkin_ts + self.config.processorCheckInFrequency
-                                             < self.now_func()):
+        tstamp = utc_now()
+        if (self.last_checkin_ts + self.config.registrar.check_in_frequency
+                                             < tstamp):
             self.logger.debug("updating 'processor' table registration")
-            tstamp = self.now_func()
-            db_conn, db_cur = self.db_pool.connectionCursorPair()
-            db_cur.execute("update processors set lastseendatetime = %s "
-                           "where id = %s", (tstamp, self.processor_id))
-            db_conn.commit()
-            self.last_checkin_ts = self.now_func()
-
-
+            self.transaction(
+              execute_no_results,
+              "update processors set lastseendatetime = %s where id = %s",
+              (tstamp, self.processor_id)
+            )
+            self.last_checkin_ts = tstamp

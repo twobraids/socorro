@@ -86,30 +86,41 @@ class FetchTransformSaveApp(App):
         self.destination.save_raw_crash(raw_crash, dump)
 
     #--------------------------------------------------------------------------
-    def main(self):
-        """this main routine sets up the signal handlers, the source and
-        destination crashstorage systems at the  theaded task manager.  That
-        starts a flock of threads that are ready to shepherd crashes from
-        the source to the destination."""
-        signal.signal(signal.SIGTERM, respond_to_SIGTERM)
-        signal.signal(signal.SIGHUP, respond_to_SIGTERM)
+    def setup_source_and_destination(self):
         try:
-            self.source = self.config.source.crashstorage(self.config)
+            #self.source = self.config.source.crashstorage(self.config)
+            self.source = self.config.source.crashstorage(self.config.source)
         except TypeError:
             self.config.logger.critical('Error in creating crash source',
                                         exc_info=True)
             raise
         try:
+            #self.destination = self.config.destination.crashstorage(
+              #self.config)
             self.destination = self.config.destination.crashstorage(
-              self.config)
+              self.config.destination)
         except TypeError:
             self.config.logger.critical('Error in creating crash destination',
                                         exc_info=True)
             raise
 
+    #--------------------------------------------------------------------------
+    def setup_task_manager(self):
+        signal.signal(signal.SIGTERM, respond_to_SIGTERM)
+        signal.signal(signal.SIGHUP, respond_to_SIGTERM)
         self.task_manager = ThreadedTaskManager(
           self.config,
           job_source_iterator=self.source_iterator,
-          task_func=self.transform)
+          task_func=self.transform
+        )
 
+    #--------------------------------------------------------------------------
+    def main(self):
+        """this main routine sets up the signal handlers, the source and
+        destination crashstorage systems at the  theaded task manager.  That
+        starts a flock of threads that are ready to shepherd crashes from
+        the source to the destination."""
+
+        self.setup_source_and_destination()
+        self.setup_task_manager()
         self.task_manager.blocking_start()
