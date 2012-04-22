@@ -1,15 +1,11 @@
 import datetime as dt
 import os
-import collections as col
-
-import socorro.database.database as sdb
-
-from socorro.lib.datetimeutil import utc_now, UTC
-
+from collections import defaultdict
 
 from configman import Namespace
 from configman.converters import class_converter, timedelta_converter
 
+from socorro.lib.datetimeutil import utc_now, UTC
 from socorro.external.postgresql.connection_context import ConnectionContext
 from socorro.database.transaction_executor import TransactionExecutor
 from socorro.external.postgresql.dbapi2_util import (
@@ -104,7 +100,6 @@ class ProcessorAppRegistrationClient(object):
         called 'dispatch_table'.  Since they are all called this way, they
         must all have the same parameters, hense a fat interface.  Not all
         parameters will be used by all methods."""
-        self.logger.info("connecting to database")
 
         requested_id = self._requested_processor_id(
           self.config.registrar.processor_id
@@ -118,7 +113,7 @@ class ProcessorAppRegistrationClient(object):
           (self.config.registrar.check_in_frequency,)
         )
 
-        dispatch_table = col.defaultdict(
+        dispatch_table = defaultdict(
           lambda: self._assume_specific_identity,
           {'auto': self._assume_any_identity,
            'host': self._assume_identity_by_host,
@@ -267,7 +262,7 @@ class ProcessorAppRegistrationClient(object):
             self.logger.info("stepping in for processor %d", processor_id)
             self._take_over_dead_processor(connection, processor_id)
             return processor_id
-        except sdb.SQLDidNotReturnSingleValue:
+        except SQLDidNotReturnSingleValue:
             raise RegistrationError("%d doesn't exist or is not dead" %
                                     id_req)
 
