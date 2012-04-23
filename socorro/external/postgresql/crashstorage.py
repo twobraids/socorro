@@ -12,7 +12,8 @@ from socorro.lib.datetimeutil import uuid_to_date
 from socorro.external.postgresql.dbapi2_util import (
     SQLDidNotReturnSingleValue,
     single_value_sql,
-    execute_no_results
+    execute_query_fetchall,
+    execute_no_results,
 )
 
 
@@ -180,10 +181,10 @@ class PostgreSQLCrashStorage(CrashStorageBase):
         table_suffix = self._table_suffix_for_ooid(ooid)
         extensions_table_name = 'extensions%s' % table_suffix
         extensions_insert_sql = (
-          "insert into %s "
-          "    (report_id, date_processed, extension_key, extension_id, "
-          "     extension_version)"
-          "values (%%s, %%s, %%s, %%s, %%s)" % extensions_table_name
+            "insert into %s "
+            "    (report_id, date_processed, extension_key, extension_id, "
+            "     extension_version)"
+            "values (%%s, %%s, %%s, %%s, %%s)" % extensions_table_name
         )
         for i, x in enumerate(extensions):
             try:
@@ -195,9 +196,127 @@ class PostgreSQLCrashStorage(CrashStorageBase):
                                     x[1]))
             except IndexError:
                 self.config.logger.warning(
-                  '"%s" is deficient as a name and version for an addon',
-                  str(x[0])
+                    '"%s" is deficient as a name and version for an addon',
+                    str(x[0])
                 )
+
+    def new_ooids(self):
+        for x in y:
+            yield x
+
+    #--------------------------------------------------------------------------
+    def new_priority_jobs_iter (self):
+        """Yields a list of ooids pulled from the 'jobs' table for all the jobs
+        found in this process' priority jobs table.  If there are no priority
+        jobs, it yields None. This iterator is perpetual - it never raises the
+        StopIteration exception
+        """
+        get_priority_jobs_sql = (
+          "select"
+          "    j.id,"
+          "    pj.uuid,"
+          "    1,"
+          "    j.starteddatetime "
+          "from"
+          "    jobs j right join %s pj on j.uuid = pj.uuid"
+          % self.priorityJobsTableName
+        )
+        delete_one_priority_job_sql = (
+          "delete from %s where uuid = %%s" % self.priorityJobsTableName
+        )
+        full_jobs_list = []
+        while True:
+            if not full_jobs_list:
+                full_jobs_list = self.transaction(
+                  execute_query_fetchall,
+                  get_priority_jobs_sql
+                )
+            if full_jobs_list:
+                while full_jobs_list:
+                    an_ooid_tuple = full_jobs_list.pop(-1)
+                    self.transaction(
+                      execute_no_results,
+                      delete_one_priority_job_sql,
+                      (an_ooid_tuple[1],)
+                    )
+                    if an_ooid_tuple[0] is not None:
+                        if an_ooid_tuple[3]:
+                            continue  # already started via normal channels
+                        else:
+                            self.priority_job_set.add(an_ooid_tuple[1])
+                            yield (an_ooid_tuple[0],an_ooid_tuple[1],an_ooid_tuple[2],)
+                    else:
+                        logger.debug("the priority job %s was never found", an_ooid_tuple[1])
+            else:
+                yield None
+
+    #--------------------------------------------------------------------------
+    def newNormalJobsIter (self):
+        """
+        Yields a list of job tuples pulled from the 'jobs' table for which the owner
+        is this process and the started datetime is null.
+        This iterator is perpetual - it never raises the StopIteration exception
+        """
+        getNormalJobSql = "select"  \
+            "    j.id,"  \
+            "    j.uuid,"  \
+            "    priority "  \
+            "from"  \
+            "    jobs j "  \
+            "where"  \
+            "    j.owner = %d"  \
+            "    and j.starteddatetime is null "  \
+            "order by queueddatetime"  \
+            "  limit %d" % (self.processorId,
+                            self.config.batchJobLimit)
+        normalJobsList = []
+        while True:
+            if not normalJobsList:
+                normalJobsList = self.sdb.transaction_execute_with_retry( \
+                    self.databaseConnectionPool,
+                    getNormalJobSql
+                )
+            if normalJobsList:
+                while normalJobsList:
+                    yield normalJobsList.pop(-1)
+            else:
+                yield None
+
+    #--------------------------------------------------------------------------
+    def incomingJobStream(self):
+        """
+           aJobTuple has this form: (jobId, jobUuid, jobPriority) ... of which
+           jobPriority is pure excess, and should someday go away
+           Yields the next job according to this pattern:
+           START
+           Attempt to yield a priority job
+           If no priority job, attempt to yield a normal job
+           If no priority or normal job, sleep self.processorLoopTime seconds
+           loop back to START
+        """
+        priorityJobIter = self.new_priority_jobs_iter()
+        normalJobIter = self.newNormalJobsIter()
+        seenUuids = set()
+        while (True):
+            aJobType = 'priority'
+            self.quitCheck()
+            self.checkin()
+            aJobTuple = priorityJobIter.next()
+            if not aJobTuple:
+                aJobTuple = normalJobIter.next()
+                aJobType = 'standard'
+            if aJobTuple:
+                if not aJobTuple[1] in seenUuids:
+                    seenUuids.add(aJobTuple[1])
+                    logger.debug("incomingJobStream yielding %s job %s", aJobType, aJobTuple[1])
+                    yield aJobTuple
+                else:
+                    logger.debug("Skipping already seen job %s", aJobTuple[1])
+            else:
+                logger.info("no jobs to do - sleeping %d seconds", self.processorLoopTime)
+                seenUuids = set()
+                self.responsiveSleep(self.processorLoopTime)
+
 
     #--------------------------------------------------------------------------
     @staticmethod
