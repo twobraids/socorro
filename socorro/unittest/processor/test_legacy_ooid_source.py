@@ -53,11 +53,11 @@ class TestPostgresCrashStorage(unittest.TestCase):
         config.logger = mock.Mock()
 
         class StubbedIterators(LegacyOoidSource):
-            def newPriorityJobsIter(self):
+            def _priority_jobs_iter(self):
                 while True:
                     yield None
 
-            def newNormalJobsIter(self):
+            def _normal_jobs_iter(self):
                 values = [
                     (1, '1234', 1),
                     (2, '2345', 1),
@@ -90,11 +90,11 @@ class TestPostgresCrashStorage(unittest.TestCase):
         config.logger = mock.Mock()
 
         class StubbedIterators(LegacyOoidSource):
-            def newNormalJobsIter(self):
+            def _normal_jobs_iter(self):
                 while True:
                     yield None
 
-            def newPriorityJobsIter(self):
+            def _priority_jobs_iter(self):
                 values = [
                     (1, '1234', 1),
                     (2, '2345', 1),
@@ -126,7 +126,20 @@ class TestPostgresCrashStorage(unittest.TestCase):
         config.logger = mock.Mock()
 
         class StubbedIterators(LegacyOoidSource):
-            def newPriorityJobsIter(self):
+            def _normal_jobs_iter(self):
+                values = [
+                    (1, '1234', 1),
+                    (2, '2345', 1),
+                    (3, '3456', 1),
+                    (4, '4567', 1),
+                    (5, '5678', 1),
+                    None,
+                    None,
+                ]
+                for x in values:
+                    yield x
+
+            def _priority_jobs_iter(self):
                 values = [
                     None,
                     (10, 'p1234', 1),
@@ -137,19 +150,6 @@ class TestPostgresCrashStorage(unittest.TestCase):
                     None,
                     None,
                     (50, 'p5678', 1),
-                    None,
-                ]
-                for x in values:
-                    yield x
-
-            def newNormalJobsIter(self):
-                values = [
-                    (1, '1234', 1),
-                    (2, '2345', 1),
-                    (3, '3456', 1),
-                    (4, '4567', 1),
-                    (5, '5678', 1),
-                    None,
                     None,
                 ]
                 for x in values:
@@ -219,7 +219,7 @@ class TestPostgresCrashStorage(unittest.TestCase):
         ooid_source = LegacyOoidSource(config,
                                        processor_name='dwight')
 
-        for x, y in zip(ooid_source.newPriorityJobsIter(), expected_sequence):
+        for x, y in zip(ooid_source._priority_jobs_iter(), expected_sequence):
             self.assertEqual(x, y)
 
         expected_get_priority_jobs_sql = (
@@ -295,7 +295,7 @@ class TestPostgresCrashStorage(unittest.TestCase):
         ooid_source = LegacyOoidSource(config,
                                        processor_name='dwight')
         ooid_source.processor_id = 17
-        for x, y in zip(ooid_source.newNormalJobsIter(), exepected_sequence):
+        for x, y in zip(ooid_source._normal_jobs_iter(), exepected_sequence):
             self.assertEqual(x, y)
 
         expected_get_normal_sql = (

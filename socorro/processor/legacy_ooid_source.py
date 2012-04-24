@@ -94,7 +94,7 @@ class LegacyOoidSource(RequiredConfig):
         )
 
     #--------------------------------------------------------------------------
-    def newPriorityJobsIter (self):
+    def _priority_jobs_iter (self):
         """
         Yields a list of JobTuples pulled from the 'jobs' table for all the
         jobs found in this process' priority jobs table.  If there are no
@@ -144,7 +144,7 @@ class LegacyOoidSource(RequiredConfig):
                 yield None
 
     #--------------------------------------------------------------------------
-    def newNormalJobsIter (self):
+    def _normal_jobs_iter (self):
         """
         Yields a list of job tuples pulled from the 'jobs' table for which the
         owner is this process and the started datetime is null.  This iterator
@@ -177,7 +177,7 @@ class LegacyOoidSource(RequiredConfig):
                 yield None
 
     #--------------------------------------------------------------------------
-    def incomingJobStream(self):
+    def _job_iter(self):
         """
            a_job_tuple has this form: (jobId, jobUuid, jobPriority) ...
            of which jobPriority is pure excess, and should someday go away
@@ -188,8 +188,8 @@ class LegacyOoidSource(RequiredConfig):
                If no priority or normal job, yield None
                loop back to START
         """
-        priority_job_iter = self.newPriorityJobsIter()
-        normal_job_iter = self.newNormalJobsIter()
+        priority_job_iter = self._priority_jobs_iter()
+        normal_job_iter = self._normal_jobs_iter()
         ooids_already_seen = set()  # to prevent rapid fire repeats
         while (True):
             # try to get a priority job
@@ -223,7 +223,7 @@ class LegacyOoidSource(RequiredConfig):
     def __iter__(self):
         """an adapter that allows this class can serve as an iterator in a
         fetch_transform_save app"""
-        for a_legacy_job_tuple in self.incomingJobStream():
+        for a_legacy_job_tuple in self._job_iter():
             if a_legacy_job_tuple:
                 yield a_legacy_job_tuple[1]
             else:
