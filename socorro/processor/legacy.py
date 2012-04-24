@@ -7,6 +7,7 @@ from socorro.lib.datetimeutil import utc_now
 from socorro.external.postgresql.dbapi2_util import (
     execute_no_results,
     execute_query_fetchall,
+    single_value_sql
 )
 from socorro.external.postgresql.connection_context import ConnectionContext
 from socorro.database.transaction_executor import TransactionExecutor
@@ -22,6 +23,9 @@ from socorro.lib.util import (
 
 #==============================================================================
 class LegacyOoidSource(RequiredConfig):
+    """this class is a refactoring of the iteratior portion of the legacy
+    Socorro processor.  It isolates just the part of fetching the ooids of
+    jobs to be processed"""
     required_config = Namespace()
     required_config.add_option(
         'database_class',
@@ -47,6 +51,47 @@ class LegacyOoidSource(RequiredConfig):
         self.transaction = self.config.transaction_executor_class(config)
         self.database = self.config.database_class(config)
         self.processor_name = processor_name
+        self.processor_id = None
+        self.priority_job_set = set()
+        try:
+            self.priority_jobs_table_name = self.transaction(
+              self._create_priority_jobs
+            )
+        except Exception:
+            if self.processor_id:
+                self.config.logger.warning(
+                  'creating priority jobs table fails - does it already'
+                  'exist?  attempting to continue...',
+                  exc_info=True
+                )
+            else:
+                self.config.logger.error(
+                  'failure trying to fetch processor id',
+                  exc_info=True
+                )
+                raise
+
+    #--------------------------------------------------------------------------
+    def _create_priority_jobs(self, connection):
+        self.processor_id = single_value_sql(
+          connection,
+          "select id from processors where name = %s",
+          (self.processor_name,)
+        )
+        priority_jobs_table_name = "priority_jobs_%d" % self.processor_id
+        execute_no_results(
+          connection,
+          "create table %s (uuid varchar(50) not null primary key" %
+              priority_jobs_table_name
+        )
+        return priority_jobs_table_name
+
+    #--------------------------------------------------------------------------
+    def close(self):
+        self.transaction(
+            execute_no_results,
+            "drop table %s" % self.priority_jobs_table_name
+        )
 
     #--------------------------------------------------------------------------
     def newPriorityJobsIter (self):
@@ -56,51 +101,44 @@ class LegacyOoidSource(RequiredConfig):
         priority jobs, yields None.  This iterator is perpetual - it never
         raises the StopIteration exception
         """
-        getPriorityJobsSql =  (
+        get_priority_jobs_sql =  (
             "select"
             "    j.id,"
             "    pj.uuid,"
-            "    1,"
+            "    1,"  # historical reasons - remove eventually
             "    j.starteddatetime "
             "from"
             "    jobs j right join %s pj on j.uuid = pj.uuid"
-            % self.priorityJobsTableName)
-        deleteOnePriorityJobSql = "delete from %s where uuid = %%s" %  \
-            self.priorityJobsTableName
-        fullJobsList = []
+            % self.priority_jobs_table_name)
+        delete_one_priority_job_sql = "delete from %s where uuid = %%s" %  \
+            self.priority_jobs_table_name
+        priority_jobs_list = []
         while True:
-            if not fullJobsList:
-                fullJobsList = self.transaction(
+            if not priority_jobs_list:  # no priority jobs, try to find some
+                priority_jobs_list = self.transaction(
                     execute_query_fetchall,
-                    getPriorityJobsSql
+                    get_priority_jobs_sql
                 )
-                #fullJobsList = self.sdb.transaction_execute_with_retry(
-                    #self.databaseConnectionPool,
-                    #getPriorityJobsSql)
-            if fullJobsList:
-                while fullJobsList:
-                    aFullJobTuple = fullJobsList.pop(-1)
-                    self.transaction(
+            if priority_jobs_list:  # iterate through priority jobs
+                while priority_jobs_list:
+                    a_job_tuple = priority_jobs_list.pop(0)
+                    self.transaction(  # remove job from table
                         execute_no_results,
-                        deleteOnePriorityJobSql,
-                        (aFullJobTuple[1],)
+                        delete_one_priority_job_sql,
+                        (a_job_tuple[1],)
                     )
-                    #self.sdb.transaction_execute_with_retry(
-                            #self.databaseConnectionPool,
-                            #deleteOnePriorityJobSql,
-                            #(aFullJobTuple[1],))
-                    if aFullJobTuple[0] is not None:
-                        if aFullJobTuple[3]:
+                    if a_job_tuple[0] is not None:
+                        if a_job_tuple[3]:
                             continue # the job already started
                         else:
-                            self.priority_job_set.add(aFullJobTuple[1])
-                            yield (aFullJobTuple[0],
-                                   aFullJobTuple[1],
-                                   aFullJobTuple[2],)
+                            self.priority_job_set.add(a_job_tuple[1])
+                            yield (a_job_tuple[0],
+                                   a_job_tuple[1],
+                                   a_job_tuple[2],)
                     else:
                         self.config.logger.debug(
                             "the priority job %s was never found",
-                            aFullJobTuple[1]
+                            a_job_tuple[1]
                         )
             else:
                 yield None
@@ -112,7 +150,7 @@ class LegacyOoidSource(RequiredConfig):
         owner is this process and the started datetime is null.  This iterator
         is perpetual - it never raises the StopIteration exception
         """
-        getNormalJobSql = (
+        get_normal_job_sql = (
             "select"
             "    j.id,"
             "    j.uuid,"
@@ -123,62 +161,63 @@ class LegacyOoidSource(RequiredConfig):
             "    j.owner = %d"
             "    and j.starteddatetime is null "
             "order by queueddatetime"
-            "  limit %d" % (self.processorId,
+            "  limit %d" % (self.processor_id,
                             self.config.batchJobLimit))
-        normalJobsList = []
+        normal_jobs_list = []
         while True:
-            if not normalJobsList:
-                normalJobsList = self.transaction(
+            if not normal_jobs_list:  # empty list - get more
+                normal_jobs_list = self.transaction(
                     execute_query_fetchall,
-                    getNormalJobSql
+                    get_normal_job_sql
                 )
-                #normalJobsList = self.sdb.transaction_execute_with_retry( \
-                    #self.databaseConnectionPool,
-                    #getNormalJobSql
-                #)
-            if normalJobsList:
-                while normalJobsList:
-                    yield normalJobsList.pop(-1)
+            if normal_jobs_list:
+                while normal_jobs_list:
+                    yield normal_jobs_list.pop(0)
             else:
                 yield None
 
     #--------------------------------------------------------------------------
     def incomingJobStream(self):
         """
-           aJobTuple has this form: (jobId, jobUuid, jobPriority) ... of which
-           jobPriority is pure excess, and should someday go away
+           a_job_tuple has this form: (jobId, jobUuid, jobPriority) ...
+           of which jobPriority is pure excess, and should someday go away
            Yields the next job according to this pattern:
-           START
-           Attempt to yield a priority job
-           If no priority job, attempt to yield a normal job
-           If no priority or normal job, sleep self.processorLoopTime seconds
-           loop back to START
+               START
+               Attempt to yield a priority job
+               If no priority job, attempt to yield a normal job
+               If no priority or normal job, yield None
+               loop back to START
         """
-        priorityJobIter = self.newPriorityJobsIter()
-        normalJobIter = self.newNormalJobsIter()
-        seenUuids = set()
+        priority_job_iter = self.newPriorityJobsIter()
+        normal_job_iter = self.newNormalJobsIter()
+        ooids_already_seen = set()  # to prevent rapid fire repeats
         while (True):
-            aJobType = 'priority'
-            aJobTuple = priorityJobIter.next()
-            if not aJobTuple:
-                aJobTuple = normalJobIter.next()
-                aJobType = 'standard'
-            if aJobTuple:
-                if not aJobTuple[1] in seenUuids:
-                    seenUuids.add(aJobTuple[1])
+            # try to get a priority job
+            current_job_type = 'priority'
+            a_job_tuple = priority_job_iter.next()
+            if not a_job_tuple:
+                # try to get a normal job
+                a_job_tuple = normal_job_iter.next()
+                current_job_type = 'normal'
+            if a_job_tuple:
+                if not a_job_tuple[1] in ooids_already_seen:
+                    #
+                    ooids_already_seen.add(a_job_tuple[1])
                     self.config.logger.debug(
                         "incomingJobStream yielding %s job %s",
-                        aJobType,
-                        aJobTuple[1]
+                        current_job_type,
+                        a_job_tuple[1]
                     )
-                    yield aJobTuple
+                    yield a_job_tuple
                 else:
                     self.config.logger.debug(
                         "Skipping already seen job %s",
-                        aJobTuple[1]
+                        a_job_tuple[1]
                     )
             else:
-                yield None
+                # reset rapid fire repeat prevention
+                ooids_already_seen = set()
+                yield None  # nothing to do
 
     #--------------------------------------------------------------------------
     def __iter__(self):

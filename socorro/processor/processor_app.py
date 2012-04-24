@@ -76,9 +76,12 @@ class ProcessorApp(FetchTransformSaveApp):
         self.setup_source_and_destination()
         self.setup_registration()
         self.setup_ooid_source()
-        self.setup_transform()
-        self.setup_task_manager()
-        self.task_manager.blocking_start()
+        try:
+            self.setup_transform()
+            self.setup_task_manager()
+            self.task_manager.blocking_start()
+        finally:
+            self.ooid_source.close()
 
 
 
