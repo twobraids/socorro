@@ -22,215 +22,6 @@ from socorro.lib.util import (
 
 
 #==============================================================================
-class LegacyOoidSource(RequiredConfig):
-    """this class is a refactoring of the iteratior portion of the legacy
-    Socorro processor.  It isolates just the part of fetching the ooids of
-    jobs to be processed"""
-    required_config = Namespace()
-    required_config.add_option(
-        'database_class',
-        doc="the class of the database",
-        default=ConnectionContext,
-        from_string_converter=class_converter
-    )
-    required_config.add_option(
-        'transaction_executor_class',
-        default=TransactionExecutor,
-        doc='a class that will manage transactions',
-        from_string_converter=class_converter
-    )
-    required_config.add_option(
-        'batchJobLimit',
-        default=10000,
-        doc='the number of jobs to pull in a time',
-    )
-
-    #--------------------------------------------------------------------------
-    def __init__(self, config, processor_name):
-        self.config = config
-        self.transaction = self.config.transaction_executor_class(config)
-        self.database = self.config.database_class(config)
-        self.processor_name = processor_name
-        self.processor_id = None
-        self.priority_job_set = set()
-        try:
-            self.priority_jobs_table_name = self.transaction(
-              self._create_priority_jobs
-            )
-        except Exception:
-            if self.processor_id:
-                self.config.logger.warning(
-                  'creating priority jobs table fails - does it already'
-                  'exist?  attempting to continue...',
-                  exc_info=True
-                )
-            else:
-                self.config.logger.error(
-                  'failure trying to fetch processor id',
-                  exc_info=True
-                )
-                raise
-
-    #--------------------------------------------------------------------------
-    def _create_priority_jobs(self, connection):
-        self.processor_id = single_value_sql(
-          connection,
-          "select id from processors where name = %s",
-          (self.processor_name,)
-        )
-        priority_jobs_table_name = "priority_jobs_%d" % self.processor_id
-        execute_no_results(
-          connection,
-          "create table %s (uuid varchar(50) not null primary key" %
-              priority_jobs_table_name
-        )
-        return priority_jobs_table_name
-
-    #--------------------------------------------------------------------------
-    def close(self):
-        self.transaction(
-            execute_no_results,
-            "drop table %s" % self.priority_jobs_table_name
-        )
-
-    #--------------------------------------------------------------------------
-    def newPriorityJobsIter (self):
-        """
-        Yields a list of JobTuples pulled from the 'jobs' table for all the
-        jobs found in this process' priority jobs table.  If there are no
-        priority jobs, yields None.  This iterator is perpetual - it never
-        raises the StopIteration exception
-        """
-        get_priority_jobs_sql =  (
-            "select"
-            "    j.id,"
-            "    pj.uuid,"
-            "    1,"  # historical reasons - remove eventually
-            "    j.starteddatetime "
-            "from"
-            "    jobs j right join %s pj on j.uuid = pj.uuid"
-            % self.priority_jobs_table_name)
-        delete_one_priority_job_sql = "delete from %s where uuid = %%s" %  \
-            self.priority_jobs_table_name
-        priority_jobs_list = []
-        while True:
-            if not priority_jobs_list:  # no priority jobs, try to find some
-                priority_jobs_list = self.transaction(
-                    execute_query_fetchall,
-                    get_priority_jobs_sql
-                )
-            if priority_jobs_list:  # iterate through priority jobs
-                while priority_jobs_list:
-                    a_job_tuple = priority_jobs_list.pop(0)
-                    self.transaction(  # remove job from table
-                        execute_no_results,
-                        delete_one_priority_job_sql,
-                        (a_job_tuple[1],)
-                    )
-                    if a_job_tuple[0] is not None:
-                        if a_job_tuple[3]:
-                            continue # the job already started
-                        else:
-                            self.priority_job_set.add(a_job_tuple[1])
-                            yield (a_job_tuple[0],
-                                   a_job_tuple[1],
-                                   a_job_tuple[2],)
-                    else:
-                        self.config.logger.debug(
-                            "the priority job %s was never found",
-                            a_job_tuple[1]
-                        )
-            else:
-                yield None
-
-    #--------------------------------------------------------------------------
-    def newNormalJobsIter (self):
-        """
-        Yields a list of job tuples pulled from the 'jobs' table for which the
-        owner is this process and the started datetime is null.  This iterator
-        is perpetual - it never raises the StopIteration exception
-        """
-        get_normal_job_sql = (
-            "select"
-            "    j.id,"
-            "    j.uuid,"
-            "    priority "
-            "from"
-            "    jobs j "
-            "where"
-            "    j.owner = %d"
-            "    and j.starteddatetime is null "
-            "order by queueddatetime"
-            "  limit %d" % (self.processor_id,
-                            self.config.batchJobLimit))
-        normal_jobs_list = []
-        while True:
-            if not normal_jobs_list:  # empty list - get more
-                normal_jobs_list = self.transaction(
-                    execute_query_fetchall,
-                    get_normal_job_sql
-                )
-            if normal_jobs_list:
-                while normal_jobs_list:
-                    yield normal_jobs_list.pop(0)
-            else:
-                yield None
-
-    #--------------------------------------------------------------------------
-    def incomingJobStream(self):
-        """
-           a_job_tuple has this form: (jobId, jobUuid, jobPriority) ...
-           of which jobPriority is pure excess, and should someday go away
-           Yields the next job according to this pattern:
-               START
-               Attempt to yield a priority job
-               If no priority job, attempt to yield a normal job
-               If no priority or normal job, yield None
-               loop back to START
-        """
-        priority_job_iter = self.newPriorityJobsIter()
-        normal_job_iter = self.newNormalJobsIter()
-        ooids_already_seen = set()  # to prevent rapid fire repeats
-        while (True):
-            # try to get a priority job
-            current_job_type = 'priority'
-            a_job_tuple = priority_job_iter.next()
-            if not a_job_tuple:
-                # try to get a normal job
-                a_job_tuple = normal_job_iter.next()
-                current_job_type = 'normal'
-            if a_job_tuple:
-                if not a_job_tuple[1] in ooids_already_seen:
-                    #
-                    ooids_already_seen.add(a_job_tuple[1])
-                    self.config.logger.debug(
-                        "incomingJobStream yielding %s job %s",
-                        current_job_type,
-                        a_job_tuple[1]
-                    )
-                    yield a_job_tuple
-                else:
-                    self.config.logger.debug(
-                        "Skipping already seen job %s",
-                        a_job_tuple[1]
-                    )
-            else:
-                # reset rapid fire repeat prevention
-                ooids_already_seen = set()
-                yield None  # nothing to do
-
-    #--------------------------------------------------------------------------
-    def __iter__(self):
-        """an adapter that allows this class can serve as an iterator in a
-        fetch_transform_save app"""
-        for a_legacy_job_tuple in self.incomingJobStream():
-            if a_legacy_job_tuple:
-                yield a_legacy_job_tuple[1]
-            else:
-                yield None
-
-
-#==============================================================================
 class LegacyCrashProcessor(RequiredConfig):
     required_config = Namespace()
     required_config.add_option(
@@ -361,17 +152,17 @@ class LegacyCrashProcessor(RequiredConfig):
 
         # *** from ExternalProcessor
         #preprocess the breakpad_stackwalk command line
-        stripParensRE = re.compile(r'\$(\()(\w+)(\))')
-        toPythonRE = re.compile(r'\$(\w+)')
+        strip_parens_re = re.compile(r'\$(\()(\w+)(\))')
+        convert_to_python_substitution_format_re = re.compile(r'\$(\w+)')
         # Canonical form of $(param) is $param. Convert any that are needed
-        tmp = stripParensRE.sub(r'$\2',config.stackwalkCommandLine)
+        tmp = strip_parens_re.sub(r'$\2',config.stackwalkCommandLine)
         # Convert canonical $dumpfilePathname to DUMPFILEPATHNAME
         tmp = tmp.replace('$dumpfilePathname','DUMPFILEPATHNAME')
         # Convert canonical $processorSymbolsPathnameList to SYMBOL_PATHS
         tmp = tmp.replace('$processorSymbolsPathnameList','SYMBOL_PATHS')
         # finally, convert any remaining $param to pythonic %(param)s
-        tmp = toPythonRE.sub(r'%(\1)s',tmp)
-        self.commandLine = tmp % config
+        tmp = convert_to_python_substitution_format_re.sub(r'%(\1)s',tmp)
+        self.command_line = tmp % config
         # *** end from ExternalProcessor
 
     #--------------------------------------------------------------------------
@@ -436,7 +227,7 @@ class LegacyCrashProcessor(RequiredConfig):
                 date_processed = dateFromOoid(ooid)
 
             # formerly the call to 'insertReportIntoDatabase'
-            processed_crash_dict = self.phase_one_transformation(
+            processed_crash_dict = self.create_basic_processed_crash(
               ooid,
               raw_crash,
               date_processed,
@@ -445,7 +236,7 @@ class LegacyCrashProcessor(RequiredConfig):
 
 
             try:
-                temp_dump_pathname = self.dumpPathForUuid(ooid, raw_dump)
+                temp_dump_pathname = self.temp_dump_pathname(ooid, raw_dump)
                 #logger.debug('about to doBreakpadStackDumpAnalysis')
                 isHang = ('hangid' in processed_crash_dict
                           and bool(processed_crash_dict['hangid']))
@@ -471,8 +262,6 @@ class LegacyCrashProcessor(RequiredConfig):
                 processed_crash_dict["completeddatetime"] = completedDateTime
                 self.cleanup_temp_file(temp_dump_pathname)
 
-            #logger.debug('finished a job - cleanup')
-            #finished a job - cleanup
             # TODO: shouldn't this be at the end and not here?
             self.log_job_end(
                 completedDateTime,
@@ -480,34 +269,9 @@ class LegacyCrashProcessor(RequiredConfig):
                 ooid
             )
 
-            # Bug 519703: Collect setting for topmost source filename(s), addon compatibility check override, flash version
-            #reportsSql = """
-        #update reports set
-        #signature = %%s,
-        #processor_notes = %%s,
-        #started_datetime = timestamp with time zone %%s,
-        #completed_datetime = timestamp with time zone %%s,
-        #success = %%s,
-        #truncated = %%s,
-        #topmost_filenames = %%s,
-        #addons_checked = %%s,
-        #flash_version = %%s
-        #where id = %s and date_processed = timestamp with time zone '%s'
-        #""" % (reportId,date_processed)
-            ##logger.debug("newReportRecordAsDict %s, %s", newReportRecordAsDict['topmost_filenames'], newReportRecordAsDict['flash_version'])
-            ##topmost_filenames = "|".join(jsonDocument.get('topmost_filenames',[]))
             topmost_filenames = "|".join(
                 processed_crash_dict.get('topmost_filenames',[])
             )
-            addons_checked = None
-            try:
-                addons_checked_txt = raw_crash['EMCheckCompatibility'].lower()
-                addons_checked = False
-                if addons_checked_txt == 'true':
-                    addons_checked = True
-            except KeyError:
-                pass # leaving it as None if not in the document
-
             try:
                 processed_crash_dict['Winsock_LSP'] = raw_crash['Winsock_LSP']
             except KeyError:
@@ -557,8 +321,8 @@ class LegacyCrashProcessor(RequiredConfig):
 
 
     #--------------------------------------------------------------------------
-    def phase_one_transformation(self, uuid, raw_crash, date_processed,
-                                 processor_notes):
+    def create_basic_processed_crash(self, uuid, raw_crash, date_processed,
+                                     processor_notes):
         """
         This function is run only by a worker thread.
           Create the record for the current job in the 'reports' table
@@ -677,10 +441,6 @@ class LegacyCrashProcessor(RequiredConfig):
             last_crash = None
         processed_crash.last_crash = last_crash
 
-        #processed_crash_values =    (uuid,    crash_date,          date_processed,   product,   version,   buildID,  url,   install_age,   last_crash,   uptime,   email,   user_id,   user_comments,   app_notes,   distributor,   distributor_version,   None,                None,             None,            hangid,   process_type,   release_channel)
-        #processed_crash_key_names = ("uuid", "client_crash_date", "date_processed", "product", "version", "build",  "url", "install_age", "last_crash", "uptime", "email", "user_id", "user_comments", "app_notes", "distributor", "distributor_version", "topmost_filenames", "addons_checked", "flash_version", "hangid", "process_type", "release_channel")
-        #newReportRecordAsDict = dict(x for x in zip(processed_crash_key_names, processed_crash_values))
-
         # TODO: not sure how to reimplemnt this
         #if ooid in self.priority_job_set:
             #processorErrorMessages.append('Priority Job')
@@ -716,6 +476,15 @@ class LegacyCrashProcessor(RequiredConfig):
                 processorErrorMessages
             )
             processed_crash_dict.update(crashProcessAsDict)
+
+        processed_crash_dict.addons_checked = None
+        try:
+            addons_checked_txt = raw_crash['EMCheckCompatibility'].lower()
+            processed_crash_dict.addons_checked = False
+            if addons_checked_txt == 'true':
+                processed_crash_dict.addons_checked = True
+        except KeyError:
+            pass  # leaving it as None if not in the document
 
         return processed_crash
 
@@ -776,10 +545,10 @@ class LegacyCrashProcessor(RequiredConfig):
         return process_type_additions_dict
 
     #--------------------------------------------------------------------------
-    def _do_breakpad_stack_dump_analysis (self, uuid, dumpfilePathname,
-                                          isHang, java_stack_trace,
+    def _do_breakpad_stack_dump_analysis (self, ooid, dump_pathname,
+                                          is_hang, java_stack_trace,
                                           date_processed,
-                                          processorErrorMessages):
+                                          processor_notes):
         """ This function coordinates the steps of running the
         breakpad_stackdump process and analyzing the textual output for
         insertion into the database.
@@ -789,68 +558,67 @@ class LegacyCrashProcessor(RequiredConfig):
                                       the crashing thread have been truncated.
 
         input parameters:
-          uuid - the unique string identifier for the crash report
-          dumpfilePathname - the complete pathname for the =crash dump file
-          isHang - boolean, is this a hang crash?
-          app_notes - a source for java signatures info
-          databaseCursor - the cursor to use for insertion into the database
+          ooid - the unique string identifier for the crash report
+          dump_pathname - the complete pathname for the =crash dump file
+          is_hang - boolean, is this a hang crash?
+          java_stack_trace - a source for java signatures info
           date_processed
-          processorErrorMessages
+          processor_notes
         """
-        dumpAnalysisLineIterator, subprocessHandle = \
-            self.invokeBreakpadStackdump(dumpfilePathname)
-        dumpAnalysisLineIterator.secondaryCacheMaximumSize = \
+        dump_analysis_line_iterator, subprocess_handle = \
+            self._invoke_minidump_stackwalk(dump_pathname)
+        dump_analysis_line_iterator.secondaryCacheMaximumSize = \
             self.config.crashingThreadTailFrameThreshold + 1
         try:
-            processed_crash_fragment_dict = self.analyzeHeader(
-              dumpAnalysisLineIterator,
+            processed_crash_update = self._analyze_header(
+              dump_analysis_line_iterator,
               date_processed,
-              processorErrorMessages
+              processor_notes
             )
-            crashedThread = processed_crash_fragment_dict["crashedThread"]
+            crashed_thread = processed_crash_update["crashedThread"]
             try:
-                lowercaseModules = \
-                    processed_crash_fragment_dict['os_name'] in ('Windows NT')
+                make_modules_lowercase = \
+                    processed_crash_update['os_name'] in ('Windows NT')
             except KeyError:
-                lowercaseModules = True
-            evenMoreReportValuesAsDict = self.analyzeFrames(
-              isHang,
+                make_modules_lowercase = True
+            processed_crash_from_frames = self._analyze_frames(
+              is_hang,
               java_stack_trace,
-              lowercaseModules,
-              dumpAnalysisLineIterator,
+              make_modules_lowercase,
+              dump_analysis_line_iterator,
               date_processed,
-              crashedThread,
-              processorErrorMessages
+              crashed_thread,
+              processor_notes
             )
-            processed_crash_fragment_dict.update(evenMoreReportValuesAsDict)
-            for x in dumpAnalysisLineIterator:
+            processed_crash_update.update(processed_crash_from_frames)
+            for x in dump_analysis_line_iterator:
                 pass  # need to spool out the rest of the stream so the
                       # cache doesn't get truncated
-            dumpAnalysisAsString = ('\n'.join(dumpAnalysisLineIterator.cache))
-            processed_crash_fragment_dict["dump"] = dumpAnalysisAsString
+            pipe_dump_str = ('\n'.join(dump_analysis_line_iterator.cache))
+            processed_crash_update["dump"] = pipe_dump_str
         finally:
             # this is really a handle to a file-like object - got to close it
-            dumpAnalysisLineIterator.theIterator.close()
-        returncode = subprocessHandle.wait()
-        if returncode is not None and returncode != 0:
-            processorErrorMessages.append(
+            dump_analysis_line_iterator.theIterator.close()
+        return_code = subprocess_handle.wait()
+        if return_code is not None and return_code != 0:
+            processor_notes.append(
               "%s failed with return code %s when processing dump %s" %
               (self.config.minidump_stackwalkPathname,
-               subprocessHandle.returncode, uuid)
+               subprocess_handle.returncode, ooid)
             )
-            processed_crash_fragment_dict['success'] = False
-            if processed_crash_fragment_dict["signature"].startswith("EMPTY"):
-                processed_crash_fragment_dict["signature"] += "; corrupt dump"
-        return processed_crash_fragment_dict
+            processed_crash_update['success'] = False
+            if processed_crash_update["signature"].startswith("EMPTY"):
+                processed_crash_update["signature"] += "; corrupt dump"
+        return processed_crash_update
 
     #--------------------------------------------------------------------------
-    def invokeBreakpadStackdump(self, dumpfilePathname):
+    def _invoke_minidump_stackwalk(self, dump_pathname):
         """ This function invokes breakpad_stackdump as an external process
         capturing and returning the text output of stdout.  This version
         represses the stderr output.
 
               input parameters:
-                dumpfilePathname: the complete pathname of the dumpfile to be
+                dump_pathname: the complete pathname of the dumpfile to be
                                   analyzed
         """
         #logger.debug("analyzing %s", dumpfilePathname)
@@ -863,130 +631,111 @@ class LegacyCrashProcessor(RequiredConfig):
               ['"%s"' % x
                for x in self.config.processorSymbolsPathnameList.split()]
             )
-        newCommandLine = self.commandLine.replace("DUMPFILEPATHNAME",
-                                                  dumpfilePathname)
-        newCommandLine = newCommandLine.replace("SYMBOL_PATHS", symbol_path)
+        command_line = self.command_line.replace("DUMPFILEPATHNAME",
+                                                dump_pathname)
+        command_line = command_line.replace("SYMBOL_PATHS", symbol_path)
         #logger.info("invoking: %s", newCommandLine)
-        subprocessHandle = subprocess.Popen(
-          newCommandLine,
+        subprocess_handle = subprocess.Popen(
+          command_line,
           shell=True,
           stdout=subprocess.PIPE
         )
-        return (socorro.lib.util.StrCachingIterator(subprocessHandle.stdout),
-                subprocessHandle)
+        return (socorro.lib.util.StrCachingIterator(subprocess_handle.stdout),
+                subprocess_handle)
 
     #--------------------------------------------------------------------------
-    def analyzeHeader(self, dumpAnalysisLineIterator, date_processed,
-                      processorErrorMessages):
+    def _analyze_header(self, dump_analysis_line_iterator, date_processed,
+                        processor_notes):
         """ Scan through the lines of the dump header:
-            - # deprecated: extract the information for populating the
-                            'modules' table
             - extract data to update the record for this crash in 'reports',
               including the id of the crashing thread
             Returns: Dictionary of the various values that were updated in
                      the database
             Input parameters:
-            - dumpAnalysisLineIterator - an iterator object that feeds lines
-                                         from crash dump data
+            - dump_analysis_line_iterator - an iterator object that feeds lines
+                                            from crash dump data
             - date_processed
-            - processorErrorMessages
+            - processor_notes
         """
         #logger.info("analyzeHeader")
-        crashedThread = None
-        moduleCounter = 0
-        reportUpdateValues = {"id": reportId, "success": True}
+        crashed_thread = None
+        processed_crash_update = DotDict()
+        processed_crash_update.success = True
 
-        analyzeReturnedLines = False
-        reportUpdateSqlParts = []
+        header_lines_were_found = False
         flash_version = None
-        for lineNumber, line in enumerate(dumpAnalysisLineIterator):
+        for line in dump_analysis_line_iterator:
             line = line.strip()
             # empty line separates header data from thread data
             if line == '':
                 break
-            analyzeReturnedLines = True
+            header_lines_were_found = True
             #logger.debug("[%s]", line)
             values = map(lambda x: x.strip(), line.split('|'))
             if len(values) < 3:
-                processorErrorMessages.append('Cannot parse header line "%s"'
-                                              % line)
+                processor_notes.append('Cannot parse header line "%s"'
+                                       % line)
                 continue
             values = map(socorro.lib.util.emptyFilter, values)
             if values[0] == 'OS':
                 name = self.get_truncate_or_none(values[1], 100)
                 version = self.get_truncate_or_none(values[2], 100)
-                reportUpdateValues['os_name']=name
-                reportUpdateValues['os_version']=version
-                reportUpdateSqlParts.extend(
-                  ['os_name = %(os_name)s', 'os_version = %(os_version)s']
-                )
-                #osId = self.idCache.getOsId(name,version)
-                #reportUpdateValues['osdims_id'] = osId
-                #reportUpdateSqlParts.append('osdims_id = %(osdims_id)s')
+                processed_crash_update.os_name = name
+                processed_crash_update.os_version = version
             elif values[0] == 'CPU':
-                reportUpdateValues['cpu_name'] = \
+                processed_crash_update.cpu_name = \
                     self.get_truncate_or_none(values[1], 100)
-                reportUpdateValues['cpu_info'] = \
+                processed_crash_update.cpu_info = \
                     self.get_truncate_or_none(values[2], 100)
                 try:
-                    reportUpdateValues['cpu_info'] = (
-                      '%s | %s' % (reportUpdateValues['cpu_info'],
+                    processed_crash_update.cpu_info = (
+                      '%s | %s' % (processed_crash_update.cpu_info,
                                    self.get_truncate_or_none(values[3], 100)))
                 except IndexError:
                     pass
-                reportUpdateSqlParts.extend(['cpu_name = %(cpu_name)s',
-                                             'cpu_info = %(cpu_info)s'])
             elif values[0] == 'Crash':
-                reportUpdateValues['reason'] = \
+                processed_crash_update.reason = \
                     self.get_truncate_or_none(values[1], 255)
-                reportUpdateValues['address'] = \
+                processed_crash_update.address = \
                     self.get_truncate_or_none(values[2], 20)
-                reportUpdateSqlParts.extend(['reason = %(reason)s',
-                                             'address = %(address)s'])
                 try:
-                    crashedThread = int(values[3])
+                    crashed_thread = int(values[3])
                 except Exception:
-                    crashedThread = None
+                    crashed_thread = None
             elif values[0] == 'Module':
                 # grab only the flash version, which is not quite as easy as
                 # it looks
                 if not flash_version:
-                    flash_version = self.getVersionIfFlashModule(values)
-        if not analyzeReturnedLines:
+                    flash_version = self.get_flash_version(values)
+        if not header_lines_were_found:
             message = "%s returned no header lines for reportid: %s" % \
                 (self.config.minidump_stackwalkPathname, reportId)
-            processorErrorMessages.append(message)
+            processor_notes.append(message)
             logger.warning("%s", message)
 
-        #logger.info('reportUpdateValues: %s', str(reportUpdateValues))
-        #logger.info('reportUpdateSqlParts: %s', str(reportUpdateSqlParts))
-        #if len(reportUpdateSqlParts) > 1:
-            #reportUpdateSQL = """update reports set %s where id=%%(id)s AND date_processed = timestamp with time zone '%s'"""%(",".join(reportUpdateSqlParts),date_processed)
-            #databaseCursor.execute(reportUpdateSQL, reportUpdateValues)
-
-        if crashedThread is None:
+        if crashed_thread is None:
             message = "No thread was identified as the cause of the crash"
-            processorErrorMessages.append(message)
+            processor_notes.append(message)
             logger.warning("%s", message)
-        reportUpdateValues["crashedThread"] = crashedThread
+        processed_crash_update["crashedThread"] = crashed_thread
         if not flash_version:
             flash_version = '[blank]'
-        reportUpdateValues['flash_version'] = flash_version
+        processed_crash_update['flash_version'] = flash_version
         #logger.debug(" updated values  %s", reportUpdateValues)
-        return reportUpdateValues
+        return processed_crash_update
 
     #--------------------------------------------------------------------------
-    flashRE = re.compile(r'NPSWF32_?(.*)\.dll|libflashplayer(.*)\.(.*)|'
+    flash_re = re.compile(r'NPSWF32_?(.*)\.dll|libflashplayer(.*)\.(.*)|'
                          'Flash ?Player-?(.*)')
-    def getVersionIfFlashModule(self,moduleData):
+    def get_flash_version(self, moduleData):
         """If (we recognize this module as Flash and figure out a version):
         Returns version; else (None or '')"""
         try:
-            module,filename,version,debugFilename,debugId = moduleData[:5]
+            module, filename, version, debugFilename, debugId = moduleData[:5]
         except ValueError:
-            logger.debug("bad module line %s", moduleData)
+            self.config.logger.debug("bad module line %s", moduleData)
             return None
-        m = ProcessorWithExternalBreakpad.flashRE.match(filename)
+        m = self.flash_re.match(filename)
         if m:
             if not version:
                 groups = m.groups()
@@ -1004,9 +753,11 @@ class LegacyCrashProcessor(RequiredConfig):
         return version
 
     #--------------------------------------------------------------------------
-    def analyzeFrames(self, hangType, java_stack_trace, lowercaseModules,
-                      dumpAnalysisLineIterator, date_processed, crashedThread,
-                      processorErrorMessages):
+    def _analyze_frames(self, hang_type, java_stack_trace,
+                        make_modules_lower_case,
+                        dump_analysis_line_iterator, date_processed,
+                        crashed_thread,
+                        processor_notes):
         """ After the header information, the dump file consists of just frame
         information.  This function cycles through the frame information
         looking for frames associated with the crashed thread (determined in
@@ -1025,52 +776,53 @@ class LegacyCrashProcessor(RequiredConfig):
                                              happened during the processing
 
                input parameters:
-                 hangType -  0: if this is not a hang
+                 hang_type -  0: if this is not a hang
                             -1: if "HangID" present in json,
                                    but "Hang" was not present
                             "Hang" value: if "Hang" present - probably 1
                  java_stack_trace - a source for java lang signature
                                     information
-                 lowerCaseModules - boolean, should modules be forced to lower
+                 make_modules_lower_case - boolean, should modules be forced to lower
                                     case for signature generation?
-                 dumpAnalysisLineIterator - an iterator that cycles through
+                 dump_analysis_line_iterator - an iterator that cycles through
                                             lines from the crash dump
                  date_processed
-                 crashedThread - the number of the thread that crashed - we
+                 crashed_thread - the number of the thread that crashed - we
                                  want frames only from the crashed thread
+                 processor_notes
         """
         #logger.info("analyzeFrames")
-        frameCounter = 0
-        truncated = False
-        analyzeReturnedLines = False
-        signatureList = []
+        frame_counter = 0
+        is_truncated = False
+        frame_lines_were_found = False
+        signature_generation_frames = []
         topmost_sourcefiles = []
-        if hangType == 1:
+        if hang_type == 1:
             thread_for_signature = 0
         else:
-            thread_for_signature = crashedThread
+            thread_for_signature = crashed_thread
         max_topmost_sourcefiles = 1 # Bug 519703 calls for just one.
                                     # Lets build in some flex
-        for line in dumpAnalysisLineIterator:
-            analyzeReturnedLines = True
+        for line in dump_analysis_line_iterator:
+            frame_lines_were_found = True
             #logger.debug("  %s", line)
             line = line.strip()
             if line == '':
-                processorErrorMessages.append("An unexpected blank line in "
-                                              "this dump was ignored")
-                continue  #some dumps have unexpected blank lines - ignore them
+                processor_notes.append("An unexpected blank line in "
+                                       "this dump was ignored")
+                continue  # ignore unexpected blank lines
             (thread_num, frame_num, module_name, function, source, source_line,
              instruction) = [emptyFilter(x) for x in line.split("|")]
             if len(topmost_sourcefiles) < max_topmost_sourcefiles and source:
                 topmost_sourcefiles.append(source)
             if thread_for_signature == int(thread_num):
-                if frameCounter < 30:
-                    if lowercaseModules:
+                if frame_counter < 30:
+                    if make_modules_lower_case:
                         try:
                             module_name = module_name.lower()
                         except AttributeError:
                             pass
-                    thisFramesSignature = \
+                    this_frame_signature = \
                         self.c_signature_tool.normalize_signature(
                           module_name,
                           function,
@@ -1078,41 +830,32 @@ class LegacyCrashProcessor(RequiredConfig):
                           source_line,
                           instruction
                         )
-                    signatureList.append(thisFramesSignature)
-                if frameCounter == self.config.crashingThreadFrameThreshold:
-                    processorErrorMessages.append(
+                    signature_generation_frames.append(this_frame_signature)
+                if frame_counter == self.config.crashingThreadFrameThreshold:
+                    processor_notes.append(
                       "This dump is too long and has triggered the automatic "
                       "truncation routine"
                     )
-                    #self.configlogger.debug("starting secondary cache with "
-                                             #"framecount = %d", frameCounter)
-                    dumpAnalysisLineIterator.useSecondaryCache()
-                    truncated = True
-                frameCounter += 1
-            elif frameCounter:
+                    dump_analysis_line_iterator.useSecondaryCache()
+                    is_truncated = True
+                frame_counter += 1
+            elif frame_counter:
                 break
-        dumpAnalysisLineIterator.stopUsingSecondaryCache()
-        signature = self.generate_signature(signatureList,
+        dump_analysis_line_iterator.stopUsingSecondaryCache()
+        signature = self.generate_signature(signature_generation_frames,
                                             java_stack_trace,
-                                            hangType,
-                                            crashedThread,
-                                            processorErrorMessages)
-        #self.configlogger.debug("  %s", (signature,
-        #'; '.join(processorErrorMessages), reportId, date_processed))
-        if not analyzeReturnedLines:
+                                            hang_type,
+                                            crashed_thread,
+                                            processor_notes)
+        if not frame_lines_were_found:
             message = "No frame data available"
-            processorErrorMessages.append(message)
+            processor_notes.append(message)
             logger.warning("%s", message)
-        #processor_notes = '; '.join(processorErrorMessages)
-        #databaseCursor.execute("update reports set signature = %%s, "
-        #"processor_notes = %%s where id = %%s and date_processed = timestamp "
-        #"with time zone '%s'" % (date_processed),(signature, processor_notes,"
-        #"reportId))
-        #logger.debug ("topmost_sourcefiles  %s", topmost_sourcefiles)
-        return { "signature": signature,
-                 "truncated": truncated,
-                 "topmost_filenames":topmost_sourcefiles,
-                 }
+        return DotDict({
+          "signature": signature,
+          "truncated": is_truncated,
+          "topmost_filenames":topmost_sourcefiles,
+        })
 
     #---------------------------------------------------------------------------
     def generate_signature(self,
@@ -1175,7 +918,7 @@ class LegacyCrashProcessor(RequiredConfig):
                                 str(self.json_transform_rule_system.rules))
 
     #--------------------------------------------------------------------------
-    def dumpPathForUuid(self, ooid, raw_dump):
+    def temp_dump_pathname(self, ooid, raw_dump):
         base_path = self.config.temporaryFileSystemStoragePath
         dump_path = ("%s/%s.dump" % (base_path, ooid)).replace('//', '/')
         with open(dump_path, "w") as f:
@@ -1194,17 +937,17 @@ class LegacyCrashProcessor(RequiredConfig):
             )
 
     #--------------------------------------------------------------------------
-    def get_truncate_or_warn(self, jsonDoc, key, errorMessageList,
-                      default=None, maxLength=10000):
+    def get_truncate_or_warn(self, a_mapping, key, notes_list,
+                      default=None, max_length=10000):
         try:
-            return jsonDoc[key][:maxLength];
+            return a_mapping[key][:max_length];
         except KeyError:
-            errorMessageList.append("WARNING: raw_crash missing %s" % key)
+            notes_list.append("WARNING: raw_crash missing %s" % key)
             return default
         except TypeError, x:
-            errorMessageList.append(
+            notes_list.append(
               "WARNING: raw_crash [%s] contains unexpected value: %s" %
-                (key, x)
+                (key, str(x))
             )
             return default
 
