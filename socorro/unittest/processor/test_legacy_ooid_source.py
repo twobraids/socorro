@@ -3,7 +3,7 @@ import mock
 
 from configman.dotdict import DotDict
 
-from socorro.processor.legacy import (
+from socorro.processor.legacy_ooid_source import (
   LegacyOoidSource,
 )
 from socorro.external.postgresql.dbapi2_util import (
