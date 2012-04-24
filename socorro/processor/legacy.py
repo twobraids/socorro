@@ -1,3 +1,5 @@
+import re
+
 from configman import Namespace, RequiredConfig
 from configman.converters import class_converter
 
@@ -11,7 +13,7 @@ from socorro.database.transaction_executor import TransactionExecutor
 from socorro.lib.transform_rules import TransformRuleSystem
 from socorro.lib.datetimeutil import datetimeFromISOdateString
 from socorro.lib.ooid import dateFromOoid
-from socorre.lib.util import (
+from socorro.lib.util import (
     lookupLimitedStringOrNone,
     DotDict,
     emptyFilter
@@ -41,7 +43,7 @@ class LegacyOoidSource(RequiredConfig):
 
     #--------------------------------------------------------------------------
     def __init__(self, config, processor_name):
-        super(LegacyOoidSource)
+        self.config = config
         self.transaction = self.config.transaction_executor_class(config)
         self.database = self.config.database_class(config)
         self.processor_name = processor_name
@@ -157,8 +159,6 @@ class LegacyOoidSource(RequiredConfig):
         seenUuids = set()
         while (True):
             aJobType = 'priority'
-            self.quitCheck()
-            self.checkin()
             aJobTuple = priorityJobIter.next()
             if not aJobTuple:
                 aJobTuple = normalJobIter.next()
@@ -178,20 +178,17 @@ class LegacyOoidSource(RequiredConfig):
                         aJobTuple[1]
                     )
             else:
-                # TODO: just yield a None - let the outer client do the delay
-                self.config.logger.info(
-                    "no jobs to do - sleeping %d seconds",
-                    self.processorLoopTime
-                )
-                seenUuids = set()
-                self.responsiveSleep(self.processorLoopTime)
+                yield None
 
     #--------------------------------------------------------------------------
     def __iter__(self):
         """an adapter that allows this class can serve as an iterator in a
         fetch_transform_save app"""
         for a_legacy_job_tuple in self.incomingJobStream():
-            yield a_legacy_job_tuple[1]
+            if a_legacy_job_tuple:
+                yield a_legacy_job_tuple[1]
+            else:
+                yield None
 
 
 #==============================================================================
@@ -1140,7 +1137,7 @@ class LegacyCrashProcessor(RequiredConfig):
 
     #--------------------------------------------------------------------------
     def dumpPathForUuid(self, ooid, raw_dump):
-        base_path = self.config.
+        base_path = self.config.temporaryFileSystemStoragePath
         dump_path = ("%s/%s.dump" % (base_path, ooid)).replace('//', '/')
         with open(dump_path, "w") as f:
             f.write(raw_dump)
