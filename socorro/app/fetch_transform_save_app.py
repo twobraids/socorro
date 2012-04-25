@@ -115,6 +115,14 @@ class FetchTransformSaveApp(App):
         )
 
     #--------------------------------------------------------------------------
+    def quit_check(self):
+        self.task_manager._quit_check()
+
+    #--------------------------------------------------------------------------
+    def signal_quit(self):
+        self.task_manager._quit = True
+
+    #--------------------------------------------------------------------------
     def main(self):
         """this main routine sets up the signal handlers, the source and
         destination crashstorage systems at the  theaded task manager.  That

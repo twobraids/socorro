@@ -46,38 +46,47 @@ class ProcessorApp(FetchTransformSaveApp):
         PolyCrashStorage
 
     #--------------------------------------------------------------------------
-    def setup_registration(self):
-        self.registrar = self.config.registration_agent(config)
+    def _setup_registration(self):
+        self.registrar = self.config.registration_agent(
+          config,
+          self.quit_check
+        )
         self.processor_name = self.registrar.processor_name
 
     #--------------------------------------------------------------------------
-    def setup_ooid_source(self):
+    def _setup_ooid_source(self):
         self.ooid_source = self.config.iterator.ooid_source_class(
           config.iterator,
-          self.processor_name
+          self.processor_name,
+          self.quit_check
         )
 
     #--------------------------------------------------------------------------
-    def setup_transform(self):
-        self.crash_processor = self.config.transform.crash_processor_class(
-          config,
-          self.processor_name
-        )
+    def _setup_transform(self):
+        self.transform_raw_crash_to_processed_crash = \
+          self.config.transform.crash_processor_class(
+            config,
+            self.processor_name,
+            self.quit_check
+          )
 
     #--------------------------------------------------------------------------
     def transform(self, ooid):
         raw_crash = self.source.get_raw_crash(ooid)
         raw_dump = self.soure.get_raw_dump(ooid)
-        processed_crash = self.crash_processor(raw_crash, raw_dump)
+        processed_crash = self.transform_raw_crash_to_processed_crash(
+          raw_crash,
+          raw_dump
+        )
         self.destination.save_processed(processed_crash)
 
     #--------------------------------------------------------------------------
     def main(self):
         self.setup_source_and_destination()
-        self.setup_registration()
-        self.setup_ooid_source()
+        self._setup_registration()
+        self._setup_ooid_source()
         try:
-            self.setup_transform()
+            self._setup_transform()
             self.setup_task_manager()
             self.task_manager.blocking_start()
         finally:
