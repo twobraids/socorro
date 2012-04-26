@@ -73,7 +73,7 @@ class ProcessorApp(FetchTransformSaveApp):
     #--------------------------------------------------------------------------
     def transform(self, ooid):
         raw_crash = self.source.get_raw_crash(ooid)
-        raw_dump = self.soure.get_raw_dump(ooid)
+        raw_dump = self.source.get_raw_dump(ooid)
         processed_crash = self.transform_raw_crash_to_processed_crash(
           raw_crash,
           raw_dump
