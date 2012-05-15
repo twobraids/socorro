@@ -22,8 +22,6 @@ and production of the processed crash data.  The save phase is the union of
 sending new crash records to Postgres; sending the processed crash to HBase;
 the the submission of the ooid to Elastic Search."""
 
-import copy
-
 from configman import Namespace
 from configman.converters import class_converter
 
@@ -48,7 +46,7 @@ class ProcessorApp(FetchTransformSaveApp):
     required_config.add_option(
       'processor_class',
       doc='the class that transforms raw crashes into processed crashes',
-      default='socorro.processor.legacy_processor',
+      default='socorro.processor.legacy_processor.LegacyCrashProcessor',
       from_string_converter=class_converter
     )
 
@@ -69,5 +67,12 @@ class ProcessorApp(FetchTransformSaveApp):
     #--------------------------------------------------------------------------
     def _setup_source_and_destination(self):
         super(ProcessorApp, self)._setup_source_and_destination()
-        self.processor = self.config.processor_class(config, self.quit_check)
+        self.processor = self.config.processor_class(
+          self.config,
+          self.quit_check
+        )
 
+
+if __name__ == '__main__':
+    from socorro.app.generic_app import main
+    main(ProcessorApp)

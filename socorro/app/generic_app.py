@@ -31,33 +31,46 @@ class App(RequiredConfig):
 #------------------------------------------------------------------------------
 def logging_required_config(app_name):
     lc = Namespace()
-    lc.add_option('syslog_host',
-              doc='syslog hostname',
-              default='localhost')
-    lc.add_option('syslog_port',
-              doc='syslog port',
-              default=514)
-    lc.add_option('syslog_facility_string',
-              doc='syslog facility string ("user", "local0", etc)',
-              default='user')
-    lc.add_option('syslog_line_format_string',
-              doc='python logging system format for syslog entries',
-              default='%s (pid %%(process)d): '
-                      '%%(asctime)s %%(levelname)s - %%(threadName)s - '
-                      '%%(message)s' % app_name)
-    lc.add_option('syslog_error_logging_level',
-              doc='logging level for the log file (10 - DEBUG, 20 '
-                  '- INFO, 30 - WARNING, 40 - ERROR, 50 - CRITICAL)',
-              default=40)
-    lc.add_option('stderr_line_format_string',
-              doc='python logging system format for logging to stderr',
-              default='%(asctime)s %(levelname)s - %(threadName)s - '
-                      '%(message)s')
-    lc.add_option('stderr_error_logging_level',
-              doc='logging level for the logging to stderr (10 - '
-                  'DEBUG, 20 - INFO, 30 - WARNING, 40 - ERROR, '
-                  '50 - CRITICAL)',
-              default=10)
+    lc.add_option(
+      'syslog_host',
+      doc='syslog hostname',
+      default='localhost'
+    )
+    lc.add_option(
+      'syslog_port',
+      doc='syslog port',
+      default=514
+    )
+    lc.add_option(
+      'syslog_facility_string',
+      doc='syslog facility string ("user", "local0", etc)',
+      default='user'
+    )
+    lc.add_option(
+      'syslog_line_format_string',
+      doc='python logging system format for syslog entries',
+      default='%s (pid %%(process)d): '
+              '%%(asctime)s %%(levelname)s - %%(threadName)s - '
+              '%%(message)s' % app_name
+    )
+    lc.add_option(
+      'syslog_error_logging_level',
+      doc='logging level for the log file (10 - DEBUG, 20 '
+          '- INFO, 30 - WARNING, 40 - ERROR, 50 - CRITICAL)',
+      default=40
+    )
+    lc.add_option(
+      'stderr_line_format_string',
+      doc='python logging system format for logging to stderr',
+      default='%(asctime)s %(levelname)s - %(threadName)s - %(message)s'
+    )
+    lc.add_option(
+      'stderr_error_logging_level',
+      doc='logging level for the logging to stderr (10 - '
+          'DEBUG, 20 - INFO, 30 - WARNING, 40 - ERROR, '
+          '50 - CRITICAL)',
+      default=10
+    )
     return lc
 
 
@@ -72,7 +85,8 @@ def setup_logger(app_name, config, local_unused, args_unused):
     logger.addHandler(stderr_log)
 
     syslog = logging.handlers.SysLogHandler(
-                                        facility=config.syslog_facility_string)
+      facility=config.syslog_facility_string
+    )
     syslog.setLevel(config.syslog_error_logging_level)
     syslog_formatter = logging.Formatter(config.syslog_line_format_string)
     syslog.setFormatter(syslog_formatter)
@@ -94,13 +108,12 @@ def main(initial_app, values_source_list=None):
     # parameters.  For a module to be acceptable, it must have a main
     # function that accepts a DotDict derivative as its input parameter.
     app_definition = Namespace()
-    app_definition.admin = admin = Namespace()
-    admin.add_option('application',
-                     doc='the fully qualified module or class of the '
-                         'application',
-                     default=initial_app,
-                     from_string_converter=class_converter
-                    )
+    app_definition.add_option(
+      'application',
+      doc='the fully qualified module or class of the application',
+      default=initial_app,
+      from_string_converter=class_converter
+    )
     try:
         app_name = initial_app.app_name  # this will be used as the default
                                          # b
@@ -109,19 +122,23 @@ def main(initial_app, values_source_list=None):
     except AttributeError, x:
         raise AppDetailMissingError(str(x))
 
-    app_definition.add_aggregation('logger',
-                                   functools.partial(setup_logger,
-                                                     app_name))
+    app_definition.add_aggregation(
+      'logger',
+      functools.partial(setup_logger, app_name)
+    )
 
-    definitions = (app_definition,
-                   logging_required_config(app_name))
+    definitions = (
+      app_definition,
+      logging_required_config(app_name)
+    )
 
-    config_manager = ConfigurationManager(definitions,
-                                          app_name=app_name,
-                                          app_version=app_version,
-                                          app_description=app_description,
-                                          values_source_list=values_source_list,
-                                         )
+    config_manager = ConfigurationManager(
+      definitions,
+      app_name=app_name,
+      app_version=app_version,
+      app_description=app_description,
+      values_source_list=values_source_list,
+    )
 
     with config_manager.context() as config:
         config_manager.log_config(config.logger)
@@ -131,7 +148,7 @@ def main(initial_app, values_source_list=None):
         # it might not always be that way.  The user always has the ability
         # to specify on the command line a new app class that will override
         # 'initial_app'.
-        app = config.admin.application
+        app = config.application
 
         if isinstance(app, type):
             # invocation of the app if the app_object was a class
