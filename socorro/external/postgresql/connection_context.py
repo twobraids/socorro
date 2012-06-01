@@ -41,6 +41,8 @@ class ConnectionContext(RequiredConfig):
         doc="the user's database password",
     )
 
+    _dbapi2_module = psycopg2
+
     #--------------------------------------------------------------------------
     def __init__(self, config, local_config=None):
         """Initialize the parts needed to start making database connections

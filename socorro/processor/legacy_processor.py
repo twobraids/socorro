@@ -1,3 +1,6 @@
+"""this file defines the method of converting a raw crash into a processed
+crash using the traditional algorithm used from 2008 through 2012."""
+
 import re
 import os
 import subprocess
@@ -28,12 +31,17 @@ from socorro.lib.util import (
 #------------------------------------------------------------------------------
 def create_symbol_path_str(input_str):
     symbols_sans_commas = input_str.replace(',', ' ')
-    quoted_symbols_list = ['"%s"' % x for x in symbols_sans_commas.split()]
+    quoted_symbols_list = ['"%s"' % x.strip()
+                           for x in symbols_sans_commas.split()]
     return ' '.join(quoted_symbols_list)
 
 
 #==============================================================================
 class LegacyCrashProcessor(RequiredConfig):
+    """this class is a refactoring of the original processor algorithm into
+    a single class.  This class is suitble for use in the 'processor_app'
+    introducted in 2012."""
+
     required_config = Namespace()
     required_config.add_option(
         'database_class',
@@ -164,9 +172,7 @@ class LegacyCrashProcessor(RequiredConfig):
     #--------------------------------------------------------------------------
     def __init__(self, config, quit_check_callback=None):
         super(LegacyCrashProcessor, self).__init__()
-
         self.config = config
-
         if quit_check_callback:
             self.quit_check = quit_check_callback
         else:
@@ -220,15 +226,15 @@ class LegacyCrashProcessor(RequiredConfig):
             ooid = raw_crash.uuid
             processor_notes = []
             processed_crash = DotDict()
-            processed_crash.uuid = raw_crash.uuid  #TODO: uuid NOT IN raw_crash
+            processed_crash.uuid = raw_crash.uuid
             processed_crash.success = False
 
             started_timestamp = self._log_job_start(ooid)
 
-            self.config.logger.debug('about to apply rules')
+            #self.config.logger.debug('about to apply rules')
             self.raw_crash_transform_rule_system.apply_all_rules(raw_crash,
                                                                  self)
-            self.config.logger.debug('done applying transform rules')
+            #self.config.logger.debug('done applying transform rules')
 
             try:
                 submitted_timestamp = datetimeFromISOdateString(
@@ -980,11 +986,22 @@ class LegacyCrashProcessor(RequiredConfig):
             'successful' if success else 'failed',
             ooid
         )
+        # old behavior - processors just mark jobs in the postgres queue as
+        # being done.  This is deprecated in favor of the processor cleaning
+        # up after itself.
+        #self.transaction(
+            #execute_no_results,
+            #"update jobs set completeddatetime = %s, success = %s "
+            #"where uuid = %s",
+            #(completed_datetime, success, ooid)
+        #)
+
+        # new behavior - the processors delete completed jobs from the queue
         self.transaction(
             execute_no_results,
-            "update jobs set completeddatetime = %s, success = %s "
+            "delete from jobs "
             "where uuid = %s",
-            (completed_datetime, success, ooid)
+            (ooid,)
         )
 
     #--------------------------------------------------------------------------

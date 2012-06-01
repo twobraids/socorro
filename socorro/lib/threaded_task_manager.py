@@ -293,8 +293,7 @@ class ThreadedTaskManager(RequiredConfig):
                     self._responsive_sleep(self.config.idle_delay)
                     continue
                 self.quit_check()
-                self.logger.debug("queuing standard job %s",
-                                  job_params)
+                #self.logger.debug("queuing job %s", job_params)
                 self.task_queue.put((self.task_func, job_params))
             else:
                 self.logger.debug("the loop didn't actually loop")

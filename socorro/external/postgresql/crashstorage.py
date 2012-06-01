@@ -1,4 +1,5 @@
 import datetime
+import threading
 
 from socorro.external.crashstorage_base import (
     CrashStorageBase
@@ -112,7 +113,26 @@ class PostgreSQLCrashStorage(CrashStorageBase):
             ', '.join(column_list),
             ', '.join(placeholder_list)
         )
-        report_id = single_value_sql(connection, insert_sql, value_list)
+        savepoint_name = threading.currentThread().getName().replace('-', '')
+        execute_no_results(connection, "savepoint %s" % savepoint_name)
+        try:
+            report_id = single_value_sql(connection, insert_sql, value_list)
+        except self.config.database._dbapi2_module.IntegrityError:
+            # report already exists
+            execute_no_results(
+              connection,
+              "rollback to savepoint %s" % savepoint_name
+            )
+            execute_no_results(
+              connection,
+              "release savepoint %s" % savepoint_name
+            )
+            execute_no_results(
+              connection,
+              "delete from %s where uuid = %%s" % reports_table_name,
+              (processed_crash.uuid,)
+            )
+            report_id = single_value_sql(connection, insert_sql, value_list)
         return report_id
 
     #--------------------------------------------------------------------------
