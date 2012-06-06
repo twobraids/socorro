@@ -113,6 +113,13 @@ class PostgreSQLCrashStorage(CrashStorageBase):
             ', '.join(column_list),
             ', '.join(placeholder_list)
         )
+        # we want to insert directly into the report table.  There is a
+        # chance however that the record already exists.  If it does, then
+        # the insert would fail and the connection fall into a "broken" state.
+        # To avoid this, we set a savepoint to which we can roll back if the
+        # record already exists - essentially a nested transaction.
+        # We use the name of the executing thread as the savepoint name.
+        # alternatively we could get a uuid.
         savepoint_name = threading.currentThread().getName().replace('-', '')
         execute_no_results(connection, "savepoint %s" % savepoint_name)
         try:

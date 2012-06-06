@@ -58,7 +58,7 @@ class CrashStorageBase(RequiredConfig):
         pass
 
     #--------------------------------------------------------------------------
-    def save_raw_crash(self, raw_crash, dump):
+    def save_raw_crash(self, raw_crash, dump, uuid):
         """this method that saves  both the raw_crash (sometimes called the
         raw_json) and the dump, must be overridden in any implementation.
 
@@ -76,7 +76,8 @@ class CrashStorageBase(RequiredConfig):
                         often saved as a json file, but here it is in the form
                         of a dict.
             dump - a binary blob of data that will eventually fed to minidump-
-                   stackwalk"""
+                   stackwalk
+            uuid - the crash key to use for this crash"""
         pass
 
     #--------------------------------------------------------------------------

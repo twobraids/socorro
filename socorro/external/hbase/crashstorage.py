@@ -73,17 +73,7 @@ class HBaseCrashStorage(CrashStorageBase):
         self.hbaseConnection.close()
 
     #--------------------------------------------------------------------------
-    def save_raw_crash(self, raw_crash, dump):
-        try:
-            ooid = raw_crash['ooid']
-        except KeyError:
-            raise OOIDNotFoundException("The raw_crash is always expected to "
-                                        "have an 'ooid' key")
-        try:
-            assert raw_crash['submitted_timestamp']
-        except KeyError:
-            raise ValueError("data must contain a 'submitted_timestamp' key")
-
+    def save_raw_crash(self, raw_crash, dump, uuid):
         # the transaction_executor will run the function given as the first
         # parameter.  To that function, the transaction_executor will pass
         # self.hbaseConnection, ooid, raw_crash, dump, and number_of_retries.

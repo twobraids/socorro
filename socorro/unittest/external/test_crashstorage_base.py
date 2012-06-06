@@ -60,7 +60,7 @@ class TestBase(unittest.TestCase):
               config,
               quit_check_callback=fake_quit_check
             )
-            crashstorage.save_raw_crash({}, 'payload')
+            crashstorage.save_raw_crash({}, 'payload', 'ooid')
             crashstorage.save_processed({})
             self.assertRaises(NotImplementedError,
                               crashstorage.get_raw_crash, 'ooid')

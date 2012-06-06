@@ -96,11 +96,7 @@ class FileSystemRawCrashStorage(CrashStorageBase):
         return raw_crash
 
     #--------------------------------------------------------------------------
-    def _do_save_raw(self, json_storage_system, raw_crash, dump):
-        try:
-            ooid = raw_crash['ooid']
-        except KeyError:
-            raise OOIDNotFoundException("ooid missing from raw_crash")
+    def _do_save_raw(self, json_storage_system, raw_crash, dump, ooid):
         try:
             json_file_handle, dump_file_handle = json_storage_system.newEntry(
               ooid,
@@ -119,9 +115,9 @@ class FileSystemRawCrashStorage(CrashStorageBase):
             raise
 
     #--------------------------------------------------------------------------
-    def save_raw_crash(self, raw_crash, dump):
+    def save_raw_crash(self, raw_crash, dump, uuid):
         """forward the raw_crash and the dump to the underlying file system"""
-        self._do_save_raw(self.std_crash_store, raw_crash, dump)
+        self._do_save_raw(self.std_crash_store, raw_crash, dump, uuid)
 
     #--------------------------------------------------------------------------
     def get_raw_crash(self, ooid):
@@ -209,14 +205,14 @@ class FileSystemThrottledCrashStorage(FileSystemRawCrashStorage):
                                      self.def_crash_store)
 
     #--------------------------------------------------------------------------
-    def save_raw_crash(self, raw_crash, dump):
+    def save_raw_crash(self, raw_crash, dump, uuid):
         """save the raw crash and the dump in the appropriate file system
         based on the value of 'legacy_processing' with the raw_crash itself"""
         try:
             if raw_crash['legacy_processing'] == LegacyThrottler.ACCEPT:
-                self._do_save_raw(self.std_crash_store, raw_crash, dump)
+                self._do_save_raw(self.std_crash_store, raw_crash, dump, uuid)
             else:
-                self._do_save_raw(self.def_crash_store, raw_crash, dump)
+                self._do_save_raw(self.def_crash_store, raw_crash, dump, uuid)
         except KeyError:
             # if 'legacy_processing' is missing, then it assumed that this
             # crash should be processed.  Therefore save it into standard
