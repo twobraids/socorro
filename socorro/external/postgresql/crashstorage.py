@@ -106,8 +106,10 @@ class PostgreSQLCrashStorage(CrashStorageBase):
             column_list.append(report_name)
             placeholder_list.append('%s')
             value_list.append(processed_crash[pro_crash_name])
-        ooid = processed_crash['uuid']
-        reports_table_name = 'reports_%s' % self._table_suffix_for_ooid(ooid)
+        crash_id = processed_crash['uuid']
+        reports_table_name = (
+          'reports_%s' % self._table_suffix_for_crash_id(crash_id)
+        )
         insert_sql = "insert into %s (%s) values (%s) returning id" % (
             reports_table_name,
             ', '.join(column_list),
@@ -187,8 +189,8 @@ class PostgreSQLCrashStorage(CrashStorageBase):
                                              insert_plugsins_sql,
                                              (plugin_filename,
                                               plugin_name))
-            ooid = processed_crash['uuid']
-            table_suffix = self._table_suffix_for_ooid(ooid)
+            crash_id = processed_crash['uuid']
+            table_suffix = self._table_suffix_for_crash_id(crash_id)
             plugin_reports_table_name = 'plugin_reports_%s' % table_suffix
             plugins_reports_insert_sql = (
                 'insert into %s '
@@ -207,8 +209,8 @@ class PostgreSQLCrashStorage(CrashStorageBase):
     #--------------------------------------------------------------------------
     def _save_extensions(self, connection, processed_crash, report_id):
         extensions = processed_crash['addons']
-        ooid = processed_crash['uuid']
-        table_suffix = self._table_suffix_for_ooid(ooid)
+        crash_id = processed_crash['uuid']
+        table_suffix = self._table_suffix_for_crash_id(crash_id)
         extensions_table_name = 'extensions_%s' % table_suffix
         extensions_insert_sql = (
           "insert into %s "
@@ -232,11 +234,12 @@ class PostgreSQLCrashStorage(CrashStorageBase):
 
     #--------------------------------------------------------------------------
     @staticmethod
-    def _table_suffix_for_ooid(ooid):
-        """given an ooid, return the name of its storage table"""
-        ooid_date = uuid_to_date(ooid)
-        previous_monday_date = (ooid_date +
-                                datetime.timedelta(days=-ooid_date.weekday()))
+    def _table_suffix_for_crash_id(crash_id):
+        """given an crash_id, return the name of its storage table"""
+        crash_id_date = uuid_to_date(crash_id)
+        previous_monday_date = (
+          crash_id_date + datetime.timedelta(days=-crash_id_date.weekday())
+        )
         return '%4d%02d%02d' % (previous_monday_date.year,
                                 previous_monday_date.month,
                                 previous_monday_date.day)
