@@ -30,8 +30,8 @@ class ProcessorApp(FetchTransformSaveApp):
     )
 
     required_config = Namespace()
-    # configuration is broken into three namespaces: processor, new_crash_source,
-    # and registrar
+    # configuration is broken into three namespaces: processor,
+    # new_crash_source, and registrar
     #--------------------------------------------------------------------------
     # processor namespace
     #     this namespace is for config parameter having to do with the
@@ -106,14 +106,20 @@ class ProcessorApp(FetchTransformSaveApp):
         processed crash is saved to the 'destination'."""
         try:
             raw_crash = self.source.get_raw_crash(ooid)
+            dump = self.source.get_raw_dump(ooid)
         except CrashIDNotFoundException:
             self.processor.reject_raw_crash(
               ooid,
               'this crash cannot be found in raw crash storage'
             )
             return
+        except Exception, x:
+            self.processor.reject_raw_crash(
+              ooid,
+              'error in loading: %s' % x
+            )
+            return
 
-        dump = self.source.get_raw_dump(ooid)
         if 'uuid' not in raw_crash:
             raw_crash.uuid = ooid
         processed_crash = \
@@ -125,8 +131,8 @@ class ProcessorApp(FetchTransformSaveApp):
 
     #--------------------------------------------------------------------------
     def _setup_source_and_destination(self):
-        """this method simply instatiates the source, destination, new_crash_source,
-        and the processor algorithm implementation."""
+        """this method simply instatiates the source, destination,
+        new_crash_source, and the processor algorithm implementation."""
         super(ProcessorApp, self)._setup_source_and_destination()
         self.registrar = self.config.registrar.registrar_class(
           self.config.registrar,
