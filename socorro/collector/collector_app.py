@@ -15,6 +15,9 @@ from socorro.collector.wsgi_collector import Collector
 from configman import Namespace
 from configman.converters import class_converter
 
+# an app running under modwsgi needs to have a name at the module level called
+# application.  The value is set in the App's 'main' function below.  Only the
+# modwsgi Apache version actually makes use of this variable.
 application = None
 
 
@@ -56,11 +59,6 @@ class CollectorApp(App):
         doc='the class that implements the throttling action',
         from_string_converter=class_converter
     )
-    #required_config.throttler.add_aggregation(
-        #'throttler',
-        #lambda c, lc, a: lc.throttler_class(lc)  # instantiate the throttler
-    #)
-
     #--------------------------------------------------------------------------
     # storage namespace
     #     the namespace is for config parameters crash storage
@@ -73,10 +71,6 @@ class CollectorApp(App):
         'FileSystemRawCrashStorage',
         from_string_converter=class_converter
     )
-    #required_config.storage.add_aggregation(
-        #'crash_storage',
-        #lambda c, lc, a: lc.crashstorage_class(lc)  # instantiate crash_storage
-    #)
 
     #--------------------------------------------------------------------------
     # web_server namespace
@@ -84,14 +78,15 @@ class CollectorApp(App):
     #--------------------------------------------------------------------------
     required_config.namespace('web_server')
     required_config.web_server.add_option(
-        'web_server_class',
-        doc='a class implementing a web server',
+        'wsgi_server_class',
+        doc='a class implementing a wsgi web server',
         default='socorro.webapi.servers.CherryPy',
         from_string_converter=class_converter
     )
 
     #--------------------------------------------------------------------------
     def main(self):
+        # Apache modwsgi requireds a module level name 'applicaiton'
         global application
 
         services_list = (
@@ -103,11 +98,14 @@ class CollectorApp(App):
         self.config.throttler = self.config.throttler.throttler_class(
             self.config.throttler
         )
-        self.web_server = self.config.web_server.web_server_class(
-            self.config,  # needs the whole config rather than just the namespace
+        self.web_server = self.config.web_server.wsgi_server_class(
+            self.config,  # needs the whole config not the local namespace
             services_list
         )
 
+        # for modwsgi the 'run' method returns the wsgi function that Apache
+        # will use.  For other webservers, the 'run' method actually starts
+        # the standalone web server.
         application = self.web_server.run()
 
 

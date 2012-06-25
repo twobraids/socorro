@@ -3,7 +3,7 @@ import urllib2
 
 from socorro.external.crashstorage_base import (
     CrashStorageBase,
-    CrashIDNotFoundException
+    CrashIDNotFound
 )
 from socorro.database.transaction_executor import TransactionExecutor
 from socorro.external.hbase.hbase_client import ooid_to_row_id
@@ -71,7 +71,7 @@ class ElasticSearchCrashStorage(CrashStorageBase):
             )
         except KeyError, x:
             if x == 'uuid':
-                raise CrashIDNotFoundException
+                raise CrashIDNotFound
             raise
 
     #--------------------------------------------------------------------------

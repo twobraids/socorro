@@ -8,7 +8,7 @@ from configman import ConfigurationManager
 
 from socorro.external.hbase import hbase_client
 
-from socorro.external.crashstorage_base import CrashIDNotFoundException
+from socorro.external.crashstorage_base import CrashIDNotFound
 from socorro.external.hbase.crashstorage import HBaseCrashStorage
 from socorro.lib.util import DotDict
 from socorro.unittest.config import commonconfig
@@ -90,7 +90,7 @@ else:
                 # data doesn't contain an 'ooid' key
                 #raw = '{"name": "Peter"}'
                 #self.assertRaises(
-                  #CrashIDNotFoundException,
+                  #CrashIDNotFound,
                   #crashstorage.save_raw_crash,
                   #json.loads(raw),
                   #raw
@@ -125,7 +125,7 @@ else:
                 self.assertTrue('"name":"Peter"' in dump)
 
                 # hasn't been processed yet
-                self.assertRaises(CrashIDNotFoundException,
+                self.assertRaises(CrashIDNotFound,
                                   crashstorage.get_processed_crash,
                                   'abc123')
 

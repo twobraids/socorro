@@ -20,7 +20,7 @@ from socorro.external.filesystem.json_dump_storage import (JsonDumpStorage,
 from socorro.external.filesystem.processed_dump_storage import \
                                                 ProcessedDumpStorage
 from socorro.external.crashstorage_base import (CrashStorageBase,
-                                                CrashIDNotFoundException)
+                                                CrashIDNotFound)
 from socorro.lib.util import DotDict
 from socorro.collector.throttler import LegacyThrottler
 
@@ -126,7 +126,7 @@ class FileSystemRawCrashStorage(CrashStorageBase):
             pathname = self.std_crash_store.getJson(crash_id)
             return self._load_raw_crash_from_file(pathname)
         except OSError:
-            raise CrashIDNotFoundException(crash_id)
+            raise CrashIDNotFound(crash_id)
         except ValueError: # empty json file?
             return DotDict()
 
@@ -140,7 +140,7 @@ class FileSystemRawCrashStorage(CrashStorageBase):
                 binary = dump_file.read()
             return binary
         except OSError:
-            raise CrashIDNotFoundException(crash_id)
+            raise CrashIDNotFound(crash_id)
 
     #--------------------------------------------------------------------------
     def new_crashes(self):
@@ -161,7 +161,7 @@ class FileSystemRawCrashStorage(CrashStorageBase):
         try:
             self.std_crash_store.remove(crash_id)
         except NoSuchUuidFound:
-            raise CrashIDNotFoundException(crash_id)
+            raise CrashIDNotFound(crash_id)
 
 
 #==============================================================================
@@ -230,7 +230,7 @@ class FileSystemThrottledCrashStorage(FileSystemRawCrashStorage):
                 # only raise the exception if we've got no more file systems
                 # to look through
                 if a_crash_store is self.crash_store_iterable[-1]:
-                    raise CrashIDNotFoundException(crash_id)
+                    raise CrashIDNotFound(crash_id)
 
     #--------------------------------------------------------------------------
     def get_raw_dump(self, crash_id):
@@ -245,7 +245,7 @@ class FileSystemThrottledCrashStorage(FileSystemRawCrashStorage):
                 # only raise the exception if we've got no more file systems
                 # to look through
                 if a_crash_store is self.crash_store_iterable[-1]:
-                    raise CrashIDNotFoundException(crash_id)
+                    raise CrashIDNotFound(crash_id)
 
     #--------------------------------------------------------------------------
     def remove(self, crash_id):
@@ -259,7 +259,7 @@ class FileSystemThrottledCrashStorage(FileSystemRawCrashStorage):
                 # only raise the exception if we've got no more file systems
                 # to look through
                 if a_crash_store is self.crash_store_iterable[-1]:
-                    raise CrashIDNotFoundException(crash_id)
+                    raise CrashIDNotFound(crash_id)
 
 
 
@@ -349,7 +349,7 @@ class FileSystemCrashStorage(FileSystemThrottledCrashStorage):
         try:
             crash_id = processed_crash['uuid']
         except KeyError:
-            raise CrashIDNotFoundException("uuid missing from processed_crash")
+            raise CrashIDNotFound("uuid missing from processed_crash")
         try:
             processed_crash = self.sanitize_processed_crash(
               processed_crash,
@@ -376,7 +376,7 @@ class FileSystemCrashStorage(FileSystemThrottledCrashStorage):
         try:
             return self.pro_crash_store.getDumpFromFile(crash_id)
         except OSError:
-            raise CrashIDNotFoundException(crash_id)
+            raise CrashIDNotFound(crash_id)
 
     #--------------------------------------------------------------------------
     def remove(self, crash_id):
@@ -384,7 +384,7 @@ class FileSystemCrashStorage(FileSystemThrottledCrashStorage):
         file system."""
         try:
             super(FileSystemCrashStorage, self).remove(crash_id)
-        except CrashIDNotFoundException:
+        except CrashIDNotFound:
             self.logger.warning(
               'raw crash not found for deletion: %s',
               crash_id

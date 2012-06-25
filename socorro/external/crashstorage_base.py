@@ -12,7 +12,7 @@ from configman.dotdict import DotDict
 
 
 #==============================================================================
-class CrashIDNotFoundException(Exception):
+class CrashIDNotFound(Exception):
     pass
 
 

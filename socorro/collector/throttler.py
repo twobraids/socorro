@@ -88,9 +88,20 @@ class LegacyThrottler(RequiredConfig):
         new_throttle_conditions = []
         for key, condition_str, percentage in original_throttle_conditions:
             #print "preprocessing %s %s %d" % (key, condition, percentage)
-            try:
-                condition = eval(condition_str)
-            except (NameError, TypeError):
+            if isinstance(condition_str, basestring):
+                try:
+                    condition = eval(condition_str)
+                    self.config.logger.info(
+                      '%s interprets "%s" as python code' %
+                      (self.__class__, condition_str)
+                    )
+                except Exception:
+                    self.config.logger.info(
+                      '%s interprets "%s" as a literal for an equality test' %
+                      (self.__class__, condition_str)
+                    )
+                    condition = condition_str
+            else:
                 condition = condition_str
             if isinstance(condition, Compiled_Regular_Expression_Type):
                 #print "reg exp"

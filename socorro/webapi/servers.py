@@ -11,13 +11,18 @@ class WebServerBase(RequiredConfig):
     #--------------------------------------------------------------------------
     def __init__(self, config, services_list):
         self.config = config
-        self.urls = tuple(y for aTuple in
+        self.urls = tuple(y for a_tuple in
                          ((x.uri, classWithPartialInit(x, config))
-                            for x in services_list) for y in aTuple)
-        self.config.logger.info(str(self.urls))
+                            for x in services_list) for y in a_tuple)
+        #self.config.logger.info(str(self.urls))
         web.webapi.internalerror = web.debugerror
         web.config.debug = False
         self._identify()
+        self._wsgi_func = web.application(self.urls, globals()).wsgifunc()
+
+    #--------------------------------------------------------------------------
+    def run(self):
+        raise NotImplemented
 
     #--------------------------------------------------------------------------
     def _identify(self):
@@ -27,36 +32,20 @@ class WebServerBase(RequiredConfig):
 
 #==============================================================================
 class ApacheModWSGI(WebServerBase):
+    """When running Apache, modwsgi requires a reference to a "wsgifunc" In
+    varient of the WebServer class, the run function returns the result of
+    the webpy framework's wsgifunc.  Application that use this class must
+    provide a module level variable 'application' in the module given to Apache
+    modwsgi configuration.  The value of the variable must be the _wsgi_func.
+    """
 
     #--------------------------------------------------------------------------
     def run(self):
-        return web.application(self.urls, globals()).wsgifunc()
+        return self._wsgi_func
 
     #--------------------------------------------------------------------------
     def _identify(self):
         self.config.logger.info('this is ApacheModWSGI')
-
-
-#==============================================================================
-class CherryPyStandAloneApplication(web.application):
-    """When running a standalone web app based on web.py, the web.py code
-    unfortunately makes some assumptions about the use of command line
-    parameters for setting the host and port names.  This wrapper class
-    eliminates that ambiguity by overriding the run method to use the host and
-    port assigned in the constructor."""
-
-    #--------------------------------------------------------------------------
-    def __init__(self, server_ip_address, server_port, *args, **kwargs):
-        """Construct the web application."""
-        self.serverIpAddress = server_ip_address
-        self.serverPort = server_port
-        web.application.__init__(self, *args, **kwargs)
-
-    #--------------------------------------------------------------------------
-    def run(self, *additional_params):
-        """Run the application."""
-        f = self.wsgifunc(*additional_params)
-        web.runsimple(f, (self.serverIpAddress, self.serverPort))
 
 
 #==============================================================================
@@ -67,25 +56,23 @@ class StandAloneServer(WebServerBase):
       doc='the port to listen to for submissions',
       default=8882
     )
+
+
+#==============================================================================
+class CherryPy(StandAloneServer):
+    required_config = Namespace()
     required_config.add_option(
       'ip_address',
       doc='the IP address from which to accept submissions',
       default='127.0.0.1'
     )
 
-
-#==============================================================================
-class CherryPy(StandAloneServer):
-
     #--------------------------------------------------------------------------
     def run(self):
-        app = CherryPyStandAloneApplication(
-          self.config.web_server.ip_address,
-          self.config.web_server.port,
-          self.urls,
-          globals()
+        web.runsimple(
+          self._wsgi_func,
+          (self.config.web_server.ip_address, self.config.web_server.port)
         )
-        app.run()
 
     #--------------------------------------------------------------------------
     def _identify(self):

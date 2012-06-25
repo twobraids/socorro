@@ -6,7 +6,7 @@ import tempfile
 import inspect
 import unittest
 from socorro.external.crashstorage_base import (
-  CrashStorageBase, CrashIDNotFoundException)
+  CrashStorageBase, CrashIDNotFound)
 from socorro.external.filesystem.crashstorage import (
   FileSystemRawCrashStorage,
   FileSystemThrottledCrashStorage,
@@ -74,7 +74,7 @@ class TestFileSystemRawCrashStorage(unittest.TestCase):
         self.assertEqual(list(crashstorage.new_crashes()), [])
         raw = {"name": "Peter", "legacy_processing": 0}
         self.assertRaises(
-          CrashIDNotFoundException,
+          CrashIDNotFound,
           crashstorage.save_raw_crash,
           raw,
           fake_dump  # as a stand in for the binary dump file
@@ -114,13 +114,13 @@ class TestFileSystemRawCrashStorage(unittest.TestCase):
         self.assertRaises(OSError,
                           crashstorage.std_crash_store.getDump,
                           '114559a5-d8e6-428c-8b88-1c1f22120314')
-        self.assertRaises(CrashIDNotFoundException,
+        self.assertRaises(CrashIDNotFound,
                           crashstorage.remove,
                           '114559a5-d8e6-428c-8b88-1c1f22120314')
-        self.assertRaises(CrashIDNotFoundException,
+        self.assertRaises(CrashIDNotFound,
                           crashstorage.get_raw_crash,
                           '114559a5-d8e6-428c-8b88-1c1f22120314')
-        self.assertRaises(CrashIDNotFoundException,
+        self.assertRaises(CrashIDNotFound,
                           crashstorage.get_raw_dump,
                           '114559a5-d8e6-428c-8b88-1c1f22120314')
 
@@ -130,7 +130,7 @@ class TestFileSystemRawCrashStorage(unittest.TestCase):
         self.assertEqual(list(crashstorage.new_crashes()), [])
         raw = {"name": "Peter", "legacy_processing": 1}
         self.assertRaises(
-          CrashIDNotFoundException,
+          CrashIDNotFound,
           crashstorage.save_raw_crash,
           raw,
           fake_dump  # as a stand in for the binary dump file
@@ -206,7 +206,7 @@ class TestFileSystemRawCrashStorage(unittest.TestCase):
 
             processed_crash = {"name": "Peter", "legacy_processing": 1}
             self.assertRaises(
-              CrashIDNotFoundException,
+              CrashIDNotFound,
               crashstorage.save_processed,
               processed_crash
             )
@@ -221,7 +221,7 @@ class TestFileSystemRawCrashStorage(unittest.TestCase):
                                        DotDict))
 
             crashstorage.remove(crash_id)
-            self.assertRaises(CrashIDNotFoundException,
+            self.assertRaises(CrashIDNotFound,
                               crashstorage.get_processed,
                               crash_id)
             crashstorage.remove(crash_id)

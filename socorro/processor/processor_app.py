@@ -9,7 +9,7 @@ from socorro.app.fetch_transform_save_app import FetchTransformSaveApp, main
 from socorro.external.postgresql.crashstorage import PostgreSQLCrashStorage
 from socorro.external.crashstorage_base import (
   PolyCrashStorage,
-  CrashIDNotFoundException,
+  CrashIDNotFound,
 )
 
 
@@ -106,7 +106,7 @@ class ProcessorApp(FetchTransformSaveApp):
         processed crash is saved to the 'destination'."""
         try:
             raw_crash = self.source.get_raw_crash(ooid)
-        except CrashIDNotFoundException:
+        except CrashIDNotFound:
             self.processor.reject_raw_crash(
               ooid,
               'this crash cannot be found in raw crash storage'

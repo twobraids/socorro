@@ -29,7 +29,7 @@ class Collector(object):
         names = (name for name in form.keys() if name != self.dump_field)
         raw_crash = DotDict()
         for name in names:
-            if isinstance(form[name], (str, unicode)):
+            if isinstance(form[name], basestring):
                 raw_crash[name] = form[name]
             else:
                 raw_crash[name] = form[name].value

@@ -1,7 +1,7 @@
 import datetime
 
 from socorro.external.crashstorage_base import (
-    CrashStorageBase, CrashIDNotFoundException)
+    CrashStorageBase, CrashIDNotFound)
 from socorro.external.hbase import hbase_client
 from socorro.database.transaction_executor import TransactionExecutor
 from configman import Namespace, class_converter
@@ -132,7 +132,7 @@ class HBaseCrashStorage(CrashStorageBase):
             )
         except hbase_client.OoidNotFoundException:
             # we want a consistent set of exceptions for the API
-            raise CrashIDNotFoundException(crash_id)
+            raise CrashIDNotFound(crash_id)
 
     #--------------------------------------------------------------------------
     def new_crashes(self):

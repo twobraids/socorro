@@ -14,7 +14,7 @@ from socorro.database.transaction_executor import (
   TransactionExecutorWithLimitedBackoff
 )
 from socorro.external.crashstorage_base import (
-  CrashStorageBase, CrashIDNotFoundException)
+  CrashStorageBase, CrashIDNotFound)
 from socorro.external.postgresql.crashstorage import PostgreSQLCrashStorage
 from socorro.unittest.config import commonconfig
 from socorro.unittest.config.commonconfig import (
