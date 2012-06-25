@@ -1,10 +1,7 @@
 import web
 import time
 
-import socorro.lib.ooid as sooid
 from socorro.lib.ooid import createNewOoid
-import socorro.storage.crashstorage as cstore
-
 from socorro.lib.util import DotDict
 from socorro.collector.throttler import DISCARD
 from socorro.lib.datetimeutil import utc_now
@@ -45,8 +42,8 @@ class Collector(object):
         current_timestamp = utc_now()
         raw_crash.submitted_timestamp = current_timestamp.isoformat()
 
-        ooid = createNewOoid(current_timestamp)
-        self.logger.info('%s received', ooid)
+        crash_id = createNewOoid(current_timestamp)
+        self.logger.info('%s received', crash_id)
 
         raw_crash.legacy_processing = self.throttler.throttle(raw_crash)
         if raw_crash.legacy_processing == DISCARD:
@@ -55,6 +52,6 @@ class Collector(object):
         result = self.config.crash_storage.save_raw_crash(
           raw_crash,
           dump,
-          ooid
+          crash_id
         )
-        return "CrashID=%s%s\n" % (self.dump_id_prefix, ooid)
+        return "CrashID=%s%s\n" % (self.dump_id_prefix, crash_id)

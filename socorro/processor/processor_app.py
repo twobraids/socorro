@@ -49,12 +49,12 @@ class ProcessorApp(FetchTransformSaveApp):
     #--------------------------------------------------------------------------
     # new_crash_source namespace
     #     this namespace is for config parameter having to do with the source
-    #     of new ooids.
+    #     of new crash_ids.
     #--------------------------------------------------------------------------
     required_config.namespace('new_crash_source')
     required_config.new_crash_source.add_option(
       'new_crash_source_class',
-      doc='an iterable that will stream ooids needing processing',
+      doc='an iterable that will stream crash_ids needing processing',
       default='socorro.processor.legacy_new_crash_source.LegacyNewCrashSource',
       from_string_converter=class_converter
     )
@@ -74,8 +74,8 @@ class ProcessorApp(FetchTransformSaveApp):
 
     #--------------------------------------------------------------------------
     def source_iterator(self):
-        """this iterator yields individual ooids from the source crashstorage
-        class's 'new_ooids' method."""
+        """this iterator yields individual crash_ids from the source
+        crashstorage class's 'new_crash_ids' method."""
         self.iterator = self.config.new_crash_source.new_crash_source_class(
           self.config.new_crash_source,
           self.registrar.processor_name,
@@ -98,30 +98,30 @@ class ProcessorApp(FetchTransformSaveApp):
         self.task_manager.quit_check()
 
     #--------------------------------------------------------------------------
-    def transform(self, ooid):
+    def transform(self, crash_id):
         """this implementation is the framework on how a raw crash is
-        converted into a processed crash.  The 'ooid' passed in is used as a
-        key to fetch the raw crash from the 'source', the conversion funtion
+        converted into a processed crash.  The 'crash_id' passed in is used as
+        a key to fetch the raw crash from the 'source', the conversion funtion
         implemented by the 'processor_class' is applied, and then the
         processed crash is saved to the 'destination'."""
         try:
-            raw_crash = self.source.get_raw_crash(ooid)
-            dump = self.source.get_raw_dump(ooid)
+            raw_crash = self.source.get_raw_crash(crash_id)
+            dump = self.source.get_raw_dump(crash_id)
         except CrashIDNotFound:
             self.processor.reject_raw_crash(
-              ooid,
+              crash_id,
               'this crash cannot be found in raw crash storage'
             )
             return
         except Exception, x:
             self.processor.reject_raw_crash(
-              ooid,
+              crash_id,
               'error in loading: %s' % x
             )
             return
 
         if 'uuid' not in raw_crash:
-            raw_crash.uuid = ooid
+            raw_crash.uuid = crash_id
         processed_crash = \
           self.processor.convert_raw_crash_to_processed_crash(
             raw_crash,

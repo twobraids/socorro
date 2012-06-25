@@ -57,8 +57,8 @@ class MonitorApp(App):
     app_description = __doc__
 
     required_config = Namespace()
-    # configuration is broken into three namespaces: registrar, new_crash_source,
-    # and job_manager
+    # configuration is broken into three namespaces: registrar,
+    # new_crash_source,  and job_manager
 
     #--------------------------------------------------------------------------
     # registrar namespace
@@ -106,14 +106,15 @@ class MonitorApp(App):
     #--------------------------------------------------------------------------
     # new_crash_source namespace
     #     this namespace is for config parameter having to do with the source
-    #     of new ooids.  This generally for a crashstorage class that
-    #     implements the 'new_ooids' iterator
+    #     of new crash_ids.  This generally for a crashstorage class that
+    #     implements the 'new_crash_ids' iterator
     #--------------------------------------------------------------------------
     required_config.namespace('new_crash_source')
     required_config.new_crash_source.add_option(
       'new_crash_source_class',
-      doc='an iterable that will stream ooids needing processing',
-      default='socorro.monitor.crashstore_new_crash_source.CrashStorageNewCrashSource',
+      doc='an iterable that will stream crash_ids needing processing',
+      default='socorro.monitor.crashstore_new_crash_source.'
+              'CrashStorageNewCrashSource',
       from_string_converter=class_converter
     )
 
@@ -466,19 +467,21 @@ class MonitorApp(App):
                "     lastSeenDateTime > now() - %s)"
                "select"
                "    p.id,"
-               "    count(j.owner) "
+               "    count(j.owner),"
+               "    p.name "
                "from"
                "    live_processors p left join jobs j "
                "        on p.id = j.owner"
                "           and j.success is null "
-               "group by p.id")
+               "group by p.id, p.name")
         processors_and_load = execute_query_fetchall(
           connection,
           sql,
           (self.config.registrar.check_in_frequency,)
         )
         # convert row tuples to muteable lists
-        return [[a_row[0], a_row[1]] for a_row in processors_and_load]
+        return [[a_row[0], a_row[1], a_row[2]]
+                for a_row in processors_and_load]
 
     #--------------------------------------------------------------------------
     def _balanced_processor_iter(self):
@@ -489,9 +492,10 @@ class MonitorApp(App):
 
         This iterator is infinite.  It never raises StopIteration.  How does
         it ever quit?  It is run in parallel with the iterator that fetches
-        a batch of ooids from the ooid source by the '_standard_job_thread'
-        method.  When that iterator is exhausted, this iterator is thrown away.
-        On the next batch of ooids, a new copy of this iterator is created."""
+        a batch of crash_ids from the crash_id source by the
+        '_standard_job_thread' method.  When that iterator is exhausted, this
+        iterator is thrown away. On the next batch of crash_ids, a new copy of
+        this iterator is created."""
         self.config.logger.debug(
           "balanced _balanced_processor_iter: compiling list of active "
           "processors"
@@ -516,18 +520,19 @@ class MonitorApp(App):
                     )
                     yield None
             while True:
-                self.config.logger.debug(
-                  "sort the list of (processorId, numberOfAssignedJobs) pairs"
-                )
+                #self.config.logger.debug(
+                  #"sort the list of (processorId, numberOfAssignedJobs) pairs"
+                #)
                 list_of_processors_and_loads.sort(lambda x,y: cmp(x[1], y[1]))
                 # the processor with the fewest jobs is about to be assigned a
                 # new job, so increment its count
                 list_of_processors_and_loads[0][1] += 1
-                self.config.logger.debug(
-                  "yield the processorId which had the fewest jobs: %d",
-                  list_of_processors_and_loads[0][0]
-                )
-                yield list_of_processors_and_loads[0][0]
+                #self.config.logger.debug(
+                  #"yield the processorId which had the fewest jobs: %d",
+                  #list_of_processors_and_loads[0][0]
+                #)
+                yield (list_of_processors_and_loads[0][0],
+                       list_of_processors_and_loads[0][2])
         except NoProcessorsRegisteredError:
             self.quit = True
             self.config.logger.critical('there are no live processors')
@@ -538,12 +543,12 @@ class MonitorApp(App):
         """this transaction just fetches a list of live processors"""
         processor_ids = execute_query_fetchall(
           connection,
-          "select id from processors "
+          "select id, name from processors "
           "where lastSeenDateTime > now() - interval %s",
           (self.config.registrar.check_in_frequency,)
         )
         # remove the row tuples, just give out a pure list of ids
-        return [a_row[0] for a_row in processor_ids]
+        return [(a_row[0], a_row[1]) for a_row in processor_ids]
 
     #--------------------------------------------------------------------------
     def _unbalanced_processor_iter(self):
@@ -551,7 +556,7 @@ class MonitorApp(App):
         regard to job balance.  Like its brother, '_balanced_processor_iter',
         it is an infinite iter, never raising 'StopIteration'."""
         self.config.logger.debug(
-          "unbalancedJobSchedulerIter: compiling list of active processors"
+          "_unbalanced_processor_iter: compiling list of active processors"
         )
         try:
             while True:
@@ -569,11 +574,13 @@ class MonitorApp(App):
                           "Waiting for processors to come on line"
                         )
                         yield None
-                for a_processor_id in list_of_processor_ids:
-                    self.config.logger.debug(
-                      'about to yield %s', a_processor_id
-                    )
-                    yield a_processor_id
+                for a_processor_id, a_processor_name in list_of_processor_ids:
+                    #self.config.logger.debug(
+                      #'about to yield %s(%d)',
+                      #a_processor_name,
+                      #a_processor_id
+                    #)
+                    yield a_processor_id, a_processor_name
         except NoProcessorsRegisteredError:
             self.quit = True
             self.config.logger.critical('there are no live processors')
@@ -582,39 +589,41 @@ class MonitorApp(App):
     #--------------------------------------------------------------------------
     #  job queuing section
     #--------------------------------------------------------------------------
-    def _queue_standard_job_transaction(self, connection, uuid,
+    def _queue_standard_job_transaction(self, connection, crash_id,
                                         candidate_processor_iter):
         """this method implements a single transaction, inserting a crash into
         the 'jobs' table.  Because the jobs table contains a non-NULL foreign
         key reference to the 'processors' table, the act of insertion is also
         the act of assigning the crash to a processor."""
-        #self.config.logger.debug("trying to insert %s", uuid)
-        assigned_processor = candidate_processor_iter.next()  # get a processor
-        if assigned_processor is None:
+        #self.config.logger.debug("trying to insert %s", crash_id)
+        processor_id, processor_name = candidate_processor_iter.next()
+        if processor_id is None:
             return None
         execute_no_results(
           connection,
           "insert into jobs (pathname, uuid, owner, priority,"
           "                  queuedDateTime) "
           "values (%s, %s, %s, %s, %s)",
-          ('', uuid, assigned_processor, 1, utc_now())
+          ('', crash_id, processor_id, 1, utc_now())
         )
-        self.config.logger.debug(
-          "%s assigned to processor %d", uuid, assigned_processor
+        self.config.logger.info(
+          "%s assigned to processor %s (%d)",
+          crash_id,
+          processor_name,
+          processor_id
         )
-        return assigned_processor
+        return processor_id
 
     #--------------------------------------------------------------------------
-    def _queue_priorty_job_transaction(self, connection, uuid,
+    def _queue_priorty_job_transaction(self, connection, crash_id,
                                        candidate_processor_iter):
         """this method implements a transaction, inserting a crash to both
         the 'jobs' table (via the '_queue_standard_job_transaction' method)
         and the 'priority_jobs_XXX' table associated with the target
         processor"""
-        #self.config.logger.info('_queue_priorty_job_transaction')
         assigned_processor = self._queue_standard_job_transaction(
           connection,
-          uuid,
+          crash_id,
           candidate_processor_iter
         )
         if assigned_processor is None:
@@ -623,12 +632,12 @@ class MonitorApp(App):
           connection,
           "insert into priority_jobs_%d (uuid) values (%%s)"
             % assigned_processor,
-          (uuid,)
+          (crash_id,)
         )
         execute_no_results(
           connection,
           "delete from priorityjobs where uuid = %s",
-          (uuid,)
+          (crash_id,)
         )
         return assigned_processor
 
@@ -647,16 +656,16 @@ class MonitorApp(App):
                 self.config.logger.debug("getting _balanced_processor_iter")
                 processor_iter = self._balanced_processor_iter()
                 self.config.logger.debug("scanning for new crashes")
-                for uuid in self.new_crash_source():
+                for crash_id in self.new_crash_source():
                     try:
-                        self.config.logger.debug("new job: %s", uuid)
+                        #self.config.logger.debug("new job: %s", crash_id)
                         while True:
                             # retry until we succeed in assigning
                             self._quit_check()
                             assigned_processor = \
                               self.job_manager_transaction(
                                   self._queue_standard_job_transaction,
-                                  uuid,
+                                  crash_id,
                                   processor_iter
                                 )
                             if assigned_processor is not None:
@@ -705,29 +714,30 @@ class MonitorApp(App):
           connection,
           "select * from priorityjobs"
         )
-        return set(priority_jobs_list)
+        return set(x[0] for x in priority_jobs_list)
 
     #--------------------------------------------------------------------------
     def _prioritize_previously_enqueued_jobs_transaction(self, connection,
-                                                         uuid):
-        """priorty jobs come into the system at random times.  A given ooid
+                                                         crash_id):
+        """priorty jobs come into the system at random times.  A given crash_id
         may already be queued for processing when a priority request comes in
-        for it.  To avoid repeating processing, a priority ooid is checked to
-        see if it is already queued.  If it is, the processor already assigned
-        to it is told to expedite processing.  This done just by entering the
-        ooid into the processors private 'priority_jobs_XXX' table."""
+        for it.  To avoid repeating processing, a priority crash_id is checked
+        to see if it is already queued.  If it is, the processor already
+        assigned to it is told to expedite processing.  This done just by
+        entering the crash_id into the processors private 'priority_jobs_XXX'
+        table."""
         try:
             job_owner = single_value_sql(
               connection,
               "select owner from jobs where uuid = %s",
-              (uuid,)
+              (crash_id,)
             )
         except SQLDidNotReturnSingleValue:
             return False
         priority_job_table_name = 'priority_jobs_%d' % job_owner
-        self.config.logger.info(
+        self.config.logger.debug(
           "priority job %s was already in the queue, assigned to %d",
-          uuid,
+          crash_id,
           job_owner
         )
         try:
@@ -745,7 +755,7 @@ class MonitorApp(App):
             self.config.logger.debug(
               "%s assigned to dead processor %d - "
               "wait for reassignment",
-              uuid,
+              crash_id,
               job_owner
             )
             # likely that the job is assigned to a dead processor
@@ -757,12 +767,12 @@ class MonitorApp(App):
           connection,
           "insert into %s (uuid) values (%%s)" %
             priority_job_table_name,
-          (uuid,)
+          (crash_id,)
         )
         execute_no_results(
           connection,
           "delete from priorityjobs where uuid = %s",
-          (uuid,)
+          (crash_id,)
         )
         return True
 
@@ -771,16 +781,16 @@ class MonitorApp(App):
         """this method checks to see if any priorty jobs are already queued
         for processing.  If so, a transaction is executed that will expedite
         processing."""
-        # check for uuids already in the queue
-        for uuid in list(priority_jobs_set):  # must use list copy - the set
-                                              # gets changed
+        # check for crash_ids already in the queue
+        for crash_id in list(priority_jobs_set):  # must use list copy -
+                                                  #  the set gets changed
             self._quit_check()
             success = self.job_manager_transaction(
               self._prioritize_previously_enqueued_jobs_transaction,
-              uuid
+              crash_id
             )
             if success:
-                priority_jobs_set.remove(uuid)
+                priority_jobs_set.remove(crash_id)
 
     #--------------------------------------------------------------------------
     def _prioritize_unqueued_jobs(self, priority_jobs_set):
@@ -788,11 +798,11 @@ class MonitorApp(App):
         and queues them."""
         self.config.logger.debug("starting prioritize_unqueued_jobs")
         processor_iter = None
-        for uuid in list(priority_jobs_set):  # must use list copy - the set
-                                              # gets changed
-            self.config.logger.debug("looking for %s", uuid)
+        for crash_id in list(priority_jobs_set):  # must use list copy -
+                                                  #  the set gets changed
+            self.config.logger.debug("looking for %s", crash_id)
             while True:
-                self.config.logger.info("priority queuing %s", uuid)
+                self.config.logger.info("priority queuing %s", crash_id)
                 if not processor_iter:
                     self.config.logger.debug(
                       "about to get unbalanced_processor_iter"
@@ -803,7 +813,7 @@ class MonitorApp(App):
                     )
                 assigned_processor = self.job_manager_transaction(
                   self._queue_priorty_job_transaction,
-                  uuid,
+                  crash_id,
                   processor_iter
                 )
                 if assigned_processor is None:
@@ -813,40 +823,40 @@ class MonitorApp(App):
                     )
                     self._responsive_sleep(10)
                     continue
-                self.config.logger.info(
-                  "%s assigned to %d",
-                  uuid,
-                  assigned_processor
-                )
+                #self.config.logger.debug(
+                  #"%s assigned to %d",
+                  #crash_id,
+                  #assigned_processor
+                #)
                 self.job_manager_transaction(
                   execute_no_results,
                   "delete from priorityjobs where uuid = %s",
-                  (uuid,)
+                  (crash_id,)
                 )
-                priority_jobs_set.remove(uuid)
+                priority_jobs_set.remove(crash_id)
                 break
 
     ##-------------------------------------------------------------------------
     #def remove_missing_priority_jobs(self, priority_jobs_set):
-        ## we've failed to find the uuids anywhere
-        #for uuid in priority_jobs_set:
+        ## we've failed to find the crash_ids anywhere
+        #for crash_id in priority_jobs_set:
             #self.quit_check()
             #self.config.logger.warning(
               #"priority job %s was never found",
-              #uuid
+              #crash_id
             #)
             #self.job_manager_transaction(
               #execute_no_results,
               #"delete from priorityjobs where uuid = %s",
-              #(uuid,)
+              #(crash_id,)
             #)
 
     #--------------------------------------------------------------------------
     def _priority_job_thread(self):
         """this method is the main function for the 'priority_job_thread'.  It
-        periodically polls the 'priorityjobs' table for priority ooids.  Each
-        ooid is first checked to see if it already enqueued. If not, it
-        queues them."""
+        periodically polls the 'priorityjobs' table for priority crash_ids.
+        Each crash_id is first checked to see if it already enqueued. If not,
+        it queues them."""
         self.config.logger.info("start _priority_job_thread")
         try:
             while (True):

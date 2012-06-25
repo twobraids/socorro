@@ -213,10 +213,10 @@ class LegacyCrashProcessor(RequiredConfig):
             )
 
     #--------------------------------------------------------------------------
-    def reject_raw_crash(self, ooid, reason):
-        self._log_job_start(ooid)
-        self.config.logger.warning('%s rejected: %s', ooid, reason)
-        self._log_job_end(utc_now(), False, ooid)
+    def reject_raw_crash(self, crash_id, reason):
+        self._log_job_start(crash_id)
+        self.config.logger.warning('%s rejected: %s', crash_id, reason)
+        self._log_job_end(utc_now(), False, crash_id)
 
     #--------------------------------------------------------------------------
     def convert_raw_crash_to_processed_crash(self, raw_crash, raw_dump):
@@ -229,13 +229,13 @@ class LegacyCrashProcessor(RequiredConfig):
         """
         try:
             self.quit_check()
-            ooid = raw_crash.uuid
+            crash_id = raw_crash.uuid
             processor_notes = []
             processed_crash = DotDict()
             processed_crash.uuid = raw_crash.uuid
             processed_crash.success = False
 
-            started_timestamp = self._log_job_start(ooid)
+            started_timestamp = self._log_job_start(crash_id)
 
             #self.config.logger.debug('about to apply rules')
             self.raw_crash_transform_rule_system.apply_all_rules(raw_crash,
@@ -247,11 +247,11 @@ class LegacyCrashProcessor(RequiredConfig):
                     raw_crash.submitted_timestamp
                 )
             except KeyError:
-                submitted_timestamp = dateFromOoid(ooid)
+                submitted_timestamp = dateFromOoid(crash_id)
 
             # formerly the call to 'insertReportIntoDatabase'
             processed_crash_update = self._create_basic_processed_crash(
-                ooid,
+                crash_id,
                 raw_crash,
                 submitted_timestamp,
                 started_timestamp,
@@ -260,14 +260,14 @@ class LegacyCrashProcessor(RequiredConfig):
             processed_crash.update(processed_crash_update)
 
             temp_dump_pathname = self._get_temp_dump_pathname(
-                ooid,
+                crash_id,
                 raw_dump
             )
             try:
                 #logger.debug('about to doBreakpadStackDumpAnalysis')
                 processed_crash_update_dict = \
                     self._do_breakpad_stack_dump_analysis(
-                        ooid,
+                        crash_id,
                         temp_dump_pathname,
                         processed_crash.hang_type,
                         processed_crash.java_stack_trace,
@@ -293,7 +293,7 @@ class LegacyCrashProcessor(RequiredConfig):
         except Exception, x:
             self.config.logger.warning(
                 'Error while processing %s: %s',
-                ooid,
+                crash_id,
                 str(x),
                 exc_info=True
             )
@@ -306,7 +306,7 @@ class LegacyCrashProcessor(RequiredConfig):
         self._log_job_end(
             completed_datetime,
             processed_crash.success,
-            ooid
+            crash_id
         )
 
         return processed_crash
@@ -440,9 +440,9 @@ class LegacyCrashProcessor(RequiredConfig):
         processed_crash.last_crash = last_crash
 
         # TODO: not sure how to reimplemnt this
-        #if ooid in self.priority_job_set:
+        #if crash_id in self.priority_job_set:
             #processor_notes.append('Priority Job')
-            #self.priority_job_set.remove(ooid)
+            #self.priority_job_set.remove(crash_id)
 
         # can't get report id because we don't have the database here
         #reportId = processed_crash["id"]
@@ -573,7 +573,7 @@ class LegacyCrashProcessor(RequiredConfig):
                 subprocess_handle)
 
     #--------------------------------------------------------------------------
-    def _do_breakpad_stack_dump_analysis(self, ooid, dump_pathname,
+    def _do_breakpad_stack_dump_analysis(self, crash_id, dump_pathname,
                                          is_hang, java_stack_trace,
                                          submitted_timestamp,
                                          processor_notes):
@@ -586,7 +586,7 @@ class LegacyCrashProcessor(RequiredConfig):
                                       the crashing thread have been truncated.
 
         input parameters:
-          ooid - the unique string identifier for the crash report
+          crash_id - the unique string identifier for the crash report
           dump_pathname - the complete pathname for the =crash dump file
           is_hang - boolean, is this a hang crash?
           java_stack_trace - a source for java signatures info
@@ -599,7 +599,7 @@ class LegacyCrashProcessor(RequiredConfig):
             self.config.crashing_thread_tail_frame_threshold + 1
         try:
             processed_crash_update = self._analyze_header(
-                ooid,
+                crash_id,
                 dump_analysis_line_iterator,
                 submitted_timestamp,
                 processor_notes
@@ -633,7 +633,7 @@ class LegacyCrashProcessor(RequiredConfig):
             processor_notes.append(
                 "%s failed with return code %s when processing dump %s" %
                 (self.config.minidump_stackwalk_pathname,
-                 subprocess_handle.returncode, ooid)
+                 subprocess_handle.returncode, crash_id)
             )
             processed_crash_update.success = False
             if processed_crash_update.signature.startswith("EMPTY"):
@@ -641,7 +641,7 @@ class LegacyCrashProcessor(RequiredConfig):
         return processed_crash_update
 
     #--------------------------------------------------------------------------
-    def _analyze_header(self, ooid, dump_analysis_line_iterator,
+    def _analyze_header(self, crash_id, dump_analysis_line_iterator,
                         submitted_timestamp, processor_notes):
         """ Scan through the lines of the dump header:
             - extract data to update the record for this crash in 'reports',
@@ -713,8 +713,8 @@ class LegacyCrashProcessor(RequiredConfig):
                 if not flash_version:
                     flash_version = self._get_flash_version(values)
         if not header_lines_were_found:
-            message = "%s returned no header lines for ooid: %s" % \
-                (self.config.minidump_stackwalk_pathname, ooid)
+            message = "%s returned no header lines for crash_id: %s" % \
+                (self.config.minidump_stackwalk_pathname, crash_id)
             processor_notes.append(message)
             #self.config.logger.warning("%s", message)
 
@@ -951,9 +951,9 @@ class LegacyCrashProcessor(RequiredConfig):
         )
 
     #--------------------------------------------------------------------------
-    def _get_temp_dump_pathname(self, ooid, raw_dump):
+    def _get_temp_dump_pathname(self, crash_id, raw_dump):
         base_path = self.config.temporary_file_system_storage_path
-        dump_path = ("%s/%s.dump" % (base_path, ooid)).replace('//', '/')
+        dump_path = ("%s/%s.dump" % (base_path, crash_id)).replace('//', '/')
         with open(dump_path, "w") as f:
             f.write(raw_dump)
         return dump_path
@@ -974,22 +974,22 @@ class LegacyCrashProcessor(RequiredConfig):
         self.convert_raw_crash_to_processed_crash(raw_crash, raw_dump)
 
     #--------------------------------------------------------------------------
-    def _log_job_start(self, ooid):
-        self.config.logger.info("starting job: %s", ooid)
+    def _log_job_start(self, crash_id):
+        self.config.logger.info("starting job: %s", crash_id)
         started_datetime = utc_now()
         self.transaction(
             execute_no_results,
             "update jobs set starteddatetime = %s where uuid = %s",
-            (started_datetime, ooid)
+            (started_datetime, crash_id)
         )
         return started_datetime
 
     #--------------------------------------------------------------------------
-    def _log_job_end(self, completed_datetime, success, ooid):
+    def _log_job_end(self, completed_datetime, success, crash_id):
         self.config.logger.info(
             "finishing %s job: %s",
             'successful' if success else 'failed',
-            ooid
+            crash_id
         )
         # old behavior - processors just mark jobs in the postgres queue as
         # being done.  This is deprecated in favor of the processor cleaning
@@ -998,7 +998,7 @@ class LegacyCrashProcessor(RequiredConfig):
             #execute_no_results,
             #"update jobs set completeddatetime = %s, success = %s "
             #"where uuid = %s",
-            #(completed_datetime, success, ooid)
+            #(completed_datetime, success, crash_id)
         #)
 
         # new behavior - the processors delete completed jobs from the queue
@@ -1006,7 +1006,7 @@ class LegacyCrashProcessor(RequiredConfig):
             execute_no_results,
             "delete from jobs "
             "where uuid = %s",
-            (ooid,)
+            (crash_id,)
         )
 
     #--------------------------------------------------------------------------
