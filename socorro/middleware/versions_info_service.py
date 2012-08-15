@@ -9,7 +9,7 @@ from socorro.middleware.service import DataAPIService
 logger = logging.getLogger("webapi")
 
 
-class VersionsInfo(DataAPIService):
+class Service(DataAPIService):
 
     """
     Return information about versions of a product.
@@ -22,7 +22,7 @@ class VersionsInfo(DataAPIService):
         """
         Constructor
         """
-        super(VersionsInfo, self).__init__(config)
+        super(Service, self).__init__(config)
         logger.debug('Search service __init__')
 
     def get(self, *args):

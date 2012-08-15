@@ -9,7 +9,7 @@ from socorro.middleware.service import DataAPIService
 logger = logging.getLogger("webapi")
 
 
-class Search(DataAPIService):
+class Service(DataAPIService):
 
     """
     Search API interface
@@ -26,7 +26,7 @@ class Search(DataAPIService):
         """
         Constructor
         """
-        super(Search, self).__init__(config)
+        super(Service, self).__init__(config)
         logger.debug('Search service __init__')
 
     def get(self, *args):

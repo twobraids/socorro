@@ -9,7 +9,7 @@ from socorro.middleware.service import DataAPIService
 logger = logging.getLogger("webapi")
 
 
-class Crash(DataAPIService):
+class Service(DataAPIService):
 
     """
     Return a single crash report from it's UUID.
@@ -19,7 +19,7 @@ class Crash(DataAPIService):
     uri = "/crash/(.*)"
 
     def __init__(self, config):
-        super(Crash, self).__init__(config)
+        super(Service, self).__init__(config)
         logger.debug('Crash service __init__')
 
     def get(self, *args):

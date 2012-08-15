@@ -10,7 +10,7 @@ from socorro.middleware.service import DataAPIService
 logger = logging.getLogger("webapi")
 
 
-class Priorityjobs(DataAPIService):
+class Service(DataAPIService):
 
     """
     Handle the priority jobs queue for crash reports processing.
@@ -20,7 +20,7 @@ class Priorityjobs(DataAPIService):
     uri = "/priorityjobs/(.*)"
 
     def __init__(self, config):
-        super(Priorityjobs, self).__init__(config)
+        super(Service, self).__init__(config)
         logger.debug('Priorityjobs service __init__')
 
     def get(self, *args):

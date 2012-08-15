@@ -9,7 +9,7 @@ from socorro.middleware.service import DataAPIService
 logger = logging.getLogger("webapi")
 
 
-class CrashesComments(DataAPIService):
+class Service(DataAPIService):
 
     """
     Return all comments of some crash reports.
@@ -22,7 +22,7 @@ class CrashesComments(DataAPIService):
         """
         Constructor
         """
-        super(CrashesComments, self).__init__(config)
+        super(Service, self).__init__(config)
         logger.debug('CrashesComments service __init__')
 
     def get(self, *args):

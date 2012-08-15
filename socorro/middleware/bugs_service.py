@@ -10,7 +10,7 @@ from socorro.middleware.service import DataAPIService
 logger = logging.getLogger("webapi")
 
 
-class Bugs(DataAPIService):
+class Service(DataAPIService):
 
     """Return a list of signature - bug id associations. """
 
@@ -18,7 +18,7 @@ class Bugs(DataAPIService):
     uri = "/bugs/"
 
     def __init__(self, config):
-        super(Bugs, self).__init__(config)
+        super(Service, self).__init__(config)
         logger.debug('Bugs service __init__')
 
     def post(self, *args):

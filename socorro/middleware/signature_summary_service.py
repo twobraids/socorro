@@ -5,13 +5,13 @@
 from socorro.middleware.service import DataAPIService
 
 
-class SignatureSummary(DataAPIService):
+class Service(DataAPIService):
 
     service_name = "signature_summary"
     uri = "/signaturesummary/(.*)"
 
     def __init__(self, config):
-        super(SignatureSummary, self).__init__(config)
+        super(Service, self).__init__(config)
 
     def get(self, *args):
         params = self.parse_query_string(args[0])

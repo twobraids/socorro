@@ -9,6 +9,7 @@ from socorro.external.crashstorage_base import (
     CrashStorageBase,
     CrashIDNotFound
 )
+from socorro.external.elasticsearch import required_config as es_req_conf
 from socorro.database.transaction_executor import TransactionExecutor
 from socorro.external.hbase.hbase_client import ooid_to_row_id
 
@@ -25,20 +26,20 @@ class ElasticSearchCrashStorage(CrashStorageBase):
     from HBase and forward that to HBase.
     """
 
-    required_config = Namespace()
-    required_config.add_option('transaction_executor_class',
-                               default=TransactionExecutor,
-                               doc='a class that will manage transactions')
-    required_config.add_option('submission_url',
-                               doc='a url to submit crash_ids for Elastic '
-                               'Search '
-                               '(use %s in place of the crash_id) '
-                               '(leave blank to disable)',
-                               default='')
-    required_config.add_option('timeout',
-                               doc='how long to wait in seconds for '
-                                   'confirmation of a submission',
-                               default=2)
+    required_config = es_req_conf
+    #required_config.add_option('transaction_executor_class',
+                               #default=TransactionExecutor,
+                               #doc='a class that will manage transactions')
+    #required_config.add_option('submission_url',
+                               #doc='a url to submit crash_ids for Elastic '
+                               #'Search '
+                               #'(use %s in place of the crash_id) '
+                               #'(leave blank to disable)',
+                               #default='')
+    #required_config.add_option('timeout',
+                               #doc='how long to wait in seconds for '
+                                   #'confirmation of a submission',
+                               #default=2)
 
     operational_exceptions = (
           urllib2.socket.timeout,

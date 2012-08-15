@@ -9,7 +9,7 @@ from socorro.middleware.service import DataAPIService
 logger = logging.getLogger("webapi")
 
 
-class TCBS(DataAPIService):
+class Service(DataAPIService):
 
     """
     Return top crashers by signatures.
@@ -22,7 +22,7 @@ class TCBS(DataAPIService):
         """
         Constructor
         """
-        super(TCBS, self).__init__(config)
+        super(Service, self).__init__(config)
         logger.debug('TCBS service __init__')
 
     def get(self, *args):

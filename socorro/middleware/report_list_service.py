@@ -10,7 +10,7 @@ from socorro.middleware.service import DataAPIService
 logger = logging.getLogger("webapi")
 
 
-class ReportList(DataAPIService):
+class Service(DataAPIService):
 
     """
     ReportList API interface
@@ -26,7 +26,7 @@ class ReportList(DataAPIService):
     uri = "/report/list/(.*)"
 
     def __init__(self, config):
-        super(ReportList, self).__init__(config)
+        super(Service, self).__init__(config)
         logger.debug('ReportList service __init__')
 
     def get(self, *args):

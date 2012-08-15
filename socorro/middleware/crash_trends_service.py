@@ -8,13 +8,13 @@ from socorro.middleware.service import DataAPIService
 
 logger = logging.getLogger("webapi")
 
-class CrashTrends(DataAPIService):
+class Service(DataAPIService):
 
     service_name = "crash_trends"
     uri = "/crashtrends/(.*)"
 
     def __init__(self, config):
-        super(CrashTrends, self).__init__(config)
+        super(Service, self).__init__(config)
         logger.debug('Crash trends service __init__')
 
     def get(self, *args):

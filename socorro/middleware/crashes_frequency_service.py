@@ -9,7 +9,7 @@ from socorro.middleware.service import DataAPIService
 logger = logging.getLogger("webapi")
 
 
-class CrashesFrequency(DataAPIService):
+class Service(DataAPIService):
     """Return the number and frequency of crashes on each OS.
     """
 
@@ -17,7 +17,7 @@ class CrashesFrequency(DataAPIService):
     uri = "/crashes/frequency/(.*)"
 
     def __init__(self, config):
-        super(CrashesFrequency, self).__init__(config)
+        super(Service, self).__init__(config)
         logger.debug('CrashesFrequency service __init__')
 
     def get(self, *args):

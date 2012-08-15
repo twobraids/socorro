@@ -10,7 +10,7 @@ from socorro.middleware.service import DataAPIService
 logger = logging.getLogger("webapi")
 
 
-class ReleasesFeatured(DataAPIService):
+class Service(DataAPIService):
     """Handle featured versions of a given product.
     """
 
@@ -18,7 +18,7 @@ class ReleasesFeatured(DataAPIService):
     uri = "/releases/featured/(.*)"
 
     def __init__(self, config):
-        super(ReleasesFeatured, self).__init__(config)
+        super(Service, self).__init__(config)
         logger.debug('Releases featured service __init__')
 
     def get(self, *args):

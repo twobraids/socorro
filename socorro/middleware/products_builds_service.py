@@ -11,7 +11,7 @@ from socorro.external import InsertionError, MissingOrBadArgumentError
 logger = logging.getLogger("webapi")
 
 
-class ProductsBuilds(DataAPIService):
+class Service(DataAPIService):
 
     """
     Return information about nightly builds of a product.
@@ -24,7 +24,7 @@ class ProductsBuilds(DataAPIService):
         """
         Constructor
         """
-        super(ProductsBuilds, self).__init__(config)
+        super(Service, self).__init__(config)
         logger.debug('ProductsBuilds service __init__')
 
     def get(self, *args):

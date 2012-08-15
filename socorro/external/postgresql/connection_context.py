@@ -11,6 +11,8 @@ import psycopg2.extensions
 from configman.config_manager import RequiredConfig
 from configman import Namespace
 
+from socorro.external.postgresql import required_config as postgres_req_conf
+
 
 class ConnectionContext(RequiredConfig):
     """a configman compliant class for setup of Postgres connections"""
@@ -18,32 +20,32 @@ class ConnectionContext(RequiredConfig):
     # configman parameter definition section
     # here we're setting up the minimal parameters required for connecting
     # to a database.
-    required_config = Namespace()
-    required_config.add_option(
-        name='database_host',
-        default='localhost',
-        doc='the hostname of the database',
-    )
-    required_config.add_option(
-        name='database_name',
-        default='breakpad',
-        doc='the name of the database',
-    )
-    required_config.add_option(
-        name='database_port',
-        default=5432,
-        doc='the port for the database',
-    )
-    required_config.add_option(
-        name='database_user',
-        default='breakpad_rw',
-        doc='the name of the user within the database',
-    )
-    required_config.add_option(
-        name='database_password',
-        default='aPassword',
-        doc="the user's database password",
-    )
+    required_config = postgres_req_conf
+    #required_config.add_option(
+        #name='database_host',
+        #default='localhost',
+        #doc='the hostname of the database',
+    #)
+    #required_config.add_option(
+        #name='database_name',
+        #default='breakpad',
+        #doc='the name of the database',
+    #)
+    #required_config.add_option(
+        #name='database_port',
+        #default=5432,
+        #doc='the port for the database',
+    #)
+    #required_config.add_option(
+        #name='database_user',
+        #default='breakpad_rw',
+        #doc='the name of the user within the database',
+    #)
+    #required_config.add_option(
+        #name='database_password',
+        #default='aPassword',
+        #doc="the user's database password",
+    #)
 
     # clients of this class may need to detect Exceptions raised in the
     # underlying dbapi2 database module.  Rather that forcing them to import
