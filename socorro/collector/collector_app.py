@@ -40,11 +40,6 @@ class CollectorApp(App):
     #--------------------------------------------------------------------------
     required_config.namespace('collector')
     required_config.collector.add_option(
-        'dump_field',
-        doc='the name of the form field containing the raw dump',
-        default='upload_file_minidump'
-    )
-    required_config.collector.add_option(
         'dump_id_prefix',
         doc='the prefix to return to the client in front of the OOID',
         default='bp-'
@@ -66,6 +61,11 @@ class CollectorApp(App):
     #     the namespace is for config parameters crash storage
     #--------------------------------------------------------------------------
     required_config.namespace('storage')
+    required_config.collector.add_option(
+        'dump_field',
+        doc='the name of the form field containing the raw dump',
+        default='upload_file_minidump'
+    )
     required_config.storage.add_option(
         'crashstorage_class',
         doc='the source storage class',

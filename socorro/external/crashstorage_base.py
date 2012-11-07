@@ -62,9 +62,9 @@ class CrashStorageBase(RequiredConfig):
         pass
 
     #--------------------------------------------------------------------------
-    def save_raw_crash(self, raw_crash, dump, crash_id):
-        """this method that saves  both the raw_crash (sometimes called the
-        raw_crash) and the dump, must be overridden in any implementation.
+    def save_raw_crash(self, raw_crash, dumps, crash_id):
+        """this method that saves  both the raw_crash and the dump,
+        must be overridden in any implementation.
 
         Why is does this base implementation just silently do nothing rather
         than raise a NotImplementedError?  Implementations of crashstorage
@@ -79,8 +79,7 @@ class CrashStorageBase(RequiredConfig):
             raw_crash - a mapping containing the raw crash meta data.  It is
                         often saved as a json file, but here it is in the form
                         of a dict.
-            dump - a binary blob of data that will eventually fed to minidump-
-                   stackwalk
+            dumps- a mapping of dump names to binary dumps
             crash_id - the crash key to use for this crash"""
         pass
 
@@ -103,7 +102,7 @@ class CrashStorageBase(RequiredConfig):
         pass
 
     #--------------------------------------------------------------------------
-    def save_raw_and_processed(self, raw_crash, dump, processed_crash,
+    def save_raw_and_processed(self, raw_crash, dumps, processed_crash,
                                crash_id):
         """Mainly for the convenience and efficiency of the processor,
         this unified method combines saving both raw and processed crashes.
@@ -112,11 +111,10 @@ class CrashStorageBase(RequiredConfig):
             raw_crash - a mapping containing the raw crash meta data.  It is
                         often saved as a json file, but here it is in the form
                         of a dict.
-             dump - a binary blob of data that will eventually fed to minidump-
-                    stackwalk
+            dumps- a mapping of dump names to binary dumps
             processed_crash - a mapping contianing the processed crash
             crash_id - the crash key to use for this crash"""
-        self.save_raw_crash(raw_crash, dump, crash_id)
+        self.save_raw_crash(raw_crash, dumps, crash_id)
         self.save_processed(processed_crash)
 
     #--------------------------------------------------------------------------
@@ -128,12 +126,26 @@ class CrashStorageBase(RequiredConfig):
         raise NotImplementedError("get_raw_crash is not implemented")
 
     #--------------------------------------------------------------------------
-    def get_raw_dump(self, crash_id):
+    def get_raw_dump(self, crash_id, dump_name=None):
         """the default implemntation of fetching a dump
 
         parameters:
-           crash_id - the id of a dump to fetch"""
+           crash_id - the id of a dump to fetch
+           dump_name - the name of the dump to fetch (leaving it as None
+                       should return the default dump"""
         raise NotImplementedError("get_raw_dump is not implemented")
+    
+    #--------------------------------------------------------------------------
+    def get_raw_dump_as_file(self, crash_id, dump_name=None):
+        """return a string representing the named dump as a file on some
+        file system somewhere.
+
+        parameters:
+           crash_id - the id of a dump to fetch
+           dump_name - the name of the dump to fetch (leaving it as None
+                       should return the default dump"""
+        raise NotImplementedError("get_raw_dump is not implemented")
+
 
     #--------------------------------------------------------------------------
     def get_processed(self, crash_id):
@@ -174,13 +186,28 @@ class NullCrashStorage(CrashStorageBase):
         return {}
 
     #--------------------------------------------------------------------------
-    def get_raw_dump(self, crash_id):
+    def get_raw_dump(self, crash_id, dump_name=None):
         """the default implemntation of fetching a dump
 
         parameters:
-           crash_id - the id of a dump to fetch"""
+           crash_id - the id of a dump to fetch
+           dump_name - the name of the dump to fetch (leaving it as None
+                       should return the default dump"""
         return ''
+    
+    #--------------------------------------------------------------------------
+    def get_raw_dump_as_file(self, crash_id, dump_name=None):
+        """return a string representing the named dump as a file on some
+        file system somewhere.
 
+        parameters:
+           crash_id - the id of a dump to fetch
+           dump_name - the name of the dump to fetch (leaving it as None
+                       should return the default dump"""
+        dump_file_name = '/tmp/%s' % dump_name
+        open(dump_file_name, "w").close()
+        return dump_file_name
+    
     #--------------------------------------------------------------------------
     def get_processed(self, crash_id):
         """the default implemntation of fetching a processed_crash

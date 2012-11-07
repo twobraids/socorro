@@ -20,7 +20,7 @@ class Collector(object):
         self.throttler = config.throttler
         self.dump_id_prefix = config.collector.dump_id_prefix
         self.crash_storage = config.crash_storage
-        self.dump_field = config.collector.dump_field
+        self.dump_field = config.storage.dump_field
 
     #--------------------------------------------------------------------------
     uri = '/submit'
@@ -40,13 +40,12 @@ class Collector(object):
     #--------------------------------------------------------------------------
     def POST(self, *args):
         the_form = web.input()
-        dump = the_form[self.dump_field]
 
-        # Remove other submitted files from the input form, which are
-        # an indication of a multi-dump hang submission we aren't yet
-        # prepared to handle.
+        # get the dumps out of the form
+        dumps = DotDict()
         for (key, value) in web.webapi.rawinput().iteritems():
             if hasattr(value, 'file') and hasattr(value, 'value'):
+                dumps[key] = the_form.value
                 del the_form[key]
 
         raw_crash = self.make_raw_crash(the_form)
@@ -65,7 +64,7 @@ class Collector(object):
 
         self.config.crash_storage.save_raw_crash(
           raw_crash,
-          dump,
+          dumps,
           crash_id
         )
         return "CrashID=%s%s\n" % (self.dump_id_prefix, crash_id)
