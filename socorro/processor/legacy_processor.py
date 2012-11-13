@@ -647,7 +647,10 @@ class LegacyCrashProcessor(RequiredConfig):
             )
             processed_crash_update.success = False
             if processed_crash_update.signature.startswith("EMPTY"):
-                processed_crash_update.signature += "; corrupt dump"
+                signature = self.c_signature_tool.trim_signature(
+                  processed_crash_update.signature + "; corrupt dump",
+                  processor_notes
+                )
         return processed_crash_update
 
     #--------------------------------------------------------------------------

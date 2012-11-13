@@ -35,10 +35,6 @@ from socorro.lib.datetimeutil import utc_now, UTC
 
 from socorro.lib.transform_rules import TransformRuleSystem
 
-# search for [create table reports] on
-# https://github.com/mozilla/socorro/blob/master/sql/schema.sql
-MAX_SIGNATURE_LENGTH = 255
-
 
 #=================================================================================================================
 class DuplicateEntryException(Exception):
@@ -625,7 +621,7 @@ class Processor(object):
       flash_version = newReportRecordAsDict.get('flash_version')
       processor_notes = '; '.join(processorErrorMessages)
       newReportRecordAsDict['processor_notes'] = processor_notes
-      infoTuple = (newReportRecordAsDict['signature'][:MAX_SIGNATURE_LENGTH], processor_notes, startedDateTime, completedDateTime, newReportRecordAsDict["success"], newReportRecordAsDict["truncated"], topmost_filenames, addons_checked, flash_version)
+      infoTuple = (newReportRecordAsDict['signature'], processor_notes, startedDateTime, completedDateTime, newReportRecordAsDict["success"], newReportRecordAsDict["truncated"], topmost_filenames, addons_checked, flash_version)
       #logger.debug("Updated report %s (%s): %s", reportId, jobUuid, str(infoTuple))
       threadLocalCursor.execute(reportsSql, infoTuple)
       threadLocalDatabaseConnection.commit()

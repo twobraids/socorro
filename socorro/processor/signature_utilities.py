@@ -28,13 +28,19 @@ class SignatureTool(RequiredConfig):
                                                        hang_type,
                                                        crashed_thread,
                                                        delimiter)
+        signature = self.trim_signature(signature,
+                                        signature_notes)
+        return signature, signature_notes
+
+    #--------------------------------------------------------------------------
+    def trim_signature(self, signature, signature_notes):
+        if self.escape_single_quote:
+            signature = signature.replace("'", "''")
         if len(signature) > self.max_len:
             signature = "%s..." % signature[:self.max_len - 3]
             signature_notes.append('SignatureTool: signature truncated due to '
                                    'length')
-        if self.escape_single_quote:
-            signature = signature.replace("'", "''")
-        return signature, signature_notes
+        return signature
 
 
 #==============================================================================
