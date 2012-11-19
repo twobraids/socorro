@@ -66,6 +66,14 @@ minidump_stackwalkPathname = cm.Option()
 minidump_stackwalkPathname.doc = 'the full pathname of the extern program minidump_stackwalk (quote path with embedded spaces)'
 minidump_stackwalkPathname.default = '/data/socorro/stackwalk/bin/minidump_stackwalk'
 
+exploitablity_tool_command_line = cm.Option()
+exploitablity_tool_command_line.doc = 'the template for the command to invoke minidump_stackwalk'
+exploitablity_tool_command_line.default = '$exploitablity_tool_pathname -m $dumpfilePathname 2>/dev/null'
+
+exploitablity_tool_pathname = cm.Option()
+exploitablity_tool_pathname.doc = 'the full pathname of the extern program exploitablity (quote path with embedded spaces)'
+exploitablity_tool_pathname.default = '/data/socorro/stackwalk/bin/exploitablity'
+
 symbolCachePath = cm.Option()
 symbolCachePath.doc = 'the path where the symbol cache is found (quote path with embedded spaces)'
 symbolCachePath.default = '/mnt/socorro/symbols'

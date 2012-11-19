@@ -9,6 +9,7 @@ import os.path
 import threading
 import time
 import re
+from contextlib import closing
 
 import logging
 
@@ -45,7 +46,6 @@ class ProcessorWithExternalBreakpad (processor.Processor):
     # finally, convert any remaining $param to pythonic %(param)s
     tmp = toPythonRE.sub(r'%(\1)s',tmp)
     self.commandLine = tmp % config
-
 
 #-----------------------------------------------------------------------------------------------------------------
   def invokeBreakpadStackdump(self, dumpfilePathname):
@@ -87,8 +87,14 @@ class ProcessorWithExternalBreakpad (processor.Processor):
             processorErrorMessages
     """
     #logger.debug('doBreakpadStackDumpAnalysis')
-    dumpAnalysisLineIterator, subprocessHandle = self.invokeBreakpadStackdump(dumpfilePathname)
+    dumpAnalysisLineIterator, mdsw_subprocess_handle = self.invokeBreakpadStackdump(dumpfilePathname)
     dumpAnalysisLineIterator.secondaryCacheMaximumSize = self.config.crashingThreadTailFrameThreshold + 1
+    exploitablityLineIterator, exploitablity_subprocess_handle = self.invoke_exploitability(dumpfilePathname)
+    additionalReportValuesAsDict = self.mdswStackAnalysis(dumpAnalysisLineIterator, mdsw_subprocess_handle, reportId, uuid, dumpfilePathname, isHang, java_stack_trace, databaseCursor, date_processed, processorErrorMessages)
+    additionalReportValuesAsDict['exploitability'] = self.exploitablity_analysis(exploitablityLineIterator, exploitablity_subprocess_handle, processorErrorMessages)
+
+#-----------------------------------------------------------------------------------------------------------------
+  def mdswStackAnalysis(self, dumpAnalysisLineIterator, mdsw_subprocess_handle, reportId, uuid, dumpfilePathname, isHang, java_stack_trace, databaseCursor, date_processed, processorErrorMessages):
     try:
       additionalReportValuesAsDict = self.analyzeHeader(reportId, dumpAnalysisLineIterator, databaseCursor, date_processed, processorErrorMessages)
       crashedThread = additionalReportValuesAsDict["crashedThread"]
@@ -105,14 +111,29 @@ class ProcessorWithExternalBreakpad (processor.Processor):
     finally:
       dumpAnalysisLineIterator.theIterator.close() #this is really a handle to a file-like object - got to close it
     # is the return code from the invocation important?  Uncomment, if it is...
-    returncode = subprocessHandle.wait()
+    returncode = mdsw_subprocess_handle.wait()
     if returncode is not None and returncode != 0:
-      processorErrorMessages.append("%s failed with return code %s when processing dump %s" %(self.config.minidump_stackwalkPathname, subprocessHandle.returncode, uuid))
+      processorErrorMessages.append("%s failed with return code %s" %(self.config.minidump_stackwalkPathname, mdsw_subprocess_handle.returncode))
       additionalReportValuesAsDict['success'] = False
       if additionalReportValuesAsDict["signature"].startswith("EMPTY"):
         additionalReportValuesAsDict["signature"] += "; corrupt dump"
     return additionalReportValuesAsDict
 
+#-----------------------------------------------------------------------------------------------------------------
+  def exploitablity_analysis(self,
+                             exploitablity_line_iterator,
+                             exploitablity_subprocess_handle,
+                             error_messages):
+    exploitablity = None
+    with closing(exploitablity_line_iterator) as the_iter:
+      for a_line in exploitablity_line_iterator:
+        exploitablity = a_line.strip()
+    returncode = exploitablity_subprocess_handle.wait()
+    if returncode is not None and returncode != 0:
+      error_messages.append("%s failed with return code %s" %
+                               (self.config.exploitablity_tool_pathname,
+                               returncode))
+    return exploitablity
 
 #-----------------------------------------------------------------------------------------------------------------
   def analyzeHeader(self, reportId, dumpAnalysisLineIterator, databaseCursor, date_processed, processorErrorMessages):
