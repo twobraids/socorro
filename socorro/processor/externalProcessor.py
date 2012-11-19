@@ -89,9 +89,10 @@ class ProcessorWithExternalBreakpad (processor.Processor):
     #logger.debug('doBreakpadStackDumpAnalysis')
     dumpAnalysisLineIterator, mdsw_subprocess_handle = self.invokeBreakpadStackdump(dumpfilePathname)
     dumpAnalysisLineIterator.secondaryCacheMaximumSize = self.config.crashingThreadTailFrameThreshold + 1
-    exploitablityLineIterator, exploitablity_subprocess_handle = self.invoke_exploitability(dumpfilePathname)
+    exploitablity_line_iterator, exploitablity_subprocess_handle = self.invoke_exploitability(dumpfilePathname)
     additionalReportValuesAsDict = self.mdswStackAnalysis(dumpAnalysisLineIterator, mdsw_subprocess_handle, reportId, uuid, dumpfilePathname, isHang, java_stack_trace, databaseCursor, date_processed, processorErrorMessages)
-    additionalReportValuesAsDict['exploitability'] = self.exploitablity_analysis(exploitablityLineIterator, exploitablity_subprocess_handle, processorErrorMessages)
+    additionalReportValuesAsDict['exploitability'] = self.exploitablity_analysis(exploitablity_line_iterator, exploitablity_subprocess_handle, processorErrorMessages)
+    return additionalReportValuesAsDict
 
 #-----------------------------------------------------------------------------------------------------------------
   def mdswStackAnalysis(self, dumpAnalysisLineIterator, mdsw_subprocess_handle, reportId, uuid, dumpfilePathname, isHang, java_stack_trace, databaseCursor, date_processed, processorErrorMessages):

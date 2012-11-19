@@ -11,6 +11,7 @@ import subprocess
 import datetime
 import time
 from urllib import unquote_plus
+from contextlib import closing
 
 from configman import Namespace, RequiredConfig
 from configman.converters import class_converter
@@ -205,7 +206,7 @@ class LegacyCrashProcessor(RequiredConfig):
         tmp = tmp.replace('$dumpfilePathname', 'DUMPFILEPATHNAME')
         # finally, convert any remaining $param to pythonic %(param)s
         tmp = convert_to_python_substitution_format_re.sub(r'%(\1)s', tmp)
-        self.command_line = tmp % config
+        self.mdsw_command_line = tmp % config
         # *** end from ExternalProcessor
 
         self.c_signature_tool = config.c_signature.c_signature_tool_class(
@@ -572,8 +573,28 @@ class LegacyCrashProcessor(RequiredConfig):
                 dump_pathname: the complete pathname of the dumpfile to be
                                   analyzed
         """
-        command_line = self.command_line.replace("DUMPFILEPATHNAME",
+        command_line = self.mdsw_command_line.replace("DUMPFILEPATHNAME",
                                                  dump_pathname)
+        subprocess_handle = subprocess.Popen(
+            command_line,
+            shell=True,
+            stdout=subprocess.PIPE
+        )
+        return (StrCachingIterator(subprocess_handle.stdout),
+                subprocess_handle)
+
+    #--------------------------------------------------------------------------
+    def _invoke_exploitability(self, dump_pathname):
+        """ This function invokes breakpad_stackdump as an external process
+        capturing and returning the text output of stdout.  This version
+        represses the stderr output.
+
+              input parameters:
+                dump_pathname: the complete pathname of the dumpfile to be
+                                  analyzed
+        """
+        command_line = self.mdsw_command_line.replace("DUMPFILEPATHNAME",
+                                                      dump_pathname)
         subprocess_handle = subprocess.Popen(
             command_line,
             shell=True,
@@ -603,14 +624,64 @@ class LegacyCrashProcessor(RequiredConfig):
           submitted_timestamp
           processor_notes
         """
-        dump_analysis_line_iterator, subprocess_handle = \
+        dump_analysis_line_iterator, mdsw_subprocess_handle = \
             self._invoke_minidump_stackwalk(dump_pathname)
         dump_analysis_line_iterator.secondaryCacheMaximumSize = \
             self.config.crashing_thread_tail_frame_threshold + 1
-        try:
+
+        exploitablity_line_iterator, exploitablity_subprocess_handle = \
+            self._invoke_exploitability(dump_pathname)
+
+        processed_crash_update = self._stackwalk_analysis(
+          dump_analysis_line_iterator,
+          mdsw_subprocess_handle,
+          crash_id,
+          is_hang,
+          java_stack_trace,
+          submitted_timestamp,
+          processor_notes
+        )
+        processed_crash_update['exploitability'] = \
+            self.exploitablity_analysis(
+              exploitablity_line_iterator,
+              exploitablity_subprocess_handle,
+              processorErrorMessages
+            )
+        return processed_crash_update
+
+    #--------------------------------------------------------------------------
+    def exploitablity_analysis(
+      self,
+      exploitablity_line_iterator,
+      exploitablity_subprocess_handle,
+      error_messages
+    ):
+        exploitablity = None
+        with closing(exploitablity_line_iterator) as the_iter:
+            for a_line in exploitablity_line_iterator:
+                exploitablity = a_line.strip()
+        returncode = exploitablity_subprocess_handle.wait()
+        if returncode is not None and returncode != 0:
+            error_messages.append(
+              "%s failed with return code %s" %
+                (self.config.exploitablity_tool_pathname,
+                 returncode)
+            )
+        return exploitablity
+
+    #--------------------------------------------------------------------------
+    def _stackwalk_analysis(
+      self,
+      dump_analysis_line_iterator,
+      mdsw_subprocess_handle,
+      crash_id,
+      submitted_timestamp,
+      processor_notes
+    ):
+        with closing(dump_analysis_line_iterator) as mdsw_iter:
             processed_crash_update = self._analyze_header(
                 crash_id,
-                dump_analysis_line_iterator,
+                mdsw_iter,
                 submitted_timestamp,
                 processor_notes
             )
@@ -624,26 +695,24 @@ class LegacyCrashProcessor(RequiredConfig):
                 is_hang,
                 java_stack_trace,
                 make_modules_lowercase,
-                dump_analysis_line_iterator,
+                mdsw_iter,
                 submitted_timestamp,
                 crashed_thread,
                 processor_notes
             )
             processed_crash_update.update(processed_crash_from_frames)
-            for x in dump_analysis_line_iterator:
+            for x in mdsw_iter:
                 pass  # need to spool out the rest of the stream so the
                         # cache doesn't get truncated
-            pipe_dump_str = ('\n'.join(dump_analysis_line_iterator.cache))
+            pipe_dump_str = ('\n'.join(mdsw_iter.cache))
             processed_crash_update.dump = pipe_dump_str
-        finally:
-            # this is really a handle to a file-like object - got to close it
-            dump_analysis_line_iterator.theIterator.close()
-        return_code = subprocess_handle.wait()
+
+        return_code = mdsw_subprocess_handle.wait()
         if return_code is not None and return_code != 0:
             processor_notes.append(
                 "%s failed with return code %s when processing dump %s" %
                 (self.config.minidump_stackwalk_pathname,
-                 subprocess_handle.returncode, crash_id)
+                 mdsw_subprocess_handle.returncode, crash_id)
             )
             processed_crash_update.success = False
             if processed_crash_update.signature.startswith("EMPTY"):

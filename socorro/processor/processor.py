@@ -443,7 +443,7 @@ class Processor(object):
 
   #-----------------------------------------------------------------------------------------------------------------
   @staticmethod
-  def sanitizeDict (aDict, listOfForbiddenKeys=['url','email','user_id']):
+  def sanitizeDict (aDict, listOfForbiddenKeys=['url','email','user_id', 'exploitability']):
     for aForbiddenKey in listOfForbiddenKeys:
       if aForbiddenKey in aDict:
         del aDict[aForbiddenKey]

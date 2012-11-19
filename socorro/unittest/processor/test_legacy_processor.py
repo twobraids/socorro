@@ -214,7 +214,7 @@ class TestLegacyProcessor(unittest.TestCase):
             self.assertEqual(config.transaction, leg_proc.transaction)
             self.assertEqual(config.database,  leg_proc.database)
             self.assertEqual(
-              leg_proc.command_line,
+              leg_proc.mdsw_command_line,
               '/bin/mdsw -m DUMPFILEPATHNAME "/a/a" "/b/b" "/c/c" 2>/dev/null'
             )
             self.assertEqual(m_transform.call_count, 1)
