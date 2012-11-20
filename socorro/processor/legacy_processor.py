@@ -61,6 +61,17 @@ class LegacyCrashProcessor(RequiredConfig):
         from_string_converter=class_converter
     )
     required_config.add_option(
+        'exploitablity_tool_command_line',
+        doc='the template for the command to invoke the exploitability tool',
+        default='$exploitability_tool_pathname $dumpfilePathname 2>/dev/null',
+    )
+    required_config.add_option(
+        'exploitability_tool_pathname',
+        doc='the full pathname of the extern program exploitability tool '
+        '(quote path with embedded spaces)',
+        default='/data/socorro/stackwalk/bin/exploitablity',
+    )
+    required_config.add_option(
         'stackwalk_command_line',
         doc='the template for the command to invoke minidump_stackwalk',
         default='$minidump_stackwalk_pathname -m $dumpfilePathname '
@@ -164,13 +175,13 @@ class LegacyCrashProcessor(RequiredConfig):
     required_config.add_option(
         'collect_addon',
         doc='boolean indictating if information about add-ons should be '
-            'collected',
+        'collected',
         default=True,
     )
     required_config.add_option(
         'collect_crash_process',
         doc='boolean indictating if information about process type should be '
-            'collected',
+        'collected',
         default=True,
     )
 
@@ -197,6 +208,7 @@ class LegacyCrashProcessor(RequiredConfig):
         #preprocess the breakpad_stackwalk command line
         strip_parens_re = re.compile(r'\$(\()(\w+)(\))')
         convert_to_python_substitution_format_re = re.compile(r'\$(\w+)')
+
         # Canonical form of $(param) is $param. Convert any that are needed
         tmp = strip_parens_re.sub(
             r'$\2',
@@ -207,6 +219,15 @@ class LegacyCrashProcessor(RequiredConfig):
         # finally, convert any remaining $param to pythonic %(param)s
         tmp = convert_to_python_substitution_format_re.sub(r'%(\1)s', tmp)
         self.mdsw_command_line = tmp % config
+
+        # Canonical form of $(param) is $param. Convert any that are needed
+        tmp = strip_parens_re.sub(r'$\2',config.exploitablity_tool_command_line)
+        # Convert canonical $dumpfilePathname to DUMPFILEPATHNAME
+        tmp = tmp.replace('$dumpfilePathname','DUMPFILEPATHNAME')
+        # finally, convert any remaining $param to pythonic %(param)s
+        tmp = convert_to_python_substitution_format_re.sub(r'%(\1)s', tmp)
+        self.exploitablity_command_line = tmp % config
+
         # *** end from ExternalProcessor
 
         self.c_signature_tool = config.c_signature.c_signature_tool_class(
@@ -216,6 +237,8 @@ class LegacyCrashProcessor(RequiredConfig):
             config.java_signature.java_signature_tool_class(
                 config.java_signature
             )
+        self._product_id_map = {}
+        self._load_product_id_map()
 
     #--------------------------------------------------------------------------
     def reject_raw_crash(self, crash_id, reason):
@@ -574,7 +597,7 @@ class LegacyCrashProcessor(RequiredConfig):
                                   analyzed
         """
         command_line = self.mdsw_command_line.replace("DUMPFILEPATHNAME",
-                                                 dump_pathname)
+                                                      dump_pathname)
         subprocess_handle = subprocess.Popen(
             command_line,
             shell=True,
@@ -633,37 +656,35 @@ class LegacyCrashProcessor(RequiredConfig):
             self._invoke_exploitability(dump_pathname)
 
         processed_crash_update = self._stackwalk_analysis(
-          dump_analysis_line_iterator,
-          mdsw_subprocess_handle,
-          crash_id,
-          is_hang,
-          java_stack_trace,
-          submitted_timestamp,
-          processor_notes
+            dump_analysis_line_iterator,
+            mdsw_subprocess_handle,
+            crash_id,
+            is_hang,
+            java_stack_trace,
+            submitted_timestamp,
+            processor_notes
         )
         processed_crash_update['exploitability'] = \
-            self.exploitablity_analysis(
-              exploitablity_line_iterator,
-              exploitablity_subprocess_handle,
-              processorErrorMessages
+            self._exploitablity_analysis(
+                exploitablity_line_iterator,
+                exploitablity_subprocess_handle,
+                processor_notes
             )
         return processed_crash_update
 
     #--------------------------------------------------------------------------
-    def exploitablity_analysis(
-      self,
-      exploitablity_line_iterator,
-      exploitablity_subprocess_handle,
-      error_messages
-    ):
+    def _exploitablity_analysis(self,
+                                exploitablity_line_iterator,
+                                exploitablity_subprocess_handle,
+                                error_messages ):
         exploitablity = None
         with closing(exploitablity_line_iterator) as the_iter:
-            for a_line in exploitablity_line_iterator:
+            for a_line in the_iter:
                 exploitablity = a_line.strip()
         returncode = exploitablity_subprocess_handle.wait()
         if returncode is not None and returncode != 0:
             error_messages.append(
-              "%s failed with return code %s" %
+                "%s failed with return code %s" %
                 (self.config.exploitablity_tool_pathname,
                  returncode)
             )
@@ -671,13 +692,15 @@ class LegacyCrashProcessor(RequiredConfig):
 
     #--------------------------------------------------------------------------
     def _stackwalk_analysis(
-      self,
-      dump_analysis_line_iterator,
-      mdsw_subprocess_handle,
-      crash_id,
-      submitted_timestamp,
-      processor_notes
-    ):
+        self,
+        dump_analysis_line_iterator,
+        mdsw_subprocess_handle,
+        crash_id,
+        is_hang,
+        java_stack_trace,
+        submitted_timestamp,
+        processor_notes
+        ):
         with closing(dump_analysis_line_iterator) as mdsw_iter:
             processed_crash_update = self._analyze_header(
                 crash_id,
@@ -770,8 +793,8 @@ class LegacyCrashProcessor(RequiredConfig):
                     self._truncate_or_none(values[2], 100)
                 try:
                     processed_crash_update.cpu_info = ('%s | %s' % (
-                      processed_crash_update.cpu_info,
-                      self._get_truncate_or_none(values[3], 100)
+                        processed_crash_update.cpu_info,
+                        self._get_truncate_or_none(values[3], 100)
                     ))
                 except IndexError:
                     pass
@@ -1030,8 +1053,17 @@ class LegacyCrashProcessor(RequiredConfig):
                 #''
                 #)
             #]
+        translated_rules = [(x[0].replace('processor.processor',
+                                          'processor.legacy_processor'),
+                             x[1],
+                             x[2],
+                             x[3].replace('processor.processor',
+                                          'processor.legacy_processor'),
+                             x[4],
+                             x[5])
+                            for x in rules]
+        self.raw_crash_transform_rule_system.load_rules(translated_rules)
 
-        self.raw_crash_transform_rule_system.load_rules(rules)
         self.config.logger.info(
             'done loading rules: %s',
             str(self.raw_crash_transform_rule_system.rules)
@@ -1127,3 +1159,121 @@ class LegacyCrashProcessor(RequiredConfig):
             return a_string[:maxLength]
         except TypeError:
             return None
+
+    #--------------------------------------------------------------------------
+    def _load_product_id_map(self):
+        try:
+            self.config.logger.debug("get product_productid_map")
+            sql = "SELECT product_name, productid, rewrite FROM " \
+                  "product_productid_map WHERE rewrite IS TRUE"
+            product_mappings = self.transaction(
+                execute_query_fetchall,
+                sql
+            )
+            self.config.logger.debug("done loading product_productid_map")
+        except Exception:
+            logger.error('Unable to load product_productid_map',
+                         exc_info=True)
+            raise
+
+        for row in product_mappings:
+            self._product_id_map[row[1]] = {'product_name': row[0],
+                                            'rewrite': row[2]}
+
+        self.config.logger.debug('product_id_map: %s',
+                                 str(self._product_id_map))
+
+#==============================================================================
+# TransformRules predicate and action function section
+#    * these function are used for the rewriting of the json file before it is
+#          put into Postgres.
+#    * these functions are used in the processor.json_rewrite category
+#------------------------------------------------------------------------------
+def json_equal_predicate(raw_crash, processor, key, value):
+    """a TransformRule predicate function that tests if a key in the json
+    is equal to a certain value.  In a rule definition, use of this function
+    could look like this:
+
+    r = TransformRule('socorro.processor.processor.json_equal_predicate',
+                      '',
+                      'key="ReleaseChannel", value="esr",
+                      ...)
+
+    parameters:
+        json_doc - the source mapping from which to test
+        processor - not used in this context, present for api consistency
+        key - the key into the json_doc mapping to test.
+        value - the value to compare
+    """
+    try:
+        return raw_crash[key] == value
+    except KeyError:
+        return False
+
+#------------------------------------------------------------------------------
+def json_reformat_action(raw_crash, processor, key, format_str):
+    """a TransformRule action function that allows a single key in the target
+    json file to be rewritten using a format string.  The json itself is used
+    as a dict to feed to the format string.  This allows a key's value to be
+    rewritten in term of the content of the rest of the json.  The first
+    example of this is rewriting the Version string to have a suffix of 'esr'
+    if the 'ReleaseChannel' value is 'esr'.  The rule to accomplish this looks
+    like this:
+
+    r = TransformRule('socorro.processor.processor.json_equal_predicate',
+                      '',
+                      'key="ReleaseChannel", value="esr",  # check for 'esr'
+                      'socorro.processor.processor.json_reformat_action',
+                      '',
+                      'key="Version", format_str="%(Version)sesr"')
+
+    In this example, the predicate 'processor.json_equal_predicate' will test
+    to see if 'esr' is the value of 'ReleaseChannel'. If true, then the action
+    will trigger, using the format string to assign a new value to 'Version'.
+
+    parameters:
+        json_doc - the source and destination of changes
+        processor - not used, present for parellelism with other functions
+        key - the key to the entry in the json_doc to change.
+        format_str - a standard python format string that will serve as the
+                     template for the replacement entry
+    """
+    raw_crash[key] = format_str % raw_crash
+
+#------------------------------------------------------------------------------
+def json_ProductID_predicate(raw_crash, processor):
+    """a TransformRule predicate that tests if the value of the json field,
+    'ProductID' is present in the processor's _product_id_map.  If it is, then
+    the action part of the rule will be triggered.
+
+    parameters:
+       json_doc - the source mapping that will be tested
+       processor - not used in this context, present only for api consistency
+    """
+    try:
+        return raw_crash['ProductID'] in processor._product_id_map
+    except KeyError:
+        return False
+
+#------------------------------------------------------------------------------
+def json_Product_rewrite_action(raw_crash, processor):
+    """a TransformRule action function that will change the name of a product. It
+    finds the new name in by looking up the 'ProductID' in the processor's
+    '_product_id_map'.
+
+    parameters:
+        json_doc - the destination mapping for the rewrite
+        processor - a source for a logger"""
+    try:
+        product_id = raw_crash['ProductID']
+    except KeyError:
+        processor.config.logger.debug('ProductID not in json_doc')
+        return False
+    old_product_name = raw_crash['ProductName']
+    new_product_name = processor._product_id_map[product_id]['product_name']
+    raw_crash['ProductName'] = new_product_name
+    processor.config.logger.info('product name changed from %s to %s based '
+                                 'on productID %s',
+                                 old_product_name,
+                                 new_product_name,
+                                 product_id)

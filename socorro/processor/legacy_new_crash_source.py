@@ -70,6 +70,8 @@ class LegacyNewCrashSource(RequiredConfig):
 
     #--------------------------------------------------------------------------
     def _create_priority_jobs(self, connection):
+        self.config.logger.info('$$$$$$$$ %s', self.processor_name)
+        print connection
         self.processor_id = single_value_sql(
           connection,
           "select id from processors where name = %s",

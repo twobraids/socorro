@@ -578,7 +578,7 @@ class MonitorApp(App):
                           "There are no live processors. "
                           "Waiting for processors to come on line"
                         )
-                        yield None
+                        yield None, None
                 for a_processor_id, a_processor_name in list_of_processor_ids:
                     #self.config.logger.debug(
                       #'about to yield %s(%d)',
