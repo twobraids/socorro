@@ -76,6 +76,7 @@ class PostgreSQLCrashStorage(CrashStorageBase):
         ("url", "url"),
         ("uuid", "uuid"),
         ("version", "version"),
+        ("exploitability", "exploitability"),
     )
 
     #--------------------------------------------------------------------------

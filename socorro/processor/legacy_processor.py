@@ -616,8 +616,10 @@ class LegacyCrashProcessor(RequiredConfig):
                 dump_pathname: the complete pathname of the dumpfile to be
                                   analyzed
         """
-        command_line = self.mdsw_command_line.replace("DUMPFILEPATHNAME",
-                                                      dump_pathname)
+        command_line = self.exploitablity_command_line.replace(
+                         "DUMPFILEPATHNAME",
+                         dump_pathname
+                       )
         subprocess_handle = subprocess.Popen(
             command_line,
             shell=True,
@@ -670,6 +672,7 @@ class LegacyCrashProcessor(RequiredConfig):
                 exploitablity_subprocess_handle,
                 processor_notes
             )
+        print "(((((((())))))))", processed_crash_update['exploitability']
         return processed_crash_update
 
     #--------------------------------------------------------------------------
