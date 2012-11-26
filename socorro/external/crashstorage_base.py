@@ -63,7 +63,7 @@ class CrashStorageBase(RequiredConfig):
 
     #--------------------------------------------------------------------------
     def save_raw_crash(self, raw_crash, dumps, crash_id):
-        """this method that saves  both the raw_crash and the dump,
+        """this method that saves  both the raw_crash and the dumps,
         must be overridden in any implementation.
 
         Why is does this base implementation just silently do nothing rather
@@ -134,7 +134,7 @@ class CrashStorageBase(RequiredConfig):
            dump_name - the name of the dump to fetch (leaving it as None
                        should return the default dump"""
         raise NotImplementedError("get_raw_dump is not implemented")
-    
+
     #--------------------------------------------------------------------------
     def get_raw_dump_as_file(self, crash_id, dump_name=None):
         """return a string representing the named dump as a file on some
@@ -194,7 +194,7 @@ class NullCrashStorage(CrashStorageBase):
            dump_name - the name of the dump to fetch (leaving it as None
                        should return the default dump"""
         return ''
-    
+
     #--------------------------------------------------------------------------
     def get_raw_dump_as_file(self, crash_id, dump_name=None):
         """return a string representing the named dump as a file on some
@@ -207,7 +207,7 @@ class NullCrashStorage(CrashStorageBase):
         dump_file_name = '/tmp/%s' % dump_name
         open(dump_file_name, "w").close()
         return dump_file_name
-    
+
     #--------------------------------------------------------------------------
     def get_processed(self, crash_id):
         """the default implemntation of fetching a processed_crash
@@ -348,18 +348,18 @@ class PolyCrashStorage(CrashStorageBase):
             raise storage_exception
 
     #--------------------------------------------------------------------------
-    def save_raw_crash(self, raw_crash, dump, crash_id):
+    def save_raw_crash(self, raw_crash, dumps, crash_id):
         """iterate through the subordinate crash stores saving the raw_crash
-        and the dump to each of them.
+        and the dumps to each of them.
 
         parameters:
             raw_crash - the meta data mapping
-            dump - the raw binary crash data"""
+            dumps - the raw binary crash data"""
         storage_exception = PolyStorageError()
         for a_store in self.stores.itervalues():
             self.quit_check()
             try:
-                a_store.save_raw_crash(raw_crash, dump, crash_id)
+                a_store.save_raw_crash(raw_crash, dumps, crash_id)
             except Exception, x:
                 self.logger.error('%s failure: %s', a_store.__class__,
                                   str(x))
@@ -387,12 +387,12 @@ class PolyCrashStorage(CrashStorageBase):
             raise storage_exception
 
     #--------------------------------------------------------------------------
-    def save_raw_and_processed(self, raw_crash, dump, processed_crash,
+    def save_raw_and_processed(self, raw_crash, dumps, processed_crash,
                                crash_id):
         for a_store in self.stores.itervalues():
             a_store.save_raw_and_processed(
               raw_crash,
-              dump,
+              dumps,
               processed_crash,
               crash_id
             )
@@ -446,21 +446,21 @@ class FallbackCrashStorage(CrashStorageBase):
             raise poly_exception
 
     #--------------------------------------------------------------------------
-    def save_raw_crash(self, raw_crash, dump):
+    def save_raw_crash(self, raw_crash, dumps):
         """save raw crash data to the primary.  If that fails save to the
         fallback.  If that fails raise the PolyStorageException
 
         parameters:
             raw_crash - the meta data mapping
-            dump - the raw binary crash data"""
+            dumps - the raw binary crash data"""
         try:
-            self.primary_store.save_raw_crash(raw_crash, dump)
+            self.primary_store.save_raw_crash(raw_crash, dumps)
         except Exception:
             self.logger.critical('error in saving primary', exc_info=True)
             poly_exception = PolyStorageError()
             poly_exception.gather_current_exception()
             try:
-                self.fallback_store.save_raw_crash(raw_crash, dump)
+                self.fallback_store.save_raw_crash(raw_crash, dumps)
             except Exception:
                 self.logger.critical('error in saving fallback', exc_info=True)
                 poly_exception.gather_current_exception()

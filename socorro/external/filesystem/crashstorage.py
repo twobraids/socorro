@@ -90,6 +90,7 @@ class FileSystemRawCrashStorage(CrashStorageBase):
           dumpGID=config.dump_gid,
           dumpPermissions=config.dump_permissions,
           dirPermissions=config.dir_permissions,
+          dump_field=config.dump_field,
           logger=config.logger
         )
         self.hostname = os.uname()[1]
@@ -130,9 +131,9 @@ class FileSystemRawCrashStorage(CrashStorageBase):
             #raise
 
     #--------------------------------------------------------------------------
-    def save_raw_crash(self, raw_crash, dump, crash_id):
+    def save_raw_crash(self, raw_crash, dumps, crash_id):
         """forward the raw_crash and the dump to the underlying file system"""
-        self._do_save_raw(self.std_crash_store, raw_crash, dump, crash_id)
+        self._do_save_raw(self.std_crash_store, raw_crash, dumps, crash_id)
 
     #--------------------------------------------------------------------------
     def get_raw_crash(self, crash_id):
@@ -150,7 +151,7 @@ class FileSystemRawCrashStorage(CrashStorageBase):
         """read the binary crash dump from the underlying file system by
         getting the pathname and then opening and reading the file."""
         if dump_name is None:
-            dump_name = self.config.storage.dump_field
+            dump_name = self.dump_field
         try:
             job_pathname = self.std_crash_store.getDump(crash_id, dump_name)
             with open(job_pathname) as  dump_file:
@@ -216,6 +217,7 @@ class FileSystemThrottledCrashStorage(FileSystemRawCrashStorage):
           dumpGID=config.dump_gid,
           dumpPermissions=config.dump_permissions,
           dirPermissions=config.dir_permissions,
+          dump_field=config.dump_field,
           logger=config.logger
         )
         self.crash_store_iterable = (self.std_crash_store,
@@ -264,11 +266,11 @@ class FileSystemThrottledCrashStorage(FileSystemRawCrashStorage):
         """fetch the dump trying each file system in turn"""
         for a_crash_store in self.crash_store_iterable:
             try:
-                job_pathname = a_crash_store.getDump(crash_id)
+                job_pathname = a_crash_store.getDumpAsFile(crash_id, dump_name)
                 with open(job_pathname) as  dump_file:
                     dump = dump_file.read()
                 return dump
-            except OSError:
+            except OSError, x:
                 # only raise the exception if we've got no more file systems
                 # to look through
                 if a_crash_store is self.crash_store_iterable[-1]:
@@ -282,7 +284,7 @@ class FileSystemThrottledCrashStorage(FileSystemRawCrashStorage):
                 a_crash_store.remove(crash_id)  # raises NoSuchUuidFound if
                                             # unsuccessful.
                 return  # break the loop as soon as we succeed
-            except NoSuchUuidFound:
+            except (NoSuchUuidFound, OSError):
                 # only raise the exception if we've got no more file systems
                 # to look through
                 if a_crash_store is self.crash_store_iterable[-1]:

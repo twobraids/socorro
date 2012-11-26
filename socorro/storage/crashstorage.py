@@ -244,7 +244,7 @@ class CrashStorageSystem(object):
   def terminated (self, jsonData):
     return False
   #-----------------------------------------------------------------------------------------------------------------
-  def save_raw (self, uuid, jsonData, dump):
+  def save_raw (self, uuid, jsonData, dumps):
     return CrashStorageSystem.NO_ACTION
   #-----------------------------------------------------------------------------------------------------------------
   def save_processed (self, uuid, jsonData):
@@ -254,7 +254,7 @@ class CrashStorageSystem(object):
     raise NotImplementedException("get_meta is not implemented")
   #-----------------------------------------------------------------------------------------------------------------
   def get_raw_dump (self, uuid):
-    raise NotImplementedException("get_raw_crash is not implemented")
+    raise NotImplementedException("get_raw_dump is not implemented")
   #-----------------------------------------------------------------------------------------------------------------
   def get_raw_dump_base64(self,uuid):
     raise NotImplementedException("get_raw_dump_base64 is not implemented")
@@ -487,41 +487,29 @@ class CrashStorageSystemForLocalFS(CrashStorageSystem):
                                        logger = config.logger
                                       )
   #-----------------------------------------------------------------------------------------------------------------
-  def save_raw (self, ooid, jsonData, dump, currentTimestamp):
+  def save_raw (self, ooid, jsonData, dumps, currentTimestamp):
     try:
-      if jsonData.legacy_processing == LegacyThrottler.DISCARD:
-        return CrashStorageSystem.DISCARDED
-    except KeyError:
-      pass
-    try:
-      #jsonDataAsString = json.dumps(jsonData)
-      jsonFileHandle, dumpFileHandle = self.localFS.newEntry(ooid, self.hostname, currentTimestamp)
-      try:
-        dumpFileHandle.write(dump)
-        json.dump(jsonData, jsonFileHandle)
-      finally:
-        dumpFileHandle.close()
-        jsonFileHandle.close()
-      self.logger.info('saved - %s', ooid)
+      self.localFS.new_entry(
+        crash_id,
+        raw_crash,
+        dumps,
+        self.hostname
+      )
       return CrashStorageSystem.OK
     except Exception, x:
       sutil.reportExceptionAndContinue(self.logger)
       self.logger.warning('local storage has failed: trying fallback storage for: %s', ooid)
       try:
-        #jsonDataAsString = json.dumps(jsonData)
-        jsonFileHandle, dumpFileHandle = self.fallbackFS.newEntry(ooid, self.hostname, currentTimestamp)
-        try:
-          dumpFileHandle.write(dump)
-          json.dump(jsonData, jsonFileHandle)
-        finally:
-          dumpFileHandle.close()
-          jsonFileHandle.close()
+        self.fallbackFS.new_entry(
+          crash_id,
+          raw_crash,
+          dumps,
+          self.hostname
+        )
         return CrashStorageSystem.OK
       except Exception, x:
         sutil.reportExceptionAndContinue(self.logger)
         self.logger.critical('fallback storage has failed: dropping %s on the floor', ooid)
-
-
     return CrashStorageSystem.ERROR
 
   #-----------------------------------------------------------------------------------------------------------------
@@ -535,8 +523,8 @@ class CrashStorageSystemForLocalFS(CrashStorageSystem):
     return jsonDocument
 
   #-----------------------------------------------------------------------------------------------------------------
-  def get_raw_dump (self, uuid):
-    jobPathname = self.localFS.getDump(uuid)
+  def get_raw_dump (self, uuid, dump_name=None):
+    jobPathname = self.localFS.getDump(uuid, dump_name)
     dumpFile = open(jobPathname)
     try:
       dumpBinary = dumpFile.read()
@@ -589,7 +577,7 @@ class CrashStorageSystemForNFS(CrashStorageSystem):
 
 
   #-----------------------------------------------------------------------------------------------------------------
-  def save_raw (self, uuid, jsonData, dump, currentTimestamp):
+  def save_raw (self, uuid, jsonData, dumps, currentTimestamp):
     try:
       #throttleAction = self.throttler.throttle(jsonData)
       throttleAction = jsonData.legacy_processing
@@ -603,14 +591,12 @@ class CrashStorageSystemForNFS(CrashStorageSystem):
         self.logger.debug("not throttled %s %s", jsonData.ProductName, jsonData.Version)
         fileSystemStorage = self.standardFileSystemStorage
 
-      jsonFileHandle, dumpFileHandle = fileSystemStorage.newEntry(uuid, self.hostname, currentTimestamp)
-      try:
-        dumpFileHandle.write(dump)
-        json.dump(jsonData, jsonFileHandle)
-      finally:
-        dumpFileHandle.close()
-        jsonFileHandle.close()
-
+      fileSystemStorage.new_entry(
+        crash_id,
+        raw_crash,
+        dumps,
+        self.hostname
+      )
       return CrashStorageSystem.OK
     except:
       sutil.reportExceptionAndContinue(self.logger)
@@ -638,12 +624,12 @@ class CrashStorageSystemForNFS(CrashStorageSystem):
     return jsonPath
 
   #-----------------------------------------------------------------------------------------------------------------
-  def dumpPathForUuid(self, uuid, ignoredBasePath):
+  def dumpPathForUuid(self, uuid, dump_name, ignoredBasePath):
     try:
-      dumpPath = self.standardJobStorage.getDump(uuid)
+      dumpPath = self.standardJobStorage.getDump(uuid, dump_name)
     except (OSError, IOError):
       try:
-        dumpPath = self.deferredJobStorage.getDump(uuid)
+        dumpPath = self.deferredJobStorage.getDump(uuid, dump_name)
       except (OSError, IOError):
         raise UuidNotFoundException("%s cannot be found in standard or deferred storage" % uuid)
     return dumpPath

@@ -11,6 +11,7 @@ import socorro.lib.ooid as sooid
 import socorro.storage.crashstorage as cstore
 
 from socorro.lib.datetimeutil import utc_now
+from socorro.lib.util import DotDict
 
 #===============================================================================
 class Collector(object):
@@ -27,37 +28,42 @@ class Collector(object):
   #-----------------------------------------------------------------------------
   def POST(self, *args):
     crashStorage = self.context.crashStoragePool.crashStorage()
-    theform = web.input()
+    the_form = web.input()
 
-    dump = theform[self.context.dumpField]
-
-    # Remove other submitted files from the input form, which are an indication
-    # of a multi-dump hang submission we aren't yet prepared to handle.
+    # get the dumps out of the form
+    dumps = DotDict()
     for (key, value) in web.webapi.rawinput().iteritems():
       if hasattr(value, 'file') and hasattr(value, 'value'):
-        del theform[key]
+        if key == self.context.dumpField:
+          # to maintain backwards compatibility the main dump must
+          # have the name 'dump'
+          dumps['dump'] = the_form.value
+        else:
+          dumps[key] = the_form.value
+        del the_form[key]
 
     currentTimestamp = utc_now()
-    jsonDataDictionary = crashStorage.makeJsonDictFromForm(theform)
-    jsonDataDictionary.submitted_timestamp = currentTimestamp.isoformat()
+    raw_crash = crashStorage.makeJsonDictFromForm(the_form)
+    raw_crash.dump_names = dumps.keys()
+    raw_crash.submitted_timestamp = currentTimestamp.isoformat()
     #for future use when we start sunsetting products
-    #if crashStorage.terminated(jsonDataDictionary):
-      #return "Terminated=%s" % jsonDataDictionary.Version
-    ooid = sooid.createNewOoid(currentTimestamp)
-    jsonDataDictionary.legacy_processing = \
-        self.legacyThrottler.throttle(jsonDataDictionary)
+    #if crashStorage.terminated(raw_crash):
+      #return "Terminated=%s" % raw_crash.Version
+    crash_id = sooid.createNewOoid(currentTimestamp)
+    raw_crash.legacy_processing = \
+        self.legacyThrottler.throttle(raw_crash)
 
-    if jsonDataDictionary.legacy_processing == cstore.LegacyThrottler.IGNORE:
-      self.logger.info('%s ignored', ooid)
+    if raw_crash.legacy_processing == cstore.LegacyThrottler.IGNORE:
+      self.logger.info('%s ignored', crash_id)
       return "Unsupported=1\n"
 
-    self.logger.info('%s received', ooid)
-    result = crashStorage.save_raw(ooid,
-                                   jsonDataDictionary,
-                                   dump,
+    self.logger.info('%s received', crash_id)
+    result = crashStorage.save_raw(crash_id,
+                                   raw_crash,
+                                   dumps,
                                    currentTimestamp)
     if result == cstore.CrashStorageSystem.DISCARDED:
       return "Discarded=1\n"
     elif result == cstore.CrashStorageSystem.ERROR:
       raise Exception("CrashStorageSystem ERROR")
-    return "CrashID=%s%s\n" % (self.dumpIDPrefix, ooid)
+    return "CrashID=%s%s\n" % (self.dumpIDPrefix, crash_id)

@@ -119,6 +119,10 @@ class TestJsonDumpStorage(unittest.TestCase):
     assert storage.dumpSuffix == kwargs.get('dumpSuffix','.dump'),'We will always pass dot dump suffix. From kwargs=%s'%kwargs
     assert self.testDir.rstrip(os.sep) == storage.root,'From kwargs=%s'%kwargs
 
+#def test_new_entry(self):
+  #storage = JDS.JsonDumpStorage(self.testDir,**self.initKwargs[2])
+
+
   def testNewEntry(self):
     storage = JDS.JsonDumpStorage(self.testDir,**self.initKwargs[2])
     for uuid,data in createJDS.jsonFileData.items():

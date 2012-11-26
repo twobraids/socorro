@@ -68,6 +68,53 @@ class JsonDumpStorage(socorro_dumpStorage.DumpStorage):
       self.dumpSuffix = ".%s" % (self.dumpSuffix)
     self.logger = kwargs.get('logger', socorro_util.FakeLogger())
 
+  #----------------------------------------------------------------------------
+  def new_entry(self,
+                crash_id,
+                raw_crash,
+                dumps_dict,
+                webhead_host_name='webhead01',
+                timestamp=None):
+      name_dir, date_dir = super(JsonDumpStorage, self).newEntry(
+        crash_id,
+        timestamp,
+        webhead_host_name
+      )
+
+      raw_crash_pathname = os.path.join(
+        name_dir,
+        crash_id + self.jsonSuffix
+      )
+      with open(raw_crash_pathname, "w") as rcf:
+          json.dump(raw_crash, rcf)
+
+      for dump_name, dump in dumps_dict.iteritems():
+          dump_pathname = os.path.join(
+            name_dir,
+            "%s.%s.%s" % (crash_id,
+                          dump_name,
+                          self.config.dump_file_suffix)
+          )
+          with open(dump_pathname, "w") as dp:
+              dp.write(dump)
+          self.osModule.chmod(dump_pathname, self.dump_permissions)
+
+      name_depth = socorro_ooid.depthFromOoid(crash_id)
+      if not name_depth:
+          name_depth = 4
+      rparts = [os.path.pardir, ] * (1 + name_depth)
+      rparts.append(self.dateName)
+      date_depth = 2  # .../hh/mm_slot...
+      if webhead_host_name and self.subSlotCount:
+          date_depth = 3  # .../webHeadName_slot
+      date_parts = dateDir.split(os.path.sep)[-date_depth:]
+      rparts.extend(date_parts)
+      self.osModule.symlink(
+        os.path.sep.join(rparts),
+        os.path.join(nameDir, crash_id)
+      )
+
+
   #-----------------------------------------------------------------------------------------------------------------
   def newEntry (self, ooid, webheadHostName='webhead01', timestamp=None):
     """

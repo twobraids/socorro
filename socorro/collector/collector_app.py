@@ -63,7 +63,7 @@ class CollectorApp(App):
     required_config.namespace('storage')
     required_config.collector.add_option(
         'dump_field',
-        doc='the name of the form field containing the raw dump',
+        doc='the name of the form field containing the main raw dump',
         default='upload_file_minidump'
     )
     required_config.storage.add_option(

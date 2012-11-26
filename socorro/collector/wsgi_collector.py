@@ -45,10 +45,16 @@ class Collector(object):
         dumps = DotDict()
         for (key, value) in web.webapi.rawinput().iteritems():
             if hasattr(value, 'file') and hasattr(value, 'value'):
-                dumps[key] = the_form.value
+                if key == self.dump_field:
+                    # to maintain backwards compatibility the main dump must
+                    # have the name 'dump'
+                    dumps['dump'] = the_form.value
+                else:
+                    dumps[key] = the_form.value
                 del the_form[key]
 
         raw_crash = self.make_raw_crash(the_form)
+        raw_crash.dump_names = dumps.keys()
 
         current_timestamp = utc_now()
         raw_crash.submitted_timestamp = current_timestamp.isoformat()
