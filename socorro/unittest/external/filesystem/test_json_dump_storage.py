@@ -197,9 +197,9 @@ class TestJsonDumpStorage(unittest.TestCase):
       except Exception, e:
         assert False, 'getJson(%s) should not raise %s'%(uuid, e)
       try:
-        storage.getDump(uuid)
+        storage.getDumpAsFile(uuid)
       except Exception,e:
-        assert False, 'getDump(%s) should not raise %s'%(uuid,e)
+        assert False, 'getDumpAsFile(%s) should not raise %s'%(uuid,e)
       if doLink:
         assert newjpath
         link = os.path.splitext(newjpath)[0]
@@ -260,15 +260,15 @@ class TestJsonDumpStorage(unittest.TestCase):
       dateparts = data[0].split('-')
       daily = "%4d%02d%02d"%tuple([int(x) for x in dateparts[:3]])
       expected = os.sep.join((storage.root,daily,storage.indexName,data[2],uuid+storage.dumpSuffix))
-      got =  storage.getDump(uuid)
+      got =  storage.getDumpAsFile(uuid)
       assert expected == got, 'Expected dump file %s, got %s' % (expected,got)
     try:
-      storage.getDump(createJDS.jsonBadUuid)
-      assert False, 'Should throw IOError from attempt to getDump(non-existent-uuid)'
+      storage.getDumpAsFile(createJDS.jsonBadUuid)
+      assert False, 'Should throw IOError from attempt to getDumpAsFile(non-existent-uuid)'
     except OSError,e:
       assert True
     except Exception, e:
-      assert False, 'Got unexpected error(type) %s from attempt to getDump(non-existent-uuid' % e
+      assert False, 'Got unexpected error(type) %s from attempt to getDumpAsFile(non-existent-uuid' % e
 
   def markAsSeen(self):
     createJDS.createTestSet(createJDS.jsonFileData,self.initKwargs[3],self.testDir)
@@ -339,13 +339,13 @@ class TestJsonDumpStorage(unittest.TestCase):
       if 1 == counter % 3:
         # test that we don't throw for one missing file
         if 0 == counter % 2:
-          os.unlink(storage.getDump(uuid))
+          os.unlink(storage.getDumpAsFile(uuid))
         else:
           os.unlink(storage.getJson(uuid))
       if 2 == counter % 3:
         # test that we don't throw for both missing files, but with links
         os.unlink(storage.getJson(uuid))
-        os.unlink(storage.getDump(uuid))
+        os.unlink(storage.getDumpAsFile(uuid))
       storage.remove(uuid)
       counter += 1
     allfiles = []

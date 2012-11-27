@@ -57,6 +57,8 @@ class TestFileSystemRawCrashStorage(unittest.TestCase):
         mock_logging = Mock()
         required_config = FileSystemCrashStorage.get_required_config()
         required_config.add_option('logger', default=mock_logging)
+        required_config.add_option('dump_field',
+                                   default='upload_file_minidump')
         config_manager = ConfigurationManager(
           [required_config],
           app_name='testapp',
@@ -89,7 +91,7 @@ class TestFileSystemRawCrashStorage(unittest.TestCase):
                 '114559a5-d8e6-428c-8b88-1c1f22120314')))
         self.assertTrue(
           os.path.exists(
-            crashstorage.std_crash_store.getDump(
+            crashstorage.std_crash_store.getDumpAsFile(
                 '114559a5-d8e6-428c-8b88-1c1f22120314')))
 
         meta = crashstorage.get_raw_crash(
@@ -107,7 +109,7 @@ class TestFileSystemRawCrashStorage(unittest.TestCase):
                           crashstorage.std_crash_store.getJson,
                           '114559a5-d8e6-428c-8b88-1c1f22120314')
         self.assertRaises(OSError,
-                          crashstorage.std_crash_store.getDump,
+                          crashstorage.std_crash_store.getDumpAsFile,
                           '114559a5-d8e6-428c-8b88-1c1f22120314')
         self.assertRaises(CrashIDNotFound,
                           crashstorage.remove,
@@ -137,13 +139,13 @@ class TestFileSystemRawCrashStorage(unittest.TestCase):
                 '114559a5-d8e6-428c-8b88-1c1f22120314')))
         self.assertTrue(
           os.path.exists(
-            crashstorage.def_crash_store.getDump(
+            crashstorage.def_crash_store.getDumpAsFile(
                 '114559a5-d8e6-428c-8b88-1c1f22120314')))
         self.assertRaises(OSError,
                           crashstorage.std_crash_store.getJson,
                           '114559a5-d8e6-428c-8b88-1c1f22120314')
         self.assertRaises(OSError,
-                          crashstorage.std_crash_store.getDump,
+                          crashstorage.std_crash_store.getDumpAsFile,
                           '114559a5-d8e6-428c-8b88-1c1f22120314')
 
         meta = crashstorage.get_raw_crash(
@@ -161,13 +163,13 @@ class TestFileSystemRawCrashStorage(unittest.TestCase):
                           crashstorage.def_crash_store.getJson,
                           '114559a5-d8e6-428c-8b88-1c1f22120314')
         self.assertRaises(OSError,
-                          crashstorage.def_crash_store.getDump,
+                          crashstorage.def_crash_store.getDumpAsFile,
                           '114559a5-d8e6-428c-8b88-1c1f22120314')
         self.assertRaises(OSError,
                           crashstorage.std_crash_store.getJson,
                           '114559a5-d8e6-428c-8b88-1c1f22120314')
         self.assertRaises(OSError,
-                          crashstorage.std_crash_store.getDump,
+                          crashstorage.std_crash_store.getDumpAsFile,
                           '114559a5-d8e6-428c-8b88-1c1f22120314')
 
     def test_filesystem_raw_crashstorage(self):

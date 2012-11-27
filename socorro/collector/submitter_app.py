@@ -40,11 +40,12 @@ class CrashStorageSubmitter(CrashStorageBase):
         self.hang_id_cache = dict()
 
     #--------------------------------------------------------------------------
-    def save_raw_crash(self, raw_crash, dump, crash_id):
+    def save_raw_crash(self, raw_crash, dumps, crash_id):
         if self.config.submitter.dry_run:
             print raw_crash.ProductName, raw_crash.Version
         else:
-            raw_crash['upload_file_minidump'] = open(dump, 'rb')
+            for dump_name, dump in dumps:
+                raw_crash[dump_name] = open(dump, 'rb')
             datagen, headers = poster.encode.multipart_encode(raw_crash)
             request = urllib2.Request(
               self.config.url,
@@ -127,18 +128,18 @@ class SubmitterApp(FetchTransformSaveApp):
       short_form='n',
       default='all'
     )
-    required_config.submitter.add_option(
-      'raw_crash',
-      doc="the pathname of a raw crash json file to submit",
-      short_form='j',
-      default=None
-    )
-    required_config.submitter.add_option(
-      'raw_dump',
-      doc="the pathname of a dumpfile to submit",
-      short_form='d',
-      default=None
-    )
+    #required_config.submitter.add_option(
+      #'raw_crash',
+      #doc="the pathname of a raw crash json file to submit",
+      #short_form='j',
+      #default=None
+    #)
+    #required_config.submitter.add_option(
+      #'raw_dump',
+      #doc="the pathname of a dumpfile to submit",
+      #short_form='d',
+      #default=None
+    #)
     required_config.submitter.add_option(
       'search_root',
       doc="a filesystem location to begin a search for raw crash / dump pairs",

@@ -151,9 +151,10 @@ class FileSystemRawCrashStorage(CrashStorageBase):
         """read the binary crash dump from the underlying file system by
         getting the pathname and then opening and reading the file."""
         if dump_name is None:
-            dump_name = self.dump_field
+            dump_name = self.config.dump_field
         try:
-            job_pathname = self.std_crash_store.getDump(crash_id, dump_name)
+            job_pathname = self.std_crash_store.getDumpAsFile(crash_id,
+                                                              dump_name)
             with open(job_pathname) as  dump_file:
                 binary = dump_file.read()
             return binary

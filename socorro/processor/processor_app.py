@@ -27,7 +27,7 @@ class ProcessorApp(FetchTransformSaveApp):
     # for the context of this app
     FetchTransformSaveApp.required_config.source.crashstorage_class \
       .set_default(
-      PostgreSQLCrashStorage
+      PostgreSQLCrashStorage  # not correct, this should be something real
     )
     FetchTransformSaveApp.required_config.destination.crashstorage_class \
       .set_default(
