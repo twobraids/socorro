@@ -329,6 +329,7 @@ class TestHBaseCrashStorage(unittest.TestCase):
 
                 expected_raw_crash = raw_crash
                 expected_dump = fake_binary_dump
+                expected_dump_2 = fake_binary_dump + " number 2"
 
                 # saves us from loooong lines
                 klass = hclient.HBaseConnectionForCrashReports
@@ -384,10 +385,37 @@ class TestHBaseCrashStorage(unittest.TestCase):
                 klass.get_dump = m
                 r = crashstorage.get_raw_dump("abc123")
                 a = klass.get_dump.call_args
-                self.assertEqual(len(a[0]), 2)
+                self.assertEqual(len(a[0]), 3)
                 self.assertEqual(a[0][1], "abc123")
                 self.assertEqual(klass.get_dump.call_count, 1)
                 self.assertEqual(r, expected_dump)
+
+                # test get_raw_dumps
+                m = mock.Mock(return_value={'upload_file_minidump':
+                                                fake_binary_dump})
+                klass.get_dumps = m
+                r = crashstorage.get_raw_dumps("abc123")
+                a = klass.get_dumps.call_args
+                self.assertEqual(len(a[0]), 2)
+                self.assertEqual(a[0][1], "abc123")
+                self.assertEqual(klass.get_dumps.call_count, 1)
+                self.assertEqual(r, {'upload_file_minidump': expected_dump})
+
+                # test get_raw_dumps 2
+                m = mock.Mock(return_value={'upload_file_minidump':
+                                                fake_binary_dump,
+                                            'aux_1':
+                                                expected_dump_2})
+                klass.get_dumps = m
+                r = crashstorage.get_raw_dumps("abc123")
+                a = klass.get_dumps.call_args
+                self.assertEqual(len(a[0]), 2)
+                self.assertEqual(a[0][1], "abc123")
+                self.assertEqual(klass.get_dumps.call_count, 1)
+                self.assertEqual(r, {'upload_file_minidump':
+                                         fake_binary_dump,
+                                     'aux_1':
+                                         expected_dump_2})
 
                 # test get_processed_crash
                 m = mock.Mock(return_value=expected_processed_crash)
