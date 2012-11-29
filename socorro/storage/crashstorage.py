@@ -12,6 +12,9 @@ import socorro.lib.ver_tools as vtl
 
 from socorro.external.crashstorage_base import FallbackCrashStorage
 from socorro.external.filesystem.crashstorage import FileSystemRawCrashStorage
+from socorro.external.hbase.crashstorage import HBaseCrashStorage
+from socorro.database.transaction_executor import \
+     TransactionExecutorWithLimitedBackoff
 
 from configman.dotdict import DotDict
 
@@ -58,8 +61,24 @@ class CrashStorageSystemForLocalFS(FallbackCrashStorage):
 
 
 #==============================================================================
-class CrashStorageSystemForHBase(FileSystemRawCrashStorage):
-    pass
+class CrashStorageSystemForHBase(HBaseCrashStorage):
+    def __init__(self, config):
+        # new_config is an adapter to allow the modern configman enabled
+        # file system crash storage classes to use the old style configuration.
+        new_config = DotDict()
+        new_config.logger = config.logger
+        new_config.number_of_retries = 2
+        new_config.hbase_host = config.hbaseHost
+        new_config.hbase_port = config.hbasePort
+        new_config.hbase_timeout = config.hbaseTimeout
+        new_config.forbidden_keys = ['email', 'url', 'user_id',
+                                     'exploitability']
+        new_config.transaction_executor_class = \
+            TransactionExecutorWithLimitedBackoff
+        new_config.backoff_delays = [10, 30, 60, 120, 300]
+        new_config.wait_log_interval = 5
+
+        super(CrashStorageSystemForHBase, self).__init__(new_config)
 
 
 #==============================================================================
