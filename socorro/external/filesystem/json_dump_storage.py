@@ -36,7 +36,7 @@ class JsonDumpStorage(socorro_dumpStorage.DumpStorage):
           .json
         - the dump file is stored as
           %(root)s/name/22/ad/22adfb61-f75b-11dc-b6be-001322081225.dump
-        - the symbolic link is stored asnamePath
+        - the symbolic link is stored as
           %(root)s/name/22/ad/22adfb61-f75b-11dc-b6be-001322081225
           and (see below) references
           %(toDateFromName)s/date/2008/12/25/12/05/webhead01_0
@@ -475,14 +475,14 @@ class JsonDumpStorage(socorro_dumpStorage.DumpStorage):
                 try:
                     self.osModule.unlink(os.path.join(namePath, a_file_name))
                     seenCount += 1
-                except IOError:
+                except OSError:
                     self.logger.warning("%s wasn't found", a_file_name)
             try:
                 self.osModule.unlink(
                   os.path.join(namePath, crash_id + self.jsonSuffix)
                 )
                 seenCount += 1
-            except:
+            except OSError:
                 pass
             if self.cleanIndexDirectories:
                 try:

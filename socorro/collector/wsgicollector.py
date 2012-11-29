@@ -31,34 +31,27 @@ class Collector(object):
     uri = '/submit'
 
     #--------------------------------------------------------------------------
-    def make_raw_crash(self, form):
+    def _make_raw_crash_and_dumps(self, form):
+        dumps = DotDict()
         raw_crash = DotDict()
-        for name in form.keys():
+        for name, value in form.iteritems():
             if isinstance(form[name], basestring):
                 raw_crash[name] = form[name]
+            elif hasattr(value, 'file') and hasattr(value, 'value'):
+                dumps[name] = value.value
             else:
-                raw_crash[name] = form[name].value
-        raw_crash.timestamp = time.time()
-        return raw_crash
+                raw_crash[name] = value.value
+        return raw_crash, dumps
 
     #--------------------------------------------------------------------------
     def POST(self, *args):
-        the_form = web.input()
-
-        # get the dumps out of the form
-        dumps = DotDict()
-        for (key, value) in web.webapi.rawinput().iteritems():
-            if hasattr(value, 'file') and hasattr(value, 'value'):
-                if key == self.dump_field:
-                    dumps[self.dump_field] = value.value
-                else:
-                    dumps[key] = value.value
-                del the_form[key]
-
-        raw_crash = self.make_raw_crash(the_form)
+        raw_crash, dumps = \
+            self._make_raw_crash_and_dumps(web.webapi.rawinput())
 
         current_timestamp = utc_now()
         raw_crash.submitted_timestamp = current_timestamp.isoformat()
+        # legacy - ought to be removed someday
+        raw_crash.timestamp = time.time()
 
         crash_id = createNewOoid(current_timestamp)
 
@@ -78,7 +71,10 @@ class Collector(object):
                 crash_id
             )
         except PolyStorageError, x:
-            self.logger.error('storage exception: %s', str(x.exceptions))
+            self.logger.error('%s storage exception: %s',
+                              crash_id,
+                              str(x.exceptions),  # log internal error set
+                              exc_info=True)
             raise
         self.logger.info('%s accepted', crash_id)
         return "CrashID=%s%s\n" % (self.dump_id_prefix, crash_id)

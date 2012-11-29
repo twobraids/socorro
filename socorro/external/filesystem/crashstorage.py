@@ -143,12 +143,12 @@ class FileSystemRawCrashStorage(CrashStorageBase):
     #--------------------------------------------------------------------------
     def _do_get_raw_dumps(self, crash_id, crash_store):
         try:
-            dumps_dict = crash_store.get_dumps(crash_id)
-            dumps_list = []
-            for dump_name, dump_pathname in dumps_dict.iteritems():
+            dumpname_paths_map = crash_store.get_dumps(crash_id)
+            dumpname_dump_map = {}
+            for dump_name, dump_pathname in dumpname_paths_map.iteritems():
                 with open(dump_pathname, 'rb') as f:
-                    dumps_list.append(f.read())
-            return dict(zip(dumps_dict.keys(), dumps_list))
+                    dumpname_dump_map[dump_name] = f.read()
+            return dumpname_dump_map
         except OSError:
             raise CrashIDNotFound(crash_id)
 
@@ -218,7 +218,7 @@ class FileSystemThrottledCrashStorage(FileSystemRawCrashStorage):
           dirPermissions=config.dir_permissions,
           logger=config.logger
         )
-        self.crash_store_iterable = (self.std_crash_store,
+        self._crash_store_tuple = (self.std_crash_store,
                                      self.def_crash_store)
 
     #--------------------------------------------------------------------------
@@ -249,20 +249,20 @@ class FileSystemThrottledCrashStorage(FileSystemRawCrashStorage):
     #--------------------------------------------------------------------------
     def get_raw_crash(self, crash_id):
         """fetch the raw_crash trying each file system in turn"""
-        for a_crash_store in self.crash_store_iterable:
+        for a_crash_store in self._crash_store_tuple:
             try:
                 pathname = a_crash_store.getJson(crash_id)
                 return self._load_raw_crash_from_file(pathname)
             except OSError:
                 # only raise the exception if we've got no more file systems
                 # to look through
-                if a_crash_store is self.crash_store_iterable[-1]:
+                if a_crash_store is self._crash_store_tuple[-1]:
                     raise CrashIDNotFound(crash_id)
 
     #--------------------------------------------------------------------------
     def get_raw_dump(self, crash_id, dump_name=None):
         """fetch the dump trying each file system in turn"""
-        for a_crash_store in self.crash_store_iterable:
+        for a_crash_store in self._crash_store_tuple:
             try:
                 job_pathname = a_crash_store.getDump(crash_id, dump_name)
                 with open(job_pathname) as  dump_file:
@@ -271,13 +271,13 @@ class FileSystemThrottledCrashStorage(FileSystemRawCrashStorage):
             except OSError:
                 # only raise the exception if we've got no more file systems
                 # to look through
-                if a_crash_store is self.crash_store_iterable[-1]:
+                if a_crash_store is self._crash_store_tuple[-1]:
                     raise CrashIDNotFound(crash_id)
 
     #--------------------------------------------------------------------------
     def get_raw_dumps(self, crash_id):
         """fetch the dump trying each file system in turn"""
-        for a_crash_store in self.crash_store_iterable:
+        for a_crash_store in self._crash_store_tuple:
             try:
                 return self._do_get_raw_dumps(crash_id, a_crash_store)
             except CrashIDNotFound:
@@ -287,7 +287,7 @@ class FileSystemThrottledCrashStorage(FileSystemRawCrashStorage):
     #--------------------------------------------------------------------------
     def remove(self, crash_id):
         """try to remove the raw_crash and the dump from each  """
-        for a_crash_store in self.crash_store_iterable:
+        for a_crash_store in self._crash_store_tuple:
             try:
                 a_crash_store.remove(crash_id)  # raises NoSuchUuidFound if
                                             # unsuccessful.
@@ -295,7 +295,7 @@ class FileSystemThrottledCrashStorage(FileSystemRawCrashStorage):
             except (NoSuchUuidFound, OSError):
                 # only raise the exception if we've got no more file systems
                 # to look through
-                if a_crash_store is self.crash_store_iterable[-1]:
+                if a_crash_store is self._crash_store_tuple[-1]:
                     raise CrashIDNotFound(crash_id)
 
 
