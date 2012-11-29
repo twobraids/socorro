@@ -44,7 +44,7 @@ class HBaseCrashStorage(CrashStorageBase):
     )
     required_config.add_option(
         'forbidden_keys',
-        default='email, url, user_id',
+        default='email, url, user_id, exploitability',
         doc='a comma delimited list of keys banned from the processed crash '
             'in HBase',
         from_string_converter=lambda s: [x.strip() for x in s.split(',')]
@@ -78,7 +78,7 @@ class HBaseCrashStorage(CrashStorageBase):
         self.hbaseConnection.close()
 
     #--------------------------------------------------------------------------
-    def save_raw_crash(self, raw_crash, dump, crash_id):
+    def save_raw_crash(self, raw_crash, dumps, crash_id):
         # the transaction_executor will run the function given as the first
         # parameter.  To that function, the transaction_executor will pass
         # self.hbaseConnection, crash_id, raw_crash, dump, and
@@ -92,7 +92,7 @@ class HBaseCrashStorage(CrashStorageBase):
             hbase_client.HBaseConnectionForCrashReports.put_json_dump,
             crash_id,
             raw_crash,
-            dump,
+            dumps,
             number_of_retries=self.config.number_of_retries
         )
 
@@ -121,12 +121,21 @@ class HBaseCrashStorage(CrashStorageBase):
         ))
 
     #--------------------------------------------------------------------------
-    def get_raw_dump(self, crash_id):
+    def get_raw_dump(self, crash_id, name=None):
         return self.transaction_executor(
             hbase_client.HBaseConnectionForCrashReports.get_dump,
             crash_id,
+            name,
             number_of_retries=self.config.number_of_retries
         )
+    #--------------------------------------------------------------------------
+    def get_raw_dumps(self, crash_id):
+        return self.transaction_executor(
+            hbase_client.HBaseConnectionForCrashReports.get_dumps,
+            crash_id,
+            number_of_retries=self.config.number_of_retries
+        )
+
 
     #--------------------------------------------------------------------------
     def get_processed_crash(self, crash_id):
