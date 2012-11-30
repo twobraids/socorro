@@ -7,6 +7,10 @@ import datetime
 import re
 import stat
 
+processor_implementation = cm.Option()
+processor_implementation.doc = 'select the processor vintage (2008, 2012)'
+processor_implementation.default = 2008
+
 #---------------------------------------------------------------------------
 # imported config
 
