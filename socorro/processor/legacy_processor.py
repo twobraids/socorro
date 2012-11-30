@@ -288,14 +288,13 @@ class LegacyCrashProcessor(RequiredConfig):
             )
             processed_crash.update(processed_crash_update)
 
-            temp_dump_pathname = self._get_temp_dump_pathname(
-                crash_id,
-                raw_dump
-            )
-            try:
-                #logger.debug('about to doBreakpadStackDumpAnalysis')
-                processed_crash_update_dict = \
-                    self._do_breakpad_stack_dump_analysis(
+            dumps_mapping = threadLocalCrashStorage.get_dumps(jobUUid)
+            for name, dump in dumps_mapping.iteritems():
+                # TODO: create temp file
+                # dumpfilePathname = something
+                try:
+                    #logger.debug('about to doBreakpadStackDumpAnalysis')
+                    dump_analysis = self._do_breakpad_stack_dump_analysis(
                         crash_id,
                         temp_dump_pathname,
                         processed_crash.hang_type,
@@ -303,9 +302,12 @@ class LegacyCrashProcessor(RequiredConfig):
                         submitted_timestamp,
                         processor_notes
                     )
-                processed_crash.update(processed_crash_update_dict)
-            finally:
-                self._cleanup_temp_file(temp_dump_pathname)
+                    if name == self.config.dump_field:
+                        processed_crash.update(dump_analysis)
+                    processed_crash[name] = dump_analysis
+                finally:
+                    # TODO: delete temp file
+                    pass
 
             processed_crash.topmost_filenames = "|".join(
                 processed_crash.get('topmost_filenames', [])

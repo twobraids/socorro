@@ -43,7 +43,6 @@ class CrashStorageSystem(object):
     ERROR = 3
     RETRY = 4
 
-
     #--------------------------------------------------------------------------
     def save_raw (self, uuid, jsonData, dumps):
         try:
@@ -130,6 +129,18 @@ class CrashStorageSystemForLocalFS(CrashStorageSystem):
         new_config.fallback.logger = config.logger
 
         self.crash_storage = FallbackCrashStorage(new_config)
+
+        #----------------------------------------------------------------------
+        def dumpPathForUuid(self, uuid, ignoredBasePath):
+            try:
+                dumpPath = self.standardJobStorage.getDump(uuid)
+            except (OSError, IOError):
+                try:
+                    dumpPath = self.deferredJobStorage.getDump(uuid)
+                except (OSError, IOError):
+                    raise UuidNotFoundException("%s cannot be found in standard or deferred storage" % uuid)
+            return dumpPath
+
 
 
 #==============================================================================

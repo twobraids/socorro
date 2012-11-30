@@ -563,8 +563,6 @@ class Processor(object):
         newReportRecordAsDict.update( crashProcessAsDict )
 
       try:
-        dumpfilePathname = threadLocalCrashStorage.dumpPathForUuid(jobUuid,
-                                                                   self.config.temporaryFileSystemStoragePath)
         #logger.debug('about to doBreakpadStackDumpAnalysis')
         if int(jsonDocument.get("Hang", False)):
           hangType = 1
@@ -577,11 +575,30 @@ class Processor(object):
           hangType = 0
 
         java_stack_trace = jsonDocument.setdefault('JavaStackTrace', None)
-        additionalReportValuesAsDict = self.doBreakpadStackDumpAnalysis(reportId, jobUuid, dumpfilePathname, hangType, java_stack_trace, threadLocalCursor, date_processed, processorErrorMessages)
-        newReportRecordAsDict.update(additionalReportValuesAsDict)
+
+        dumps_mapping = threadLocalCrashStorage.get_dumps(jobUUid)
+        for name, dump in dumps_mapping:
+          # TODO: create temp file
+          # dumpfilePathname = something
+          try:
+            dump_analysis = self.doBreakpadStackDumpAnalysis(
+              reportId,
+              jobUuid,
+              dumpfilePathname,
+              hangType,
+              java_stack_trace,
+              threadLocalCursor,
+              date_processed,
+              processorErrorMessages
+            )
+            if name == self.config.dump_field:
+              newReportRecordAsDict.update(dump_analysis)
+            newReportRecordAsDict[name] = dump_analysis
+          finally:
+            # TODO: delete temp file
+            pass
       finally:
         newReportRecordAsDict["completeddatetime"] = completedDateTime = self.nowFunc()
-        threadLocalCrashStorage.cleanUpTempDumpStorage(jobUuid, self.config.temporaryFileSystemStoragePath)
 
       #logger.debug('finished a job - cleanup')
       #finished a job - cleanup
