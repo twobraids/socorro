@@ -11,7 +11,10 @@ import threading
 import socorro.lib.util as sutil
 import socorro.lib.ver_tools as vtl
 
-from socorro.external.crashstorage_base import FallbackCrashStorage
+from socorro.external.crashstorage_base import (
+    FallbackCrashStorage,
+    CrashStorageBase,
+)
 from socorro.external.filesystem.crashstorage import FileSystemRawCrashStorage
 from socorro.external.hbase.crashstorage import HBaseCrashStorage
 from socorro.database.transaction_executor import \
@@ -27,40 +30,13 @@ pattern = re.compile(pattern_str)
 
 pattern_plus = re.compile(r'((\d+)\+)')
 
+
 #==============================================================================
 class CrashStorageSystem(object):
     #--------------------------------------------------------------------------
     def __init__ (self, config):
         self.config = config
-        self.hostname = os.uname()[1]
-        try:
-            if config.logger:
-                self.logger = config.logger
-            else:
-                self.logger = logger
-        except KeyError:
-            self.logger = logger
-        try:
-            if config.benchmark:
-                self.save = benchmark(self.save)
-        except:
-            pass
-        self.exceptionsEligibleForRetry = []
 
-    #--------------------------------------------------------------------------
-    def close (self):
-        pass
-
-    #--------------------------------------------------------------------------
-    def makeJsonDictFromForm (self, form, tm=tm):
-        jsonDict = sutil.DotDict()
-        for name in form.keys():
-            if type(form[name]) in (str, unicode):
-                jsonDict[name] = form[name]
-            else:
-                jsonDict[name] = form[name].value
-        jsonDict.timestamp = tm.time()
-        return jsonDict
     #--------------------------------------------------------------------------
     NO_ACTION = 0
     OK = 1
@@ -68,49 +44,60 @@ class CrashStorageSystem(object):
     ERROR = 3
     RETRY = 4
 
-    #--------------------------------------------------------------------------
-    def terminated (self, jsonData):
-        return False
 
     #--------------------------------------------------------------------------
-    def save_raw (self, uuid, jsonData, dump):
-        return CrashStorageSystem.NO_ACTION
+    def save_raw (self, uuid, jsonData, dumps):
+        try:
+            self.crash_storage.save_raw_crash(jsonData, dumps, uuid)
+            return CrashStorageSystem.OK
+        except Exception:
+            return CrashStorageSystem.ERROR
 
     #--------------------------------------------------------------------------
     def save_processed (self, uuid, jsonData):
-        return CrashStorageSystem.NO_ACTION
+        try:
+            if 'uuid' not in jsonData:
+                jsonData['uuid'] = uuid
+            self.crash_storage.save_processed(jsonData)
+            return CrashStorageSystem.OK
+        except Exception:
+            return CrashStorageSystem.ERROR
 
     #--------------------------------------------------------------------------
     def get_meta (self, uuid):
-        raise NotImplementedException("get_meta is not implemented")
+        return self.crash_storage.get_raw_crash(uuid)
 
     #--------------------------------------------------------------------------
-    def get_raw_dump (self, uuid):
-        raise NotImplementedException("get_raw_crash is not implemented")
-
-    #--------------------------------------------------------------------------
-    def get_raw_dump_base64(self,uuid):
-        raise NotImplementedException("get_raw_dump_base64 is not implemented")
+    def get_raw_dump (self, uuid, name=None):
+        return self.crash_storage.get_raw_dump(uuid, name)
 
     #--------------------------------------------------------------------------
     def get_processed (self, uuid):
-        raise NotImplementedException("get_processed is not implemented")
+        return self.crash_storage.get_processed(uuid)
 
     #--------------------------------------------------------------------------
     def remove (self, uuid):
-        raise NotImplementedException("remove is not implemented")
+        try:
+            self.crash_storage.remove(uuid)
+            return CrashStorageSystem.OK
+        except Exception:
+            return CrashStorageSystem.ERROR
 
     #--------------------------------------------------------------------------
     def quickDelete (self, uuid):
-        raise self.remove(uuid)
+        return self.remove(uuid)
 
     #--------------------------------------------------------------------------
     def uuidInStorage (self, uuid):
-        return False
+        try:
+            self.crash_storage.get_raw_crash(uuid)
+            return True
+        except Exception:
+            return False
 
     #--------------------------------------------------------------------------
     def newUuids(self):
-        raise StopIteration
+        return self.crash_storage.new_crashes()
 
 
 #==============================================================================
@@ -146,9 +133,8 @@ class CrashStorageSystemForLocalFS(CrashStorageSystem):
         self.crash_storage = FallbackCrashStorage(new_config)
 
 
-
 #==============================================================================
-class CrashStorageSystemForHBase(HBaseCrashStorage, CrashStorageSystem):
+class CrashStorageSystemForHBase(CrashStorageSystem):
     def __init__(self, config):
         # new_config is an adapter to allow the modern configman enabled
         # file system crash storage classes to use the old style configuration.
@@ -165,7 +151,7 @@ class CrashStorageSystemForHBase(HBaseCrashStorage, CrashStorageSystem):
         new_config.backoff_delays = [10, 30, 60, 120, 300]
         new_config.wait_log_interval = 5
 
-        super(CrashStorageSystemForHBase, self).__init__(new_config)
+        self.crash_storage = HBaseCrashStorage(new_config)
 
 
 #==============================================================================
