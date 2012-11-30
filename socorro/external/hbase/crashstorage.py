@@ -136,7 +136,6 @@ class HBaseCrashStorage(CrashStorageBase):
             number_of_retries=self.config.number_of_retries
         )
 
-
     #--------------------------------------------------------------------------
     def get_processed_crash(self, crash_id):
         try:

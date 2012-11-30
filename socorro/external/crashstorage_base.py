@@ -143,6 +143,14 @@ class CrashStorageBase(RequiredConfig):
         raise NotImplementedError("get_raw_dumps is not implemented")
 
     #--------------------------------------------------------------------------
+    def get_raw_dumps_as_files(self, crash_id):
+        """the default implementation of fetching all the dumps
+
+        parameters:
+           crash_id - the id of a dump to fetch"""
+        raise NotImplementedError("get_raw_dumps is not implemented")
+
+    #--------------------------------------------------------------------------
     def get_processed(self, crash_id):
         """the default implementation of fetching a processed_crash
 
