@@ -26,9 +26,94 @@ pattern = re.compile(pattern_str)
 
 pattern_plus = re.compile(r'((\d+)\+)')
 
+#==============================================================================
+class CrashStorageSystem(object):
+    #--------------------------------------------------------------------------
+    def __init__ (self, config):
+        self.config = config
+        self.hostname = os.uname()[1]
+        try:
+            if config.logger:
+                self.logger = config.logger
+            else:
+                self.logger = logger
+        except KeyError:
+            self.logger = logger
+        try:
+            if config.benchmark:
+                self.save = benchmark(self.save)
+        except:
+            pass
+        self.exceptionsEligibleForRetry = []
+
+    #--------------------------------------------------------------------------
+    def close (self):
+        pass
+
+    #--------------------------------------------------------------------------
+    def makeJsonDictFromForm (self, form, tm=tm):
+        jsonDict = sutil.DotDict()
+        for name in form.keys():
+            if type(form[name]) in (str, unicode):
+                jsonDict[name] = form[name]
+            else:
+                jsonDict[name] = form[name].value
+        jsonDict.timestamp = tm.time()
+        return jsonDict
+    #--------------------------------------------------------------------------
+    NO_ACTION = 0
+    OK = 1
+    DISCARDED = 2
+    ERROR = 3
+    RETRY = 4
+
+    #--------------------------------------------------------------------------
+    def terminated (self, jsonData):
+        return False
+
+    #--------------------------------------------------------------------------
+    def save_raw (self, uuid, jsonData, dump):
+        return CrashStorageSystem.NO_ACTION
+
+    #--------------------------------------------------------------------------
+    def save_processed (self, uuid, jsonData):
+        return CrashStorageSystem.NO_ACTION
+
+    #--------------------------------------------------------------------------
+    def get_meta (self, uuid):
+        raise NotImplementedException("get_meta is not implemented")
+
+    #--------------------------------------------------------------------------
+    def get_raw_dump (self, uuid):
+        raise NotImplementedException("get_raw_crash is not implemented")
+
+    #--------------------------------------------------------------------------
+    def get_raw_dump_base64(self,uuid):
+        raise NotImplementedException("get_raw_dump_base64 is not implemented")
+
+    #--------------------------------------------------------------------------
+    def get_processed (self, uuid):
+        raise NotImplementedException("get_processed is not implemented")
+
+    #--------------------------------------------------------------------------
+    def remove (self, uuid):
+        raise NotImplementedException("remove is not implemented")
+
+    #--------------------------------------------------------------------------
+    def quickDelete (self, uuid):
+        raise self.remove(uuid)
+
+    #--------------------------------------------------------------------------
+    def uuidInStorage (self, uuid):
+        return False
+
+    #--------------------------------------------------------------------------
+    def newUuids(self):
+        raise StopIteration
+
 
 #==============================================================================
-class CrashStorageSystemForLocalFS(FallbackCrashStorage):
+class CrashStorageSystemForLocalFS(CrashStorageSystem):
     def __init__(self, config):
         # new_config is an adapter to allow the modern configman enabled
         # file system crash storage classes to use the old style configuration.
@@ -57,11 +142,12 @@ class CrashStorageSystemForLocalFS(FallbackCrashStorage):
         new_config.fallback.dump_file_suffix = config.dumpFileSuffix
         new_config.fallback.logger = config.logger
 
-        super(CrashStorageSystemForLocalFS, self).__init__(new_config)
+        self.crash_storage = FallbackCrashStorage(new_config)
+
 
 
 #==============================================================================
-class CrashStorageSystemForHBase(HBaseCrashStorage):
+class CrashStorageSystemForHBase(HBaseCrashStorage, CrashStorageSystem):
     def __init__(self, config):
         # new_config is an adapter to allow the modern configman enabled
         # file system crash storage classes to use the old style configuration.
@@ -87,7 +173,7 @@ class LegacyThrottler(object):
     def __init__(self, config):
         self.config = config
         self.processedThrottleConditions = \
-          self.preprocessThrottleConditions(config.throttleConditions)
+            self.preprocessThrottleConditions(config.throttleConditions)
     #--------------------------------------------------------------------------
     ACCEPT = 0
     DEFER = 1
@@ -140,10 +226,10 @@ class LegacyThrottler(object):
     def understandsRefusal(self, raw_crash):
         try:
             return (vtl.normalize(raw_crash['Version']) >= vtl.normalize(
-              self.config.minimalVersionForUnderstandingRefusal[
-                raw_crash['ProductName']
-              ])
-            )
+                self.config.minimalVersionForUnderstandingRefusal[
+                    raw_crash['ProductName']
+                ])
+                    )
         except KeyError:
             return False
 
