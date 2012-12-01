@@ -108,7 +108,8 @@ class CrashStorageSystem(object):
 
 #==============================================================================
 class CrashStorageSystemForLocalFS(CrashStorageSystem):
-    def __init__(self, config):
+    def __init__(self, config, quit_check=None):
+        super(CrashStorageSystemForLocalFS, self).__init__(config, quit_check)
         # new_config is an adapter to allow the modern configman enabled
         # file system crash storage classes to use the old style configuration.
         new_config = DotDict()
@@ -136,24 +137,13 @@ class CrashStorageSystemForLocalFS(CrashStorageSystem):
         new_config.fallback.dump_file_suffix = config.dumpFileSuffix
         new_config.fallback.logger = config.logger
 
-        self.crash_storage = FallbackCrashStorage(new_config)
-
-        #----------------------------------------------------------------------
-        def dumpPathForUuid(self, uuid, ignoredBasePath):
-            try:
-                dumpPath = self.standardJobStorage.getDump(uuid)
-            except (OSError, IOError):
-                try:
-                    dumpPath = self.deferredJobStorage.getDump(uuid)
-                except (OSError, IOError):
-                    raise UuidNotFoundException("%s cannot be found in standard or deferred storage" % uuid)
-            return dumpPath
-
+        self.crash_storage = FallbackCrashStorage(new_config, quit_check)
 
 
 #==============================================================================
 class CrashStorageSystemForHBase(CrashStorageSystem):
     def __init__(self, config):
+        super(CrashStorageSystemForHBase, self).__init__(config, quit_check)
         # new_config is an adapter to allow the modern configman enabled
         # file system crash storage classes to use the old style configuration.
         new_config = DotDict()
@@ -169,7 +159,7 @@ class CrashStorageSystemForHBase(CrashStorageSystem):
         new_config.backoff_delays = [10, 30, 60, 120, 300]
         new_config.wait_log_interval = 5
 
-        self.crash_storage = HBaseCrashStorage(new_config)
+        self.crash_storage = HBaseCrashStorage(new_config, quit_check)
 
 
 #==============================================================================
@@ -300,11 +290,13 @@ class LegacyThrottler(object):
 #==============================================================================
 class CrashStoragePool(dict):
     #--------------------------------------------------------------------------
-    def __init__(self, config, storageClass=CrashStorageSystemForHBase):
+    def __init__(self, config, storageClass=CrashStorageSystemForHBase,
+                 quit_check=None):
         super(CrashStoragePool, self).__init__()
         self.config = config
         self.logger = config.logger
         self.storageClass = storageClass
+        self.quit_check_fn = quit_check
         self.logger.debug("creating crashStorePool")
 
     #--------------------------------------------------------------------------
@@ -315,7 +307,8 @@ class CrashStoragePool(dict):
             name = threading.currentThread().getName()
         if name not in self:
             self.logger.debug("creating crashStore for %s", name)
-            self[name] = c = self.storageClass(self.config)
+            self[name] = c = self.storageClass(self.config,
+                                               self.quit_check_fn)
             return c
         return self[name]
 

@@ -200,8 +200,9 @@ def processor2012(config):
     # doc: a local filesystem path dumps can be temporarily written
     #      for processing
     # converter: str
-    trans_config.processor.temporary_file_system_storage_path = \
+    trans_config.destination.storage1.temporary_file_system_storage_path = \
         config.temporaryFileSystemStoragePath
+
 
     #--------------------------------------------------------------------------
     # storage2 -

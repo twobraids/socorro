@@ -116,7 +116,8 @@ class Processor(object):
       assert x in config, '%s missing from configuration' % x
 
     self.crashStorePool = cstore.CrashStoragePool(config,
-                                                  storageClass=config.hbaseStorageClass)
+                                                  storageClass=config.hbaseStorageClass,
+                                                  quit_check=self.quitCheck)
 
     self.sdb = sdb
     self.os = os
@@ -286,8 +287,9 @@ class Processor(object):
         to a SIGTERM as neatly as it responds to ^C.
     """
     signame = 'SIGTERM'
-    if signalNumber != signal.SIGTERM: signame = 'SIGHUP'
-    logger.info("%s detected",signame)
+    if signalNumber != signal.SIGTERM:
+      signame = 'SIGHUP'
+    logger.info("%s detected", signame)
     raise KeyboardInterrupt
 
   #-----------------------------------------------------------------------------
