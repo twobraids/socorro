@@ -49,6 +49,12 @@ class HBaseCrashStorage(CrashStorageBase):
             'in HBase',
         from_string_converter=lambda s: [x.strip() for x in s.split(',')]
     )
+    required_config.add_option(
+        'temporary_file_system_storage_path',
+        doc='a local filesystem path where dumps temporarily '
+            'during processing',
+        default='/home/socorro/temp',
+    )
 
     #--------------------------------------------------------------------------
     def __init__(self, config, quit_check_callback=None):
@@ -136,6 +142,25 @@ class HBaseCrashStorage(CrashStorageBase):
             crash_id,
             number_of_retries=self.config.number_of_retries
         )
+    #--------------------------------------------------------------------------
+    def get_raw_dumps_as_files(self, crash_id):
+        """this method fetches a set of dumps from HBase and writes each one
+        to a temporary file.  The pathname for the dump includes the string
+        'TEMPORARY' as a signal to the processor that it has the responsibilty
+        to delete the file when it is done using it."""
+        dumps_mapping = self.transaction_executor(
+            hbase_client.HBaseConnectionForCrashReports.get_dumps,
+            crash_id,
+            number_of_retries=self.config.number_of_retries
+        )
+        name_to_pathname_mapping = {}
+        for name, dump in dumps_mapping.iteritems():
+            dump_pathname = os.path.join(
+                self.config.temporary_file_system_storage_path,
+                "%s.TEMPORARY%s" % (crash_id, self.config.dump_suffix)
+            )
+            name_to_pathname_mapping[name] = dump_pathname
+        return name_to_pathname_mapping
 
     #--------------------------------------------------------------------------
     def get_processed_crash(self, crash_id):

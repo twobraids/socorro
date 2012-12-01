@@ -160,6 +160,13 @@ class FileSystemRawCrashStorage(CrashStorageBase):
         return self._do_get_raw_dumps(crash_id, self.std_crash_store)
 
     #--------------------------------------------------------------------------
+    def get_raw_dumps_as_files(self, crash_id):
+        """read the all the binary crash dumps from the underlying file system
+        by getting the pathnames and then opening and reading the files.
+        returns a dict of dump names to binary dumps"""
+        return self.std_crash_store.get_dumps(crash_id)
+
+    #--------------------------------------------------------------------------
     def new_crashes(self):
         """return an iterator that yields a list of crash_ids of raw crashes
         that were added to the file system since the last time this iterator
@@ -280,6 +287,16 @@ class FileSystemThrottledCrashStorage(FileSystemRawCrashStorage):
         for a_crash_store in self._crash_store_tuple:
             try:
                 return self._do_get_raw_dumps(crash_id, a_crash_store)
+            except CrashIDNotFound:
+                pass # try the next crash store
+        raise CrashIDNotFound(crash_id)
+
+    #--------------------------------------------------------------------------
+    def get_raw_dumps_as_files(self, crash_id):
+        """fetch the dump trying each file system in turn"""
+        for a_crash_store in self._crash_store_tuple:
+            try:
+                return a_crash_store.get_dumps(crash_id)
             except CrashIDNotFound:
                 pass # try the next crash store
         raise CrashIDNotFound(crash_id)

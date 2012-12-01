@@ -577,10 +577,13 @@ class Processor(object):
         java_stack_trace = jsonDocument.setdefault('JavaStackTrace', None)
 
         dumps_mapping = threadLocalCrashStorage.get_raw_dumps(jobUuid)
+        print "******", dumps_mapping
         for name, dump in dumps_mapping.iteritems():
+          # write a temp copy of the dump out for analysis
+          print "$$$$$$$$$"
           temp_pathname = os.path.join(
             self.config.temporaryFileSystemStoragePath,
-            'temp.dump'
+            '%s.dump' % jobUuid
           )
           with open(temp_pathname, "wb") as f:
             f.write(dump)
@@ -596,10 +599,12 @@ class Processor(object):
               processorErrorMessages
             )
           finally:
+            # delete the temporary copy of the dump after analysis
             os.unlink(temp_pathname)
           if name == self.config.dumpField:
             newReportRecordAsDict.update(dump_analysis)
-          newReportRecordAsDict[name] = dump_analysis
+          else:
+            newReportRecordAsDict[name] = dump_analysis
       finally:
         newReportRecordAsDict["completeddatetime"] = completedDateTime = self.nowFunc()
 

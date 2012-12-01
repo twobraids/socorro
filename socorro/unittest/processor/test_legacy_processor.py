@@ -27,6 +27,7 @@ def setup_config_with_mocks():
     )
     config.database = mock.Mock()
     config.database_class = mock.Mock(return_value=config.database)
+    config.dump_field = 'upload_file_minidump'
 
     config.stackwalk_command_line = (
       '$minidump_stackwalk_pathname -m $dumpfilePathname '
@@ -240,7 +241,8 @@ class TestLegacyProcessor(unittest.TestCase):
                 raw_crash = DotDict()
                 raw_crash.uuid = '3bc4bcaa-b61d-4d1f-85ae-30cb32120504'
                 raw_crash.submitted_timestamp = '2012-05-04T15:33:33'
-                raw_dump = 'abcdef'
+                raw_dump = {'upload_file_minidump':
+                                '/some/path/%s.dump' % raw_crash.uuid}
                 leg_proc = LegacyCrashProcessor(config, config.mock_quit_fn)
 
                 started_timestamp = datetime(2012, 5, 4, 15, 10)
@@ -254,10 +256,6 @@ class TestLegacyProcessor(unittest.TestCase):
                 basic_processed_crash.java_stack_trace = None
                 leg_proc._create_basic_processed_crash = mock.Mock(
                   return_value=basic_processed_crash)
-
-                leg_proc._get_temp_dump_pathname = mock.Mock(
-                  return_value='/tmp/x'
-                )
 
                 leg_proc._log_job_end = mock.Mock()
 
@@ -300,31 +298,16 @@ class TestLegacyProcessor(unittest.TestCase):
 
                 self.assertEqual(
                   1,
-                  leg_proc._get_temp_dump_pathname.call_count
-                )
-                leg_proc._get_temp_dump_pathname.assert_called_with(
-                  raw_crash.uuid,
-                  raw_dump
-                )
-
-                self.assertEqual(
-                  1,
                   leg_proc._do_breakpad_stack_dump_analysis.call_count
                 )
                 leg_proc._do_breakpad_stack_dump_analysis.assert_called_with(
                   raw_crash.uuid,
-                  '/tmp/x',
+                  '/some/path/%s.dump' % raw_crash.uuid,
                   0,
                   None,
                   datetime(2012, 5, 4, 15, 33, 33, tzinfo=UTC),
                   []
                 )
-
-                self.assertEqual(
-                  1,
-                  leg_proc._cleanup_temp_file.call_count
-                )
-                leg_proc._cleanup_temp_file.assert_called_with('/tmp/x')
 
                 self.assertEqual(1, leg_proc._log_job_end.call_count)
                 leg_proc._log_job_end.assert_called_with(
@@ -362,7 +345,7 @@ class TestLegacyProcessor(unittest.TestCase):
                 raw_crash = DotDict()
                 raw_crash.uuid = '3bc4bcaa-b61d-4d1f-85ae-30cb32120504'
                 raw_crash.submitted_timestamp = '2012-05-04T15:33:33'
-                raw_dump = 'abcdef'
+                raw_dump = {'upload_file_minidump': 'abcdef'}
 
                 leg_proc = LegacyCrashProcessor(config, config.mock_quit_fn)
 
@@ -392,20 +375,12 @@ class TestLegacyProcessor(unittest.TestCase):
                                         'inquisition')
                 )
 
-                leg_proc._cleanup_temp_file = mock.Mock()
-
                  # Here's the call being tested
                 processed_crash = \
                     leg_proc.convert_raw_crash_to_processed_crash(
                       raw_crash,
                       raw_dump
                     )
-
-                self.assertEqual(
-                  1,
-                  leg_proc._cleanup_temp_file.call_count
-                )
-                leg_proc._cleanup_temp_file.assert_called_with('/tmp/x')
 
                 self.assertEqual(1, leg_proc._log_job_end.call_count)
                 leg_proc._log_job_end.assert_called_with(

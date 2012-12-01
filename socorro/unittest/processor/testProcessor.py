@@ -77,7 +77,8 @@ def createExecutionContext ():
                             "crashingThreadTailFrameThreshold": "",
                             "stackwalkCommandLine": "",
                             "exploitability_tool_command_line": "",
-                            "exploitability_tool_pathname": '/fake/exploit/tool'})
+                            "exploitability_tool_pathname": '/fake/exploit/tool',
+                            "dumpField": 'upload_file_minidump'})
     c.config = config
 
     c.logger = sutil.StringLogger()
@@ -758,11 +759,12 @@ def testProcessJob06():
                                           new_report_record)
     p.insertReportIntoDatabase = fakeInsertReportIntoDatabaseFn
     c.fakeConnection.expect('commit', (), {}, None)
-    dump_pathname = '/tmp/uuid1.dump'
-    c.fakeCrashStorage.expect('dumpPathForUuid',
-                              (ooid1, c.config.temporaryFileSystemStoragePath),
+    dump_pathname = '/tmp/ooid1.dump'
+    c.fakeCrashStorage.expect('get_raw_dumps',
+                              (ooid1,),
                               {},
-                              dump_pathname)
+                              {'upload_file_minidump': dump_pathname}
+                              )
     fakeDoBreakpadStackDumpAnalysisFn = exp.DummyObjectWithExpectations()
     p.doBreakpadStackDumpAnalysis = fakeDoBreakpadStackDumpAnalysisFn
     fakeDoBreakpadStackDumpAnalysisFn.expect('__call__',
@@ -854,11 +856,12 @@ def testProcessJob07():
                                           new_report_record)
     p.insertReportIntoDatabase = fakeInsertReportIntoDatabaseFn
     c.fakeConnection.expect('commit', (), {}, None)
-    dump_pathname = '/tmp/uuid1.dump'
-    c.fakeCrashStorage.expect('dumpPathForUuid',
-                              (ooid1, c.config.temporaryFileSystemStoragePath),
+    dump_pathname = '/tmp/ooid1.dump'
+    c.fakeCrashStorage.expect('get_raw_dumps',
+                              (ooid1,),
                               {},
-                              dump_pathname)
+                              {'upload_file_minidump': dump_pathname}
+                              )
     fakeDoBreakpadStackDumpAnalysisFn = exp.DummyObjectWithExpectations()
     p.doBreakpadStackDumpAnalysis = fakeDoBreakpadStackDumpAnalysisFn
     expected_signature = 'hang | %s...' % ('s' * 245)
@@ -1008,11 +1011,11 @@ def testProcessJobProductIdOverride():
                                           new_report_record)
     p.insertReportIntoDatabase = fakeInsertReportIntoDatabaseFn
     c.fakeConnection.expect('commit', (), {}, None)
-    dump_pathname = '/tmp/uuid1.dump'
-    c.fakeCrashStorage.expect('dumpPathForUuid',
-                              (ooid1, c.config.temporaryFileSystemStoragePath),
+    dump_pathname = '/tmp/ooid1.dump'
+    c.fakeCrashStorage.expect('get_raw_dumps',
+                              (ooid1,),
                               {},
-                              dump_pathname)
+                              {'upload_file_minidump': dump_pathname})
     fakeDoBreakpadStackDumpAnalysisFn = exp.DummyObjectWithExpectations()
     p.doBreakpadStackDumpAnalysis = fakeDoBreakpadStackDumpAnalysisFn
     expected_signature = 'hang | %s...' % ('s' * 245)
@@ -1162,11 +1165,12 @@ def testProcessdJobDefaultIsNotAHang():
                                           new_report_record)
     p.insertReportIntoDatabase = fakeInsertReportIntoDatabaseFn
     c.fakeConnection.expect('commit', (), {}, None)
-    dump_pathname = '/tmp/uuid1.dump'
-    c.fakeCrashStorage.expect('dumpPathForUuid',
-                              (ooid1, c.config.temporaryFileSystemStoragePath),
+    dump_pathname = '/tmp/ooid1.dump'
+    c.fakeCrashStorage.expect('get_raw_dumps',
+                              (ooid1,),
                               {},
-                              dump_pathname)
+                              {'upload_file_minidump': dump_pathname}
+                              )
     fakeDoBreakpadStackDumpAnalysisFn = exp.DummyObjectWithExpectations()
     p.doBreakpadStackDumpAnalysis = fakeDoBreakpadStackDumpAnalysisFn
     expected_signature = '%s...' % ('s' * 252)

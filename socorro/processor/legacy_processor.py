@@ -11,7 +11,7 @@ import subprocess
 import datetime
 import time
 from urllib import unquote_plus
-from contextlib import closing
+from contextlib import closing, contextmanager
 
 from configman import Namespace, RequiredConfig
 from configman.converters import class_converter
@@ -111,12 +111,6 @@ class LegacyCrashProcessor(RequiredConfig):
         doc='the number of frames to keep in the raw dump at the tail of the '
         'frame list',
         default=10,
-    )
-    required_config.add_option(
-        'temporary_file_system_storage_path',
-        doc='a local filesystem path where processor can write dumps '
-        'temporarily for processing',
-        default='/home/socorro/temp',
     )
     required_config.add_option(
         'dump_field',
@@ -293,15 +287,8 @@ class LegacyCrashProcessor(RequiredConfig):
             )
             processed_crash.update(processed_crash_update)
 
-            for name, dump in raw_dumps.iteritems():
-                temp_pathname = os.path.join(
-                  self.config.temporary_file_system_storage_path,
-                  'temp.dump'
-                )
-                with open(temp_pathname, "wb") as f:
-                    f.write(dump)
-                try:
-                    #logger.debug('about to doBreakpadStackDumpAnalysis')
+            for name, dump_pathname in raw_dumps.iteritems():
+                with self._temp_file_context(dump_pathname) as temp_pathname:
                     dump_analysis = self._do_breakpad_stack_dump_analysis(
                         crash_id,
                         temp_pathname,
@@ -310,11 +297,10 @@ class LegacyCrashProcessor(RequiredConfig):
                         submitted_timestamp,
                         processor_notes
                     )
-                    if name == self.config.dump_field:
-                        processed_crash.update(dump_analysis)
+                if name == self.config.dump_field:
+                    processed_crash.update(dump_analysis)
+                else:
                     processed_crash[name] = dump_analysis
-                finally:
-                    os.unlink(temp_pathname)
             processed_crash.topmost_filenames = "|".join(
                 processed_crash.get('topmost_filenames', [])
             )
@@ -322,7 +308,7 @@ class LegacyCrashProcessor(RequiredConfig):
                 processed_crash.Winsock_LSP = raw_crash.Winsock_LSP
             except KeyError:
                 pass  # if it's not in the original raw_crash,
-                        # it does get into the jsonz
+                        # it does not get into the processed_crash
 
         #except (KeyboardInterrupt, SystemExit):
             #self.config.logger.info("quit request detected")
@@ -1060,27 +1046,25 @@ class LegacyCrashProcessor(RequiredConfig):
         )
 
     #--------------------------------------------------------------------------
-    def _get_temp_dump_pathname(self, crash_id, raw_dump):
-        base_path = self.config.temporary_file_system_storage_path
-        dump_path = ("%s/%s.dump" % (base_path, crash_id)).replace('//', '/')
-        with open(dump_path, "w") as f:
-            f.write(raw_dump)
-        return dump_path
+    @contextmanager
+    def _temp_file_context(self, raw_dump_path):
+        """this contextmanager implements conditionally deleting a pathname
+        at the end of a context iff the pathname indicates that it is a temp
+        file by having the word 'TEMPORARY' embedded in it."""
+        yield raw_dump_path
+        if 'TEMPORARY' in raw_dump_path:
+            try:
+                os.unlink(pathname)
+            except OSError:
+                self.config.logger.warning(
+                    'unable to delete %s. manual deletion is required.',
+                    pathname,
+                    exc_info=True
+                )
 
     #--------------------------------------------------------------------------
-    def _cleanup_temp_file(self, pathname):
-        try:
-            os.unlink(pathname)
-        except IOError:
-            self.config.logger.warning(
-                'unable to delete %s. manual deletion is required.',
-                pathname,
-                exc_info=True
-            )
-
-    #--------------------------------------------------------------------------
-    def __call__(self, raw_crash, raw_dump):
-        self.convert_raw_crash_to_processed_crash(raw_crash, raw_dump)
+    def __call__(self, raw_crash, raw_dumps):
+        self.convert_raw_crash_to_processed_crash(raw_crash, raw_dumps)
 
     #--------------------------------------------------------------------------
     def _log_job_start(self, crash_id):

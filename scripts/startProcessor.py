@@ -196,6 +196,13 @@ def processor2012(config):
     # converter: int
     trans_config.destination.storage1.wait_log_interval = 5
 
+    # name: destination.storage1.temporary_file_system_storage_path
+    # doc: a local filesystem path dumps can be temporarily written
+    #      for processing
+    # converter: str
+    trans_config.processor.temporary_file_system_storage_path = \
+        config.temporaryFileSystemStoragePath
+
     #--------------------------------------------------------------------------
     # storage2 -
     trans_config.destination.storage2 = DotDict()
@@ -438,13 +445,6 @@ def processor2012(config):
     #      spaces)
     # converter: str
     trans_config.processor.symbol_cache_path = config.symbolCachePath
-
-    # name: processor.temporary_file_system_storage_path
-    # doc: a local filesystem path where processor can write dumps temporarily for
-    #      processing
-    # converter: str
-    trans_config.processor.temporary_file_system_storage_path = \
-        config.temporaryFileSystemStoragePath
 
     # name: processor.transaction_executor_class
     # doc: a class that will manage transactions
