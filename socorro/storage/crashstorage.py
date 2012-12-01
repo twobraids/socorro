@@ -44,6 +44,10 @@ class CrashStorageSystem(object):
     RETRY = 4
 
     #--------------------------------------------------------------------------
+    def close (self):
+        pass
+
+    #--------------------------------------------------------------------------
     def save_raw (self, uuid, jsonData, dumps):
         try:
             self.crash_storage.save_raw_crash(jsonData, dumps, uuid)
@@ -68,6 +72,10 @@ class CrashStorageSystem(object):
     #--------------------------------------------------------------------------
     def get_raw_dump (self, uuid, name=None):
         return self.crash_storage.get_raw_dump(uuid, name)
+
+    #--------------------------------------------------------------------------
+    def get_raw_dumps (self, uuid):
+        return self.crash_storage.get_raw_dumps(uuid)
 
     #--------------------------------------------------------------------------
     def get_processed (self, uuid):

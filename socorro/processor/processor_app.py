@@ -111,7 +111,7 @@ class ProcessorApp(FetchTransformSaveApp):
         processed crash is saved to the 'destination'."""
         try:
             raw_crash = self.source.get_raw_crash(crash_id)
-            dump = self.source.get_raw_dump(crash_id)
+            dumps = self.source.get_raw_dumps(crash_id)
         except CrashIDNotFound:
             self.processor.reject_raw_crash(
               crash_id,
@@ -130,7 +130,7 @@ class ProcessorApp(FetchTransformSaveApp):
         processed_crash = \
           self.processor.convert_raw_crash_to_processed_crash(
             raw_crash,
-            dump
+            dumps
           )
         self.destination.save_processed(processed_crash)
 

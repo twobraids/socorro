@@ -57,7 +57,7 @@ numberOfThreads.default = 4
 
 processorId = cm.Option()
 processorId.doc = 'the id number for the processor (must already exist) (0 for create new Id, "auto" for autodetection, "host" for same host)'
-processorId.default = "host"
+processorId.default = "forcehost"
 
 stackwalkCommandLine = cm.Option()
 stackwalkCommandLine.doc = 'the template for the command to invoke minidump_stackwalk'

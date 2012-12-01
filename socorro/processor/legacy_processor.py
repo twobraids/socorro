@@ -118,6 +118,11 @@ class LegacyCrashProcessor(RequiredConfig):
         'temporarily for processing',
         default='/home/socorro/temp',
     )
+    required_config.add_option(
+        'dump_field',
+        doc='the default name of a dump',
+        default='upload_file_minidump',
+    )
     required_config.namespace('c_signature')
     required_config.c_signature.add_option(
         'c_signature_tool_class',
@@ -248,7 +253,7 @@ class LegacyCrashProcessor(RequiredConfig):
         self._log_job_end(utc_now(), False, crash_id)
 
     #--------------------------------------------------------------------------
-    def convert_raw_crash_to_processed_crash(self, raw_crash, raw_dump):
+    def convert_raw_crash_to_processed_crash(self, raw_crash, raw_dumps):
         """ This function is run only by a worker thread.
             Given a job, fetch a thread local database connection and the json
             document.  Use these to create the record in the 'reports' table,
@@ -288,15 +293,18 @@ class LegacyCrashProcessor(RequiredConfig):
             )
             processed_crash.update(processed_crash_update)
 
-            dumps_mapping = threadLocalCrashStorage.get_dumps(jobUUid)
-            for name, dump in dumps_mapping.iteritems():
-                # TODO: create temp file
-                # dumpfilePathname = something
+            for name, dump in raw_dumps.iteritems():
+                temp_pathname = os.path.join(
+                  self.config.temporary_file_system_storage_path,
+                  'temp.dump'
+                )
+                with open(temp_pathname, "wb") as f:
+                    f.write(dump)
                 try:
                     #logger.debug('about to doBreakpadStackDumpAnalysis')
                     dump_analysis = self._do_breakpad_stack_dump_analysis(
                         crash_id,
-                        temp_dump_pathname,
+                        temp_pathname,
                         processed_crash.hang_type,
                         processed_crash.java_stack_trace,
                         submitted_timestamp,
@@ -306,9 +314,7 @@ class LegacyCrashProcessor(RequiredConfig):
                         processed_crash.update(dump_analysis)
                     processed_crash[name] = dump_analysis
                 finally:
-                    # TODO: delete temp file
-                    pass
-
+                    os.unlink(temp_pathname)
             processed_crash.topmost_filenames = "|".join(
                 processed_crash.get('topmost_filenames', [])
             )
