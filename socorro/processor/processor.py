@@ -576,27 +576,30 @@ class Processor(object):
 
         java_stack_trace = jsonDocument.setdefault('JavaStackTrace', None)
 
-        dumps_mapping = threadLocalCrashStorage.get_dumps(jobUUid)
-        for name, dump in dumps_mapping:
-          # TODO: create temp file
-          # dumpfilePathname = something
+        dumps_mapping = threadLocalCrashStorage.get_raw_dumps(jobUuid)
+        for name, dump in dumps_mapping.iteritems():
+          temp_pathname = os.path.join(
+            self.config.temporaryFileSystemStoragePath,
+            'temp.dump'
+          )
+          with open(temp_pathname, "wb") as f:
+            f.write(dump)
           try:
             dump_analysis = self.doBreakpadStackDumpAnalysis(
               reportId,
               jobUuid,
-              dumpfilePathname,
+              temp_pathname,
               hangType,
               java_stack_trace,
               threadLocalCursor,
               date_processed,
               processorErrorMessages
             )
-            if name == self.config.dump_field:
-              newReportRecordAsDict.update(dump_analysis)
-            newReportRecordAsDict[name] = dump_analysis
           finally:
-            # TODO: delete temp file
-            pass
+            os.unlink(temp_pathname)
+          if name == self.config.dumpField:
+            newReportRecordAsDict.update(dump_analysis)
+          newReportRecordAsDict[name] = dump_analysis
       finally:
         newReportRecordAsDict["completeddatetime"] = completedDateTime = self.nowFunc()
 
