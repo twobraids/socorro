@@ -440,11 +440,7 @@ class HBaseConnectionForCrashReports(HBaseConnection):
         )
         try:
             if listOfRawRows:
-                try:  # DEBUG REMOVE
-                    return listOfRawRows[0].columns["meta_data:json"].value
-                except KeyError:
-                    print "######", listOfRawRows[0].columns.keys()
-                    print "###### missing data?", ooid
+                return listOfRawRows[0].columns["meta_data:json"].value
             else:
                 raise OoidNotFoundException("%s - %s" % (ooid, row_id))
         except KeyError:

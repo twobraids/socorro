@@ -7,6 +7,7 @@ import time
 import json
 import unittest
 import mock
+from contextlib import nested
 
 from configman import ConfigurationManager
 
@@ -14,11 +15,16 @@ from socorro.external.hbase import hbase_client
 
 from socorro.external.crashstorage_base import CrashIDNotFound
 from socorro.external.hbase.crashstorage import HBaseCrashStorage
+from socorro.external.hbase.connection_context import \
+     HBaseConnectionContextPooled
 from socorro.lib.util import DotDict
 from socorro.unittest.config import commonconfig
 from socorro.database.transaction_executor import (
   TransactionExecutorWithLimitedBackoff
 )
+
+class SomeThriftError(Exception):
+    pass
 
 _run_integration_tests = os.environ.get('RUN_HBASE_INTEGRATION_TESTS', False)
 if _run_integration_tests in ('false', 'False', 'no', '0'):
@@ -171,9 +177,6 @@ class TestHBaseCrashStorage(unittest.TestCase):
             hbaseclient_ = 'socorro.external.hbase.crashstorage.hbase_client'
             with mock.patch(hbaseclient_) as hclient:
 
-                class SomeThriftError(Exception):
-                    pass
-
                 klass = hclient.HBaseConnectionForCrashReports
 
                 def retry_raiser(*args, **kwargs):
@@ -194,102 +197,89 @@ class TestHBaseCrashStorage(unittest.TestCase):
                 #self.assertEqual(instance.put_json_dump.call_count, 3)
 
     def test_hbase_crashstorage_error_after_retries(self):
-        mock_logging = mock.Mock()
-        required_config = HBaseCrashStorage.required_config
-        required_config.add_option('logger', default=mock_logging)
+        cshbaseclient_ = 'socorro.external.hbase.crashstorage.hbase_client'
+        cchbaseclient_ = \
+            'socorro.external.hbase.connection_context.hbase_client'
+        with nested(mock.patch(cshbaseclient_),
+                    mock.patch(cchbaseclient_)) as (cshclient, cchclient):
 
-        config_manager = ConfigurationManager(
-          [required_config],
-          app_name='testapp',
-          app_version='1.0',
-          app_description='app description',
-          values_source_list=[{
-            'logger': mock_logging,
-            'hbase_timeout': 100,
-            'hbase_host': commonconfig.hbaseHost.default,
-            'hbase_port': commonconfig.hbasePort.default,
-            'transaction_executor_class':
-                TransactionExecutorWithLimitedBackoff,
-            'backoff_delays': [0, 0, 0]
-          }]
-        )
+            fake_hbase_client_connection = mock.MagicMock()
+            cshclient.HBaseConnectionForCrashReports.return_value = \
+                fake_hbase_client_connection
+            fake_put_json_method = mock.MagicMock()
+            cshclient.HBaseConnectionForCrashReports.put_json_dump = \
+                fake_put_json_method
+            cchclient.HBaseConnectionForCrashReports.return_value = \
+                fake_hbase_client_connection
+            fake_hbase_client_connection.hbaseThriftExceptions = \
+                (SomeThriftError,)
+            fake_put_json_method.side_effect = SomeThriftError('try again')
 
-        with config_manager.context() as config:
-
-            hbaseclient_ = 'socorro.external.hbase.crashstorage.hbase_client'
-            with mock.patch(hbaseclient_) as hclient:
-
-                class SomeThriftError(Exception):
-                    pass
-
-                klass = hclient.HBaseConnectionForCrashReports
-                klass.return_value = klass
-                klass.operational_exceptions = (SomeThriftError,)
-
-                def retry_raiser_iterator(*args, **kwargs):
-                    return SomeThriftError('try again')
-
-                klass.put_json_dump.side_effect = retry_raiser_iterator()
-                crashstorage = HBaseCrashStorage(config)
-                raw = ('{"name":"Peter", '
-                       '"submitted_timestamp":"%d"}' % time.time())
-
-                self.assertRaises(SomeThriftError,
-                  crashstorage.save_raw_crash,
-                  json.loads(raw),
-                  raw,
-                  "abc123"
-                )
-                self.assertEqual(klass.put_json_dump.call_count, 3)
+            config = DotDict({
+              'logger': mock.MagicMock(),
+              'hbase_timeout': 0,
+              'hbase_host': 'somehost',
+              'hbase_port': 9090,
+              'number_of_retries': 2,
+              'hbase_connection_pool_class':
+                  HBaseConnectionContextPooled,
+              'transaction_executor_class':
+                  TransactionExecutorWithLimitedBackoff,
+              'backoff_delays': [0, 0, 0]
+            })
+            crashstorage = HBaseCrashStorage(config)
+            raw = ('{"name":"Peter", '
+                   '"submitted_timestamp":"%d"}' % time.time())
+            self.assertRaises(SomeThriftError,
+              crashstorage.save_raw_crash,
+              json.loads(raw),
+              raw,
+              {}
+            )
+            self.assertEqual(fake_put_json_method.call_count, 3)
 
     def test_hbase_crashstorage_success_after_retries(self):
-        mock_logging = mock.Mock()
-        required_config = HBaseCrashStorage.required_config
-        required_config.add_option('logger', default=mock_logging)
+        cshbaseclient_ = 'socorro.external.hbase.crashstorage.hbase_client'
+        cchbaseclient_ = \
+            'socorro.external.hbase.connection_context.hbase_client'
+        with nested(mock.patch(cshbaseclient_),
+                    mock.patch(cchbaseclient_)) as (cshclient, cchclient):
 
-        config_manager = ConfigurationManager(
-          [required_config],
-          app_name='testapp',
-          app_version='1.0',
-          app_description='app description',
-          values_source_list=[{
-            'logger': mock_logging,
-            'hbase_timeout': 100,
-            'hbase_host': commonconfig.hbaseHost.default,
-            'hbase_port': commonconfig.hbasePort.default,
-            'transaction_executor_class':
-                TransactionExecutorWithLimitedBackoff,
-            'backoff_delays': [0, 0, 0]
-          }]
-        )
+            fake_hbase_client_connection = mock.MagicMock()
+            cshclient.HBaseConnectionForCrashReports.return_value = \
+                fake_hbase_client_connection
+            fake_put_json_method = mock.MagicMock()
+            cshclient.HBaseConnectionForCrashReports.put_json_dump = \
+                fake_put_json_method
+            cchclient.HBaseConnectionForCrashReports.return_value = \
+                fake_hbase_client_connection
+            fake_hbase_client_connection.hbaseThriftExceptions = \
+                (SomeThriftError,)
+            _attempts = [SomeThriftError, SomeThriftError]
+            def retry_raiser_iterator(*args, **kwargs):
+                try:
+                    raise _attempts.pop(0)
+                except IndexError:
+                    return None
+            fake_put_json_method.side_effect = retry_raiser_iterator
 
-        with config_manager.context() as config:
-
-            hbaseclient_ = 'socorro.external.hbase.crashstorage.hbase_client'
-            with mock.patch(hbaseclient_) as hclient:
-
-                class SomeThriftError(Exception):
-                    pass
-
-                klass = hclient.HBaseConnectionForCrashReports
-                klass.return_value = klass
-                klass.operational_exceptions = (SomeThriftError,)
-
-                _attempts = [SomeThriftError, SomeThriftError]
-
-                def retry_raiser_iterator(*args, **kwargs):
-                    try:
-                        raise _attempts.pop(0)
-                    except IndexError:
-                        return klass
-
-                klass.put_json_dump.side_effect = retry_raiser_iterator
-                crashstorage = HBaseCrashStorage(config)
-                raw = ('{"name":"Peter", '
-                       '"submitted_timestamp":"%d"}' % time.time())
-
-                crashstorage.save_raw_crash(json.loads(raw), raw, "abc123")
-                self.assertEqual(klass.put_json_dump.call_count, 3)
+            config = DotDict({
+              'logger': mock.MagicMock(),
+              'hbase_timeout': 0,
+              'hbase_host': 'somehost',
+              'hbase_port': 9090,
+              'number_of_retries': 2,
+              'hbase_connection_pool_class':
+                  HBaseConnectionContextPooled,
+              'transaction_executor_class':
+                  TransactionExecutorWithLimitedBackoff,
+              'backoff_delays': [0, 0, 0]
+            })
+            crashstorage = HBaseCrashStorage(config)
+            raw = ('{"name":"Peter", '
+                   '"submitted_timestamp":"%d"}' % time.time())
+            crashstorage.save_raw_crash(json.loads(raw), raw, "abc123")
+            self.assertEqual(fake_put_json_method.call_count, 3)
 
     def test_hbase_crashstorage_puts_and_gets(self):
         mock_logging = mock.Mock()
