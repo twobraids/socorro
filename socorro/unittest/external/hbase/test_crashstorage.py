@@ -141,9 +141,9 @@ else:
                 crashstorage.save_processed(json.loads(pro))
                 data = crashstorage.get_processed_crash('abc123')
                 self.assertEqual(data['name'], u'Peter')
-                assert crashstorage.hbaseConnection.transport.isOpen()
+                assert crashstorage.hbaseConnectionPool.transport.isOpen()
                 crashstorage.close()
-                transport = crashstorage.hbaseConnection.transport
+                transport = crashstorage.hbaseConnectionPool.transport
                 self.assertTrue(not transport.isOpen())
 
 

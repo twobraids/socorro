@@ -119,6 +119,9 @@ class ProcessorApp(FetchTransformSaveApp):
             )
             return
         except Exception, x:
+            self.config.logger.warning('error loading crash %s',
+                                       crash_id,
+                                       exc_info=True)
             self.processor.reject_raw_crash(
               crash_id,
               'error in loading: %s' % x

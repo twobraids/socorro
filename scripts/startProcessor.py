@@ -203,6 +203,11 @@ def processor2012(config):
     trans_config.destination.storage1.temporary_file_system_storage_path = \
         config.temporaryFileSystemStoragePath
 
+    # name: destination.storage1.dump_file_suffix
+    # doc: the suffix used to identify a dump file (for use in temp files)
+    # converter: str
+    trans_config.destination.storage1.dump_file_suffix = \
+        config.dumpFileSuffix
 
     #--------------------------------------------------------------------------
     # storage2 -
@@ -663,6 +668,18 @@ def processor2012(config):
     # doc: seconds between log during retries
     # converter: int
     trans_config.source.wait_log_interval = 5
+
+    # name: destination.storage1.temporary_file_system_storage_path
+    # doc: a local filesystem path dumps can be temporarily written
+    #      for processing
+    # converter: str
+    trans_config.source.temporary_file_system_storage_path = \
+        config.temporaryFileSystemStoragePath
+
+    # name: destination.storage1.dump_file_suffix
+    # doc: the suffix used to identify a dump file (for use in temp files)
+    # converter: str
+    trans_config.source.dump_file_suffix = config.dumpFileSuffix
 
     #--------------------------------------------------------------------------
 

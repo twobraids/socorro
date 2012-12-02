@@ -259,9 +259,8 @@ class LegacyCrashProcessor(RequiredConfig):
             self.quit_check()
             crash_id = raw_crash.uuid
             processor_notes = []
-            processed_crash = DotDict()
+            processed_crash = self._create_minimal_processed_crash()
             processed_crash.uuid = raw_crash.uuid
-            processed_crash.success = False
 
             started_timestamp = self._log_job_start(crash_id)
 
@@ -334,6 +333,46 @@ class LegacyCrashProcessor(RequiredConfig):
 
         return processed_crash
 
+    def _create_minimal_processed_crash(self):
+        processed_crash = DotDict()
+        processed_crash.addons_checked = False
+        processed_crash.address = None
+        processed_crash.app_notes = None
+        processed_crash.build = None
+        processed_crash.client_crash_date = None
+        processed_crash.completeddatetime = None
+        processed_crash.cpu_info = None
+        processed_crash.cpu_name = None
+        processed_crash.date_processed = None
+        processed_crash.distributor = None
+        processed_crash.distributor_version = None
+        processed_crash.email = None
+        processed_crash.flash_version = None
+        #processed_crash.flash_process_dump = None  # anticiptation of future
+        processed_crash.hangid = None
+        processed_crash.install_age = None
+        processed_crash.last_crash = None
+        processed_crash.os_name = None
+        processed_crash.os_version = None
+        processed_crash.processor_notes = None
+        processed_crash.process_type = None
+        processed_crash.product = None
+        processed_crash.reason = None
+        processed_crash.release_channel = None
+        processed_crash.signature = 'EMPTY: crash failed to process'
+        processed_crash.startedDateTime = None
+        processed_crash.success = False
+        processed_crash.topmost_filenames = ''
+        processed_crash.truncated = None
+        processed_crash.uptime = None
+        processed_crash.user_comments = None
+        processed_crash.user_id = None
+        processed_crash.url = None
+        processed_crash.uuid = None
+        processed_crash.version = None
+        processed_crash.exploitability = None
+        return processed_crash
+
     #--------------------------------------------------------------------------
     def _create_basic_processed_crash(self,
                                       uuid,
@@ -352,9 +391,7 @@ class LegacyCrashProcessor(RequiredConfig):
             submitted_timestamp: when job came in (a key used in partitioning)
             processor_notes: list of strings of error messages
         """
-        #logger.debug("starting insertReportIntoDatabase")
         processed_crash = DotDict()
-        processed_crash.success = False
         processed_crash.uuid = uuid
         processed_crash.startedDateTime = started_timestamp
         processed_crash.product = self._get_truncate_or_warn(
@@ -458,7 +495,7 @@ class LegacyCrashProcessor(RequiredConfig):
         processed_crash.uptime = max(0, crash_time - startupTime)
         try:
             last_crash = int(raw_crash.SecondsSinceLastCrash)
-        except:
+        except (KeyError, TypeError):
             last_crash = None
         processed_crash.last_crash = last_crash
 
@@ -1054,11 +1091,11 @@ class LegacyCrashProcessor(RequiredConfig):
         yield raw_dump_path
         if 'TEMPORARY' in raw_dump_path:
             try:
-                os.unlink(pathname)
+                os.unlink(raw_dump_path)
             except OSError:
                 self.config.logger.warning(
                     'unable to delete %s. manual deletion is required.',
-                    pathname,
+                    raw_dump_path,
                     exc_info=True
                 )
 

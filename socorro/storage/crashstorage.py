@@ -109,7 +109,7 @@ class CrashStorageSystem(object):
 #==============================================================================
 class CrashStorageSystemForLocalFS(CrashStorageSystem):
     def __init__(self, config, quit_check=None):
-        super(CrashStorageSystemForLocalFS, self).__init__(config, quit_check)
+        super(CrashStorageSystemForLocalFS, self).__init__(config)
         # new_config is an adapter to allow the modern configman enabled
         # file system crash storage classes to use the old style configuration.
         new_config = DotDict()
@@ -142,8 +142,8 @@ class CrashStorageSystemForLocalFS(CrashStorageSystem):
 
 #==============================================================================
 class CrashStorageSystemForHBase(CrashStorageSystem):
-    def __init__(self, config):
-        super(CrashStorageSystemForHBase, self).__init__(config, quit_check)
+    def __init__(self, config, quit_check=None):
+        super(CrashStorageSystemForHBase, self).__init__(config)
         # new_config is an adapter to allow the modern configman enabled
         # file system crash storage classes to use the old style configuration.
         new_config = DotDict()

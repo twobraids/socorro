@@ -77,6 +77,7 @@ class PostgreSQLCrashStorage(CrashStorageBase):
         ("uuid", "uuid"),
         ("version", "version"),
         ("exploitability", "exploitability"),
+        #("flash_process_dump", "flash_process_dump"),  # future
     )
 
     #--------------------------------------------------------------------------

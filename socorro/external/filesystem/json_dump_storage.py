@@ -211,11 +211,11 @@ class JsonDumpStorage(socorro_dumpStorage.DumpStorage):
                     df.close()
                 try:
                     self.osModule.unlink(os.path.join(dateDir, crash_id))
-                except:
+                except Exception:
                     pass  # ok if not there
                 try:
                     self.osModule.unlink(os.path.join(nameDir, crash_id))
-                except:
+                except Exception:
                     pass  # ok if not there
                 df, jf = None, None
         return (jf, df)
@@ -498,7 +498,7 @@ class JsonDumpStorage(socorro_dumpStorage.DumpStorage):
             try:
                 self.osModule.unlink(os.path.join(datePath, crash_id))
                 seenCount += 1
-            except:
+            except Exception:
                 pass
             try:
                 socorro_fs.cleanEmptySubdirectories(
@@ -506,7 +506,7 @@ class JsonDumpStorage(socorro_dumpStorage.DumpStorage):
                   datePath,
                   self.osModule
                 )
-            except:
+            except Exception:
                 pass
         if not seenCount:
             self.logger.warning("%s was totally unknown", crash_id)

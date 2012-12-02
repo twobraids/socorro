@@ -126,8 +126,13 @@ class Processor(object):
     self.processorLoopTime = config.processorLoopTime.seconds
     self.config = config
     self.quit = False
-    signal.signal(signal.SIGTERM, Processor.respondToSIGTERM)
-    signal.signal(signal.SIGHUP, Processor.respondToSIGTERM)
+
+    def respondToSIGTERM(signalNumber, frame):
+      self.quit = True
+      raise KeyboardInterrupt
+
+    signal.signal(signal.SIGTERM, respondToSIGTERM)
+    signal.signal(signal.SIGHUP, respondToSIGTERM)
     self.irrelevantSignatureRegEx = re.compile(self.config.irrelevantSignatureRegEx)
     self.prefixSignatureRegEx = re.compile(self.config.prefixSignatureRegEx)
     self.signaturesWithLineNumbersRegEx = re.compile(self.config.signaturesWithLineNumbersRegEx)
@@ -280,17 +285,17 @@ class Processor(object):
     logger.debug("done with work")
 
   #-----------------------------------------------------------------------------
-  @staticmethod
-  def respondToSIGTERM(signalNumber, frame):
-    """ these classes are instrumented to respond to a KeyboardInterrupt by cleanly shutting down.
-        This function, when given as a handler to for a SIGTERM event, will make the program respond
-        to a SIGTERM as neatly as it responds to ^C.
-    """
-    signame = 'SIGTERM'
-    if signalNumber != signal.SIGTERM:
-      signame = 'SIGHUP'
-    logger.info("%s detected", signame)
-    raise KeyboardInterrupt
+  #@staticmethod
+  #def respondToSIGTERM(signalNumber, frame):
+    #""" these classes are instrumented to respond to a KeyboardInterrupt by cleanly shutting down.
+        #This function, when given as a handler to for a SIGTERM event, will make the program respond
+        #to a SIGTERM as neatly as it responds to ^C.
+    #"""
+    #signame = 'SIGTERM'
+    #if signalNumber != signal.SIGTERM:
+      #signame = 'SIGHUP'
+    #logger.info("%s detected", signame)
+    #raise KeyboardInterrupt
 
   #-----------------------------------------------------------------------------
   def submitJobToThreads(self, aJobTuple):
@@ -579,10 +584,8 @@ class Processor(object):
         java_stack_trace = jsonDocument.setdefault('JavaStackTrace', None)
 
         dumps_mapping = threadLocalCrashStorage.get_raw_dumps(jobUuid)
-        print "******", dumps_mapping
         for name, dump in dumps_mapping.iteritems():
           # write a temp copy of the dump out for analysis
-          print "$$$$$$$$$"
           temp_pathname = os.path.join(
             self.config.temporaryFileSystemStoragePath,
             '%s.dump' % jobUuid
@@ -791,7 +794,7 @@ class Processor(object):
       processorErrorMessages.append("WARNING: No 'client_crash_date' could be determined from the Json file")
     try:
       last_crash = int(jsonDocument['SecondsSinceLastCrash'])
-    except:
+    except (KeyError, TypeError):
       last_crash = None
 
     release_channel = jsonDocument.get('ReleaseChannel','unknown')

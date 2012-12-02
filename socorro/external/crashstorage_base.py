@@ -378,7 +378,7 @@ class PolyCrashStorage(CrashStorageBase):
                 a_store.save_processed(processed_crash)
             except Exception, x:
                 self.logger.error('%s failure: %s', a_store.__class__,
-                                  str(x))
+                                  str(x), exc_info=True)
                 storage_exception.gather_current_exception()
         if storage_exception.has_exceptions():
             raise storage_exception
