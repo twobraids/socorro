@@ -378,15 +378,11 @@ class HBaseConnection(object):
     def rollback(self):
         pass
 
-    @contextlib.contextmanager
-    def __call__(self):
-        yield self
-
     def in_transaction(self, dummy):
         return False
 
     def is_operational_exception(self, msg):
-        return False
+        return True
 
 
 class HBaseConnectionForCrashReports(HBaseConnection):
@@ -444,13 +440,17 @@ class HBaseConnectionForCrashReports(HBaseConnection):
         )
         try:
             if listOfRawRows:
-                return listOfRawRows[0].columns["meta_data:json"].value
+                try:  # DEBUG REMOVE
+                    return listOfRawRows[0].columns["meta_data:json"].value
+                except KeyError:
+                    print "######", listOfRawRows[0].columns.keys()
+                    print "###### missing data?", ooid
             else:
                 raise OoidNotFoundException("%s - %s" % (ooid, row_id))
         except KeyError:
             self.logger.debug(
-              'key error trying to get "meta_data:json" from %s',
-              str(listOfRawRows)
+              'key error trying to get "meta_data:json" for %s',
+              ooid
             )
             raise
 
@@ -485,8 +485,8 @@ class HBaseConnectionForCrashReports(HBaseConnection):
                 raise OoidNotFoundException(ooid)
         except KeyError:
             self.logger.debug(
-              'key error trying to get "%s" from %s',
-              (column_family_and_qualifier, str(listOfRawRows))
+              'key error trying to get "%s" for %s',
+              (column_family_and_qualifier, ooid)
             )
             raise
 
