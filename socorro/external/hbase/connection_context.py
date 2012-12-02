@@ -143,7 +143,7 @@ class HBaseSingleConnectionContext(RequiredConfig):
     def in_transaction(self, connection):
         """detect if the supplied connection reports that it is in the middle
         of a transaction"""
-        return False
+        return True
 
     #--------------------------------------------------------------------------
     def is_operational_exception(self, msg):

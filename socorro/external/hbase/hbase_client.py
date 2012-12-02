@@ -378,15 +378,11 @@ class HBaseConnection(object):
     def rollback(self):
         pass
 
-    @contextlib.contextmanager
-    def __call__(self):
-        yield self
-
     def in_transaction(self, dummy):
         return False
 
     def is_operational_exception(self, msg):
-        return False
+        return True
 
 
 class HBaseConnectionForCrashReports(HBaseConnection):
