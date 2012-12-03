@@ -146,6 +146,7 @@ class ProcessorApp(FetchTransformSaveApp):
           self.config.registrar,
           self.quit_check
         )
+        self.config.processor_name = "%s:2012" % self.registrar.processor_name
         # this function will be called by the MainThread periodically
         # while the threaded_task_manager processes crashes.
         self.waiting_func = self.registrar.checkin

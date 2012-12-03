@@ -255,13 +255,10 @@ class LegacyCrashProcessor(RequiredConfig):
 
             input parameters:
         """
+        processor_notes = [self.config.processor_name]
         try:
             self.quit_check()
             crash_id = raw_crash.uuid
-            processor_notes = []
-            processed_crash = self._create_minimal_processed_crash()
-            processed_crash.uuid = raw_crash.uuid
-
             started_timestamp = self._log_job_start(crash_id)
 
             #self.config.logger.debug('about to apply rules')
@@ -276,15 +273,15 @@ class LegacyCrashProcessor(RequiredConfig):
             except KeyError:
                 submitted_timestamp = dateFromOoid(crash_id)
 
-            # formerly the call to 'insertReportIntoDatabase'
-            processed_crash_update = self._create_basic_processed_crash(
+            assert len(processor_notes) == 1
+            processed_crash = self._create_basic_processed_crash(
                 crash_id,
                 raw_crash,
                 submitted_timestamp,
                 started_timestamp,
                 processor_notes
             )
-            processed_crash.update(processed_crash_update)
+            processed_crash.uuid = raw_crash.uuid
 
             for name, dump_pathname in raw_dumps.iteritems():
                 with self._temp_file_context(dump_pathname) as temp_pathname:
@@ -303,15 +300,7 @@ class LegacyCrashProcessor(RequiredConfig):
             processed_crash.topmost_filenames = "|".join(
                 processed_crash.get('topmost_filenames', [])
             )
-            try:
-                processed_crash.Winsock_LSP = raw_crash.Winsock_LSP
-            except KeyError:
-                pass  # if it's not in the original raw_crash,
-                        # it does not get into the processed_crash
-
-        #except (KeyboardInterrupt, SystemExit):
-            #self.config.logger.info("quit request detected")
-            #raise
+            processed_crash.Winsock_LSP = raw_crash.get('Winsock_LSP', None)
         except Exception, x:
             self.config.logger.warning(
                 'Error while processing %s: %s',
@@ -319,7 +308,8 @@ class LegacyCrashProcessor(RequiredConfig):
                 str(x),
                 exc_info=True
             )
-            processor_notes.append(str(x))
+            processed_crash.success = False
+            processor_notes.append('unrecoverable processor error')
 
         processor_notes = '; '.join(processor_notes)
         processed_crash.processor_notes = processor_notes
@@ -330,12 +320,12 @@ class LegacyCrashProcessor(RequiredConfig):
             processed_crash.success,
             crash_id
         )
-
         return processed_crash
 
     def _create_minimal_processed_crash(self):
         processed_crash = DotDict()
-        processed_crash.addons_checked = False
+        processed_crash.addons = None
+        processed_crash.addons_checked = None
         processed_crash.address = None
         processed_crash.app_notes = None
         processed_crash.build = None
@@ -343,10 +333,12 @@ class LegacyCrashProcessor(RequiredConfig):
         processed_crash.completeddatetime = None
         processed_crash.cpu_info = None
         processed_crash.cpu_name = None
+        processed_crash.crashedThread = None
         processed_crash.date_processed = None
         processed_crash.distributor = None
         processed_crash.distributor_version = None
         processed_crash.email = None
+        processed_crash.exploitability = None
         processed_crash.flash_version = None
         #processed_crash.flash_process_dump = None  # anticiptation of future
         processed_crash.hangid = None
@@ -354,7 +346,10 @@ class LegacyCrashProcessor(RequiredConfig):
         processed_crash.last_crash = None
         processed_crash.os_name = None
         processed_crash.os_version = None
-        processed_crash.processor_notes = None
+        processed_crash.pluginFilename = None
+        processed_crash.pluginName = None
+        processed_crash.pluginVersion = None
+        processed_crash.processor_notes = ''
         processed_crash.process_type = None
         processed_crash.product = None
         processed_crash.reason = None
@@ -370,7 +365,7 @@ class LegacyCrashProcessor(RequiredConfig):
         processed_crash.url = None
         processed_crash.uuid = None
         processed_crash.version = None
-        processed_crash.exploitability = None
+        processed_crash.Winsock_LSP = None
         return processed_crash
 
     #--------------------------------------------------------------------------
@@ -391,7 +386,7 @@ class LegacyCrashProcessor(RequiredConfig):
             submitted_timestamp: when job came in (a key used in partitioning)
             processor_notes: list of strings of error messages
         """
-        processed_crash = DotDict()
+        processed_crash = self._create_minimal_processed_crash()
         processed_crash.uuid = uuid
         processed_crash.startedDateTime = started_timestamp
         processed_crash.product = self._get_truncate_or_warn(
@@ -479,10 +474,7 @@ class LegacyCrashProcessor(RequiredConfig):
         )
         processed_crash.crash_time = crash_time
         if crash_time == submitted_timestamp_as_epoch:
-            processor_notes.append(
-                "WARNING: No 'client_crash_date' "
-                "could be determined from the raw_crash"
-            )
+            processor_notes.append("client_crash_date is unknown")
         # StartupTime: must have started up some time before crash
         startupTime = int(raw_crash.get('StartupTime', crash_time))
         # InstallTime: must have installed some time before startup
@@ -564,7 +556,7 @@ class LegacyCrashProcessor(RequiredConfig):
         addon_splits = addon_pair.split(':', 1)
         if len(addon_splits) == 1:
             processor_notes.append(
-                '"%s" is deficient as a name and version for an addon' %
+                'add-on "%s" is a bad name and/or version' %
                 addon_pair
             )
             addon_splits.append('')
@@ -767,9 +759,7 @@ class LegacyCrashProcessor(RequiredConfig):
         return_code = mdsw_subprocess_handle.wait()
         if return_code is not None and return_code != 0:
             processor_notes.append(
-                "%s failed with return code %s when processing dump %s" %
-                (self.config.minidump_stackwalk_pathname,
-                 mdsw_subprocess_handle.returncode, crash_id)
+                "MDSW failed: %s" % mdsw_subprocess_handle.returncode
             )
             processed_crash_update.success = False
             if processed_crash_update.signature.startswith("EMPTY"):
@@ -811,7 +801,7 @@ class LegacyCrashProcessor(RequiredConfig):
             header_lines_were_found = True
             values = map(lambda x: x.strip(), line.split('|'))
             if len(values) < 3:
-                processor_notes.append('Cannot parse header line "%s"'
+                processor_notes.append('Bad MDSW header line "%s"'
                                        % line)
                 continue
             values = map(emptyFilter, values)
@@ -850,15 +840,10 @@ class LegacyCrashProcessor(RequiredConfig):
                 if not flash_version:
                     flash_version = self._get_flash_version(values)
         if not header_lines_were_found:
-            message = "%s returned no header lines for crash_id: %s" % \
-                (self.config.minidump_stackwalk_pathname, crash_id)
-            processor_notes.append(message)
-            #self.config.logger.warning("%s", message)
+            processor_notes.append('MDSW emitted no header lines')
 
         if crashed_thread is None:
-            message = "No thread was identified as the cause of the crash"
-            processor_notes.append(message)
-            self.config.logger.info("%s", message)
+            processor_notes.append('MDSW did not identify the crashing thread')
         processed_crash_update.crashedThread = crashed_thread
         if not flash_version:
             flash_version = '[blank]'
@@ -961,8 +946,6 @@ class LegacyCrashProcessor(RequiredConfig):
             #logger.debug("  %s", line)
             line = line.strip()
             if line == '':
-                processor_notes.append("An unexpected blank line in "
-                                       "this dump was ignored")
                 continue  # ignore unexpected blank lines
             (thread_num, frame_num, module_name, function, source, source_line,
              instruction) = [emptyFilter(x) for x in line.split("|")]
@@ -989,8 +972,7 @@ class LegacyCrashProcessor(RequiredConfig):
                     self.config.crashing_thread_frame_threshold
                     ):
                     processor_notes.append(
-                        "This dump is too long and has triggered the automatic"
-                        " truncation routine"
+                        "MDSW emitted too many frames, triggering truncation"
                     )
                     dump_analysis_line_iterator.useSecondaryCache()
                     is_truncated = True
@@ -1004,9 +986,7 @@ class LegacyCrashProcessor(RequiredConfig):
                                              crashed_thread,
                                              processor_notes)
         if not frame_lines_were_found:
-            message = "No frame data available"
-            processor_notes.append(message)
-            self.config.logger.info("%s", message)
+            processor_notes.append("MDSW emitted no frames")
         return DotDict({
             "signature": signature,
             "truncated": is_truncated,

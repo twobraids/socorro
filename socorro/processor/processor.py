@@ -109,6 +109,8 @@ class Processor(object):
     """
     super(Processor, self).__init__()
 
+    self.processor_implementation = 2008
+
     if 'logger' not in config:
       config.logger = logger
 
@@ -525,7 +527,7 @@ class Processor(object):
       self.quitCheck()
       self.statsd.incr(self.statsd_prefix + '.jobs')
       newReportRecordAsDict = {}
-      processorErrorMessages = []
+      processorErrorMessages = ['%s:%d' % (self.processorName, self.processor_implementation)]
       jobId, jobUuid, jobPriority = jobTuple
       logger.info("starting job: %s", jobUuid)
       startedDateTime = self.nowFunc()
@@ -533,6 +535,7 @@ class Processor(object):
       threadLocalDatabaseConnection.commit()
 
       jsonDocument = threadLocalCrashStorage.get_meta(jobUuid)
+      print '89g9g98g98g', jsonDocument
 
       self.config.logger.debug('about to apply rules')
       self.json_transform_rule_system.apply_all_rules(jsonDocument, self)
@@ -685,8 +688,9 @@ class Processor(object):
       else:
         sutil.reportExceptionAndContinue(logger, logging.WARNING, showTraceback=False)
       threadLocalDatabaseConnection.rollback()
-      processorErrorMessages.append(str(x))
+      processorErrorMessages.append('unrecoverable processor error')
       message = '; '.join(processorErrorMessages).replace("'", "''")
+      print "******", message
       newReportRecordAsDict['processor_notes'] = message
       threadLocalCursor.execute("update jobs set completeddatetime = %s, success = False, message = %s where id = %s", (self.nowFunc(), message, jobId))
       threadLocalDatabaseConnection.commit()
@@ -791,7 +795,7 @@ class Processor(object):
     if crash_time == defaultCrashTime:
       logger.warning("no 'crash_time' calculated in %s: Using date_processed", uuid)
       #sutil.reportExceptionAndContinue(logger, logging.WARNING)
-      processorErrorMessages.append("WARNING: No 'client_crash_date' could be determined from the Json file")
+      processorErrorMessages.append("client_crash_date is unknown")
     try:
       last_crash = int(jsonDocument['SecondsSinceLastCrash'])
     except (KeyError, TypeError):
@@ -817,7 +821,7 @@ class Processor(object):
       #if previousTrialWasSuccessful:
         #raise DuplicateEntryException(uuid)
       threadLocalCursor.execute("delete from reports where uuid = '%s' and date_processed = timestamp with time zone '%s'" % (uuid, date_processed))
-      processorErrorMessages.append("INFO: This record is a replacement for a previous record with the same uuid")
+      processorErrorMessages.append("this crash has been processed more than once")
       self.reportsTable.insert(threadLocalCursor, newReportRecordAsTuple, self.databaseConnectionPool.connectionCursorPair, date_processed=date_processed)
     newReportRecordAsDict["id"] = self.sdb.singleValueSql(threadLocalCursor, "select id from reports where uuid = '%s' and date_processed = timestamp with time zone '%s'" % (uuid, date_processed))
 
@@ -833,7 +837,7 @@ class Processor(object):
       try:
         raw_addon_id, raw_addon_version = addon_tuple
       except ValueError:
-        processorErrorMessages.append('WARNING: "%s" is deficient as a name and version for an addon' % str(addon_tuple[0]))
+        processorErrorMessages.append('add-on "%s" is a bad name and/or version' % str(addon_tuple[0]))
         raw_addon_id = addon_tuple[0]
         raw_addon_version = ''
       addon_id = urllib.unquote(raw_addon_id)

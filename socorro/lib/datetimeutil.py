@@ -14,7 +14,10 @@ def datetimeFromISOdateString(s):
     """Take an ISO date string of the form YYYY-MM-DDTHH:MM:SS.S
     and convert it into an instance of datetime.datetime
     """
-    return string_to_datetime(s)
+    a_datetime = string_to_datetime(s)
+    if a_datetime.tzinfo != UTC:
+        a_datetime = a_datetime.replace(tzinfo=UTC)
+    return a_datetime
 
 
 def strHoursToTimeDelta(hoursAsString):
@@ -91,6 +94,7 @@ def string_to_datetime(date):
             if not parsed.tzinfo:
                 parsed = parsed.replace(tzinfo=UTC)
             return parsed
+    print "*********", date
     raise ValueError("date not a parsable string")
 
 
