@@ -43,7 +43,6 @@ def move (conf,
 
   #-----------------------------------------------------------------------------
   def doSubmission(ooidTuple):
-    logger.debug('received: %s', str(ooidTuple))
     try:
       sourceStorage = crashStoragePoolForSource.crashStorage()
       destStorage = crashStoragePoolForDest.crashStorage()

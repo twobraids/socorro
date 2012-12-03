@@ -535,7 +535,6 @@ class Processor(object):
       threadLocalDatabaseConnection.commit()
 
       jsonDocument = threadLocalCrashStorage.get_meta(jobUuid)
-      print '89g9g98g98g', jsonDocument
 
       self.config.logger.debug('about to apply rules')
       self.json_transform_rule_system.apply_all_rules(jsonDocument, self)
@@ -690,7 +689,6 @@ class Processor(object):
       threadLocalDatabaseConnection.rollback()
       processorErrorMessages.append('unrecoverable processor error')
       message = '; '.join(processorErrorMessages).replace("'", "''")
-      print "******", message
       newReportRecordAsDict['processor_notes'] = message
       threadLocalCursor.execute("update jobs set completeddatetime = %s, success = False, message = %s where id = %s", (self.nowFunc(), message, jobId))
       threadLocalDatabaseConnection.commit()

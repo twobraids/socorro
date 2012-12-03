@@ -181,7 +181,6 @@ class TestFetchTransformSaveApp(unittest.TestCase):
                     self.assertEqual(x, y,
                                      'iterator fails on iteration %d' % x)
             else:
-                print x, y
                 if y is not None and not error_detected:
                     error_detected = True
                     self.assertTrue(x is None,

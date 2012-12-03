@@ -68,10 +68,10 @@ class Collector(object):
 
         crash_storage = self.context.crashStoragePool.crashStorage()
         try:
-            crash_storage.save_raw_crash(
+            crash_storage.save_raw(
+                crash_id,
                 raw_crash,
-                dumps,
-                crash_id
+                dumps
             )
         except PolyStorageError, x:
             self.logger.error('%s storage exception: %s',

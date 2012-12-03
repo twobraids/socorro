@@ -16,6 +16,8 @@ from socorro.external.crashstorage_base import (
 )
 from socorro.external.filesystem.crashstorage import FileSystemRawCrashStorage
 from socorro.external.hbase.crashstorage import HBaseCrashStorage
+from socorro.external.hbase.connection_context import \
+     HBaseConnectionContextPooled
 from socorro.database.transaction_executor import \
      TransactionExecutorWithLimitedBackoff
 
@@ -103,13 +105,15 @@ class CrashStorageSystem(object):
 
     #--------------------------------------------------------------------------
     def newUuids(self):
-        return self.crash_storage.new_crashes()
+        for a_crash in self.crash_storage.new_crashes():
+            yield a_crash
 
 
 #==============================================================================
 class CrashStorageSystemForLocalFS(CrashStorageSystem):
     def __init__(self, config, quit_check=None):
         super(CrashStorageSystemForLocalFS, self).__init__(config)
+
         # new_config is an adapter to allow the modern configman enabled
         # file system crash storage classes to use the old style configuration.
         new_config = DotDict()
@@ -148,6 +152,7 @@ class CrashStorageSystemForHBase(CrashStorageSystem):
         # file system crash storage classes to use the old style configuration.
         new_config = DotDict()
         new_config.logger = config.logger
+        new_config.hbase_connection_pool_class = HBaseConnectionContextPooled
         new_config.number_of_retries = 2
         new_config.hbase_host = config.hbaseHost
         new_config.hbase_port = config.hbasePort

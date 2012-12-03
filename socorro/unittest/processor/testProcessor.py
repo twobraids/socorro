@@ -1843,8 +1843,6 @@ def test_exploitability_analysis():
     result = p._exploitability_analysis(line_iter, sub_pro, error_list)
     assert result == expected
     assert len(error_list) == 2
-    print error_list[0]
-    print error_list[1]
     assert error_list[0] == 'exploitablity tool: ERROR: unable to analyze dump'
     assert error_list[1] == 'exploitablity tool failed: 3'
 

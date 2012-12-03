@@ -182,7 +182,7 @@ class NullCrashStorage(CrashStorageBase):
     """
     #--------------------------------------------------------------------------
     def get_raw_crash(self, crash_id):
-        """the default implemntation of fetching a raw_crash
+        """the default implementation of fetching a raw_crash
 
         parameters:
            crash_id - the id of a raw crash to fetch"""
@@ -190,7 +190,7 @@ class NullCrashStorage(CrashStorageBase):
 
     #--------------------------------------------------------------------------
     def get_raw_dump(self, crash_id, name):
-        """the default implemntation of fetching a dump
+        """the default implementation of fetching a dump
 
         parameters:
            crash_id - the id of a dump to fetch"""
@@ -206,7 +206,7 @@ class NullCrashStorage(CrashStorageBase):
 
     #--------------------------------------------------------------------------
     def get_processed(self, crash_id):
-        """the default implemntation of fetching a processed_crash
+        """the default implementation of fetching a processed_crash
 
         parameters:
            crash_id - the id of a processed_crash to fetch"""
@@ -483,3 +483,72 @@ class FallbackCrashStorage(CrashStorageBase):
                 self.logger.critical('error in saving fallback', exc_info=True)
                 poly_exception.gather_current_exception()
                 raise poly_exception
+
+    #--------------------------------------------------------------------------
+    def get_raw_crash(self, crash_id):
+        """get a raw crash 1st from primary and if not found then try the
+        fallback.
+
+        parameters:
+           crash_id - the id of a raw crash to fetch"""
+        try:
+            return self.primary_store.get_raw_crash(crash_id)
+        except CrashIDNotFound:
+            return self.fall.get_raw_crash(crash_id)
+
+    #--------------------------------------------------------------------------
+    def get_raw_dump(self, crash_id, name):
+        """the default implementation of fetching a dump
+
+        parameters:
+           crash_id - the id of a dump to fetch"""
+        try:
+            return self.primary_store.get_raw_dump(crash_id, name)
+        except CrashIDNotFound:
+            return self.fall.get_raw_dump(crash_id, name)
+
+        return {}
+
+    #--------------------------------------------------------------------------
+    def get_raw_dumps(self, crash_id):
+        """the default implementation of fetching all the dumps
+
+        parameters:
+           crash_id - the id of a dump to fetch"""
+        try:
+            return self.primary_store.get_raw_dumps(crash_id)
+        except CrashIDNotFound:
+            return self.fall.get_raw_dumps(crash_id)
+
+    #--------------------------------------------------------------------------
+    def get_processed(self, crash_id):
+        """the default implementation of fetching a processed_crash
+
+        parameters:
+           crash_id - the id of a processed_crash to fetch"""
+        try:
+            return self.primary_store.get_processed(crash_id)
+        except CrashIDNotFound:
+            return self.fall.get_processed(crash_id)
+
+    #--------------------------------------------------------------------------
+    def remove(self, crash_id):
+        """delete a crash from storage
+
+        parameters:
+           crash_id - the id of a crash to fetch"""
+        try:
+            self.primary_store.remove(crash_id)
+        except CrashIDNotFound:
+            self.fall.remove(crash_id)
+
+    #--------------------------------------------------------------------------
+    def new_crashes(self):
+        """return an iterator that yields a list of crash_ids of raw crashes
+        that were added to the file system since the last time this iterator
+        was requested."""
+        for a_crash in self.fallback_store.new_crashes():
+            yield a_crash
+        for a_crash in self.primary_store.new_crashes():
+            yield a_crash
+
