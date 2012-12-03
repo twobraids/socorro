@@ -102,7 +102,7 @@ class FetchTransformSaveApp(App):
         be good enough for the raw crashmover, the processor would override
         this method to create and save processed crashes"""
         raw_crash = self.source.get_raw_crash(crash_id)
-        dumps = self.source.get_dumps(crash_id)
+        dumps = self.source.get_raw_dumps(crash_id)
         self.destination.save_raw_crash(raw_crash, dumps, crash_id)
 
     #--------------------------------------------------------------------------

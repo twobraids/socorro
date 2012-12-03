@@ -86,7 +86,7 @@ class SubmitterCrashReader(CrashStorageBase):
             return DotDict(json.load(raw_crash_fp))
 
     #--------------------------------------------------------------------------
-    def get_dumps(self, dump_pathnames):
+    def get_raw_dumps(self, dump_pathnames):
         """the default implemntation of fetching a dump.
         parameters:
         dump_pathnames - a tuple of paths. the second element and beyond are
