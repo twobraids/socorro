@@ -233,7 +233,7 @@ class Processor(object):
                     '') ]
 
     self.json_transform_rule_system.load_rules(rules)
-    self.config.logger.info('done loading rules: %s',
+    self.config.logger.debug('done loading rules: %s',
                             str(self.json_transform_rule_system.rules))
 
   #-----------------------------------------------------------------------------
@@ -946,7 +946,7 @@ class Processor(object):
           sutil.reportExceptionAndContinue(logger, logging.CRITICAL,
                                            showTraceback=False)
     except KeyError:
-      self.config.logger.info('no Elastic Search URL has been configured')
+      self.config.logger.debug('no Elastic Search URL has been configured')
 
 
   #-----------------------------------------------------------------------------------------------------------------
@@ -1069,7 +1069,7 @@ def json_Product_rewrite_action(json_doc, processor):
   old_product_name = json_doc['ProductName']
   new_product_name = processor.productIdMap[product_id]['product_name']
   json_doc['ProductName'] = new_product_name
-  processor.config.logger.info('product name changed from %s to %s based '
+  processor.config.logger.debug('product name changed from %s to %s based '
                                     'on productID %s',
                                 old_product_name,
                                 new_product_name,

@@ -1035,7 +1035,7 @@ class LegacyCrashProcessor(RequiredConfig):
                 sql
             )
         except Exception:
-            self.config.logger.info(
+            self.config.logger.warning(
                 'Unable to load trasform rules from the database, falling back'
                 ' to defaults',
                 exc_info=True
@@ -1057,7 +1057,7 @@ class LegacyCrashProcessor(RequiredConfig):
                             for x in rules]
         self.raw_crash_transform_rule_system.load_rules(translated_rules)
 
-        self.config.logger.info(
+        self.config.logger.debug(
             'done loading rules: %s',
             str(self.raw_crash_transform_rule_system.rules)
         )
@@ -1267,8 +1267,8 @@ def json_Product_rewrite_action(raw_crash, processor):
     old_product_name = raw_crash['ProductName']
     new_product_name = processor._product_id_map[product_id]['product_name']
     raw_crash['ProductName'] = new_product_name
-    processor.config.logger.info('product name changed from %s to %s based '
-                                 'on productID %s',
-                                 old_product_name,
-                                 new_product_name,
-                                 product_id)
+    processor.config.logger.debug('product name changed from %s to %s based '
+                                  'on productID %s',
+                                  old_product_name,
+                                  new_product_name,
+                                  product_id)
