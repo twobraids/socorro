@@ -39,7 +39,7 @@ class Collector(object):
         raw_crash = DotDict()
         for name, value in form.iteritems():
             if isinstance(value, basestring):
-                raw_crash[name] = v
+                raw_crash[name] = value
             elif hasattr(value, 'file') and hasattr(value, 'value'):
                 dumps[name] = value.value
             else:
