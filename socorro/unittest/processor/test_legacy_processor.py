@@ -6,24 +6,6 @@ import unittest
 import mock
 import copy
 
-# TODO: remove
-def diff(d1, d2):
-    all = set(d1.keys() + d2.keys())
-    for key in all:
-        d11 = d1.get(key, -111)
-        d22 = d2.get(key, -222)
-        if d11 != d22:
-            print key,
-            if d11 == -111:
-                print '[not in d1 ]',
-            else:
-                print "[%s]" % str(d11)[:40],
-            if d22 == -222:
-                print '[not in d2 ]',
-            else:
-                print "[%s]" % str(d22)[:40],
-            print
-
 from datetime import datetime
 
 from configman.dotdict import DotDict
@@ -367,10 +349,6 @@ class TestLegacyProcessor(unittest.TestCase):
                 epc.hang_type = 0
                 epc.java_stack_trace = None
                 epc.Winsock_LSP = None
-                diff(
-                  processed_crash,
-                  dict(epc)
-                )
                 self.assertEqual(
                   processed_crash,
                   dict(epc)
@@ -479,7 +457,6 @@ class TestLegacyProcessor(unittest.TestCase):
                   processor_notes,
                 )
                 assert 'exploitability' in processed_crash
-                diff(processed_crash, cannonical_basic_processed_crash)
                 self.assertEqual(
                   processed_crash,
                   dict(cannonical_basic_processed_crash)
