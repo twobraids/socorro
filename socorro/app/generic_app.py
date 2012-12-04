@@ -198,4 +198,5 @@ def main(initial_app, values_source_list=None, config_path=None):
         elif inspect.isfunction(app):
             # invocation of the app if the app_object was a function
             app(config)
+        config.logger.info('done.')
         return 0

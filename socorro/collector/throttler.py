@@ -12,6 +12,8 @@ from socorro.lib.ver_tools import normalize
 
 Compiled_Regular_Expression_Type = type(re.compile(''))
 
+import re
+
 #--------------------------------------------------------------------------
 ACCEPT = 0    # save and process
 DEFER = 1     # save but don't process
@@ -27,22 +29,22 @@ class LegacyThrottler(RequiredConfig):
       doc='the throttling rules',
       default=[
         # drop the browser side of all multi submission hang crashes
-        ("*", lambda d: "HangID" in d
-              and d.get("ProcessType", "browser") == "browser", None),
+        ("*", '''lambda d: "HangID" in d
+              and d.get("ProcessType", "browser") == "browser"''', None),
         # 100% of crashes with comments
-        ("Comments", lambda x: x, 100),
+        ("Comments", '''lambda x: x''', 100),
         # 100% of all aurora, beta, esr channels
-        ("ReleaseChannel", lambda x: x in ("aurora", "beta", "esr"), 100),
+        ("ReleaseChannel", '''lambda x: x in ("aurora", "beta", "esr")''', 100),
         # 100% of all crashes that report as being nightly
-        ("ReleaseChannel", lambda x: x.startswith('nightly'), 100),
+        ("ReleaseChannel", '''lambda x: x.startswith('nightly')''', 100),
         # 10% of Firefox
         ("ProductName", 'Firefox', 10),
         # 100% of Fennec
         ("ProductName", 'Fennec', 100),
         # 100% of all alpha, beta or special
-        ("Version", re.compile(r'\..*?[a-zA-Z]+'), 100),
+        ("Version", '''re.compile(r'\..*?[a-zA-Z]+')''', 100),
         # 100% of Thunderbird, SeaMonkey & Camino
-        ("ProductName", lambda x: x[0] in 'TSC', 100),
+        ("ProductName", '''lambda x: x[0] in "TSC"''', 100),
         # reject everything else
         (None, True, 0)
       ],
