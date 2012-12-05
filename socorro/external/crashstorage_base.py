@@ -63,8 +63,8 @@ class CrashStorageBase(RequiredConfig):
 
     #--------------------------------------------------------------------------
     def save_raw_crash(self, raw_crash, dumps, crash_id):
-        """this method that saves  both the raw_crash (sometimes called the
-        raw_crash) and the dump, must be overridden in any implementation.
+        """this method that saves  both the raw_crash and the dump, must be
+        overridden in any implementation.
 
         Why is does this base implementation just silently do nothing rather
         than raise a NotImplementedError?  Implementations of crashstorage
@@ -144,7 +144,8 @@ class CrashStorageBase(RequiredConfig):
 
     #--------------------------------------------------------------------------
     def get_raw_dumps_as_files(self, crash_id):
-        """the default implementation of fetching all the dumps
+        """the default implementation of fetching all the dumps as files on
+        a file system somewhere.  returns a list of pathnames.
 
         parameters:
            crash_id - the id of a dump to fetch"""
@@ -494,31 +495,44 @@ class FallbackCrashStorage(CrashStorageBase):
         try:
             return self.primary_store.get_raw_crash(crash_id)
         except CrashIDNotFound:
-            return self.fall.get_raw_crash(crash_id)
+            return self.fallback_store.get_raw_crash(crash_id)
 
     #--------------------------------------------------------------------------
-    def get_raw_dump(self, crash_id, name):
-        """the default implementation of fetching a dump
+    def get_raw_dump(self, crash_id, name=None):
+        """get a named crash dump 1st from primary and if not found then try
+        the fallback.
 
         parameters:
            crash_id - the id of a dump to fetch"""
         try:
             return self.primary_store.get_raw_dump(crash_id, name)
         except CrashIDNotFound:
-            return self.fall.get_raw_dump(crash_id, name)
-
-        return {}
+            return self.fallback_store.get_raw_dump(crash_id, name)
 
     #--------------------------------------------------------------------------
     def get_raw_dumps(self, crash_id):
-        """the default implementation of fetching all the dumps
+        """get all crash dumps 1st from primary and if not found then try
+        the fallback.
 
         parameters:
            crash_id - the id of a dump to fetch"""
         try:
             return self.primary_store.get_raw_dumps(crash_id)
         except CrashIDNotFound:
-            return self.fall.get_raw_dumps(crash_id)
+            return self.fallback_store.get_raw_dumps(crash_id)
+
+    #--------------------------------------------------------------------------
+    def get_raw_dumps_as_files(self, crash_id):
+        """get all crash dump pathnames 1st from primary and if not found then
+        try the fallback.
+
+        parameters:
+           crash_id - the id of a dump to fetch"""
+        try:
+            return self.primary_store.get_raw_dumps_as_files(crash_id)
+        except CrashIDNotFound:
+            return self.fallback_store.get_raw_dumps_as_files(crash_id)
+
 
     #--------------------------------------------------------------------------
     def get_processed(self, crash_id):
@@ -529,7 +543,7 @@ class FallbackCrashStorage(CrashStorageBase):
         try:
             return self.primary_store.get_processed(crash_id)
         except CrashIDNotFound:
-            return self.fall.get_processed(crash_id)
+            return self.fallback_store.get_processed(crash_id)
 
     #--------------------------------------------------------------------------
     def remove(self, crash_id):
@@ -540,7 +554,7 @@ class FallbackCrashStorage(CrashStorageBase):
         try:
             self.primary_store.remove(crash_id)
         except CrashIDNotFound:
-            self.fall.remove(crash_id)
+            self.fallback_store.remove(crash_id)
 
     #--------------------------------------------------------------------------
     def new_crashes(self):
