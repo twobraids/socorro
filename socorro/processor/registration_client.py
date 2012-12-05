@@ -43,8 +43,9 @@ class ProcessorAppRegistrationClient(RequiredConfig):
     required_config.add_option(
       'processor_id',
       doc='the id number for the processor (must already exist) (0 for create '
-          'new Id, "auto" for autodetection, "host" for same host)',
-      default='host'
+          'new Id, "auto" for autodetection, "host" for same host, '
+          '"forcehost" for hostile take over)',
+      default='forcehost'
     )
     required_config.add_option(
       'check_in_frequency',

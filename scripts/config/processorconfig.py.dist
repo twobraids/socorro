@@ -56,7 +56,7 @@ numberOfThreads.doc = 'the number of threads to use'
 numberOfThreads.default = 4
 
 processorId = cm.Option()
-processorId.doc = 'the id number for the processor (must already exist) (0 for create new Id, "auto" for autodetection, "host" for same host)'
+processorId.doc = 'the id number for the processor (must already exist) (0 for create new Id, "auto" for autodetection, "host" for same host, "forcehost" for hostile take over)'
 processorId.default = "forcehost"
 
 stackwalkCommandLine = cm.Option()
