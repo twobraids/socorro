@@ -189,8 +189,9 @@ class ProcessorRegistrationAgent(object):
     def force_assume_identity_by_host(self, cursor, threshold, hostname,
                                       req_id):
         """This function implements the case where a newly registering
-        processor wants to take over for a dead processor with the same host
-        name as the registering processor.
+        processor wants to take over for a processor with the same host
+        name as the registering processor.  This is the case where the
+        existing processor is likely dead but didn't manage to halt cleanly.
 
         Parameters:
             cursor - a cursor object
@@ -206,7 +207,7 @@ class ProcessorRegistrationAgent(object):
         Returns:
             an integer representing the new id of the newly registered
             processor."""
-        self.logger.debug("looking for a dead processor for host %s", hostname)
+        self.logger.debug("looking for a processor for host %s", hostname)
         try:
             sql = ("select id from processors"
                    " where name like %s limit 1")
@@ -214,14 +215,14 @@ class ProcessorRegistrationAgent(object):
             processor_id = self.sdb_module.singleValueSql(cursor,
                                                           sql,
                                                           (hostname_phrase,))
-            self.logger.info("will step in for processor %d", processor_id)
+            self.logger.info("will take over processor %d", processor_id)
             # a dead processor for this host was found
             self.take_over_dead_processor(cursor, processor_id)
             return processor_id
         except sdb.SQLDidNotReturnSingleValue:
             # no dead processor was found for this host, is there already
             # a live processor for it?
-            self.logger.debug("no dead processor found for host, %s",
+            self.logger.debug("no processor found for host, %s",
                               hostname)
             return self.assume_new_identity(cursor, threshold,
                                             hostname, req_id)

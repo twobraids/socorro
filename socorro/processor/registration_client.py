@@ -201,8 +201,9 @@ class ProcessorAppRegistrationClient(RequiredConfig):
     def _force_assume_identity_by_host(self, connection, threshold, hostname,
                                        req_id):
         """This function implements the case where a newly registering
-        processor wants to take over for a dead processor with the same host
-        name as the registering processor.
+        processor wants to take over for a processor with the same host
+        name as the registering processor.  This is the case where the
+        existing processor is likely dead but didn't manage to halt cleanly.
 
         Parameters:
             connection - a connection object
@@ -219,7 +220,7 @@ class ProcessorAppRegistrationClient(RequiredConfig):
             an integer representing the new id of the newly registered
             processor."""
         self.config.logger.debug(
-          "looking for a dead processor for host %s",
+          "looking for a processor for host %s",
           hostname
         )
         try:
@@ -232,10 +233,10 @@ class ProcessorAppRegistrationClient(RequiredConfig):
               (hostname_phrase,)
             )
             self.config.logger.info(
-              "will step in for processor %s",
+              "will take over processor %s",
               processor_id
             )
-            # a dead processor for this host was found
+            # a processor for this host was found
             self._take_over_dead_processor(connection, processor_id)
             return processor_id
         except SQLDidNotReturnSingleValue:
