@@ -3,6 +3,9 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
+"""This is the Socorro default backend application.  It is a launch pad for
+for all applications at the command line."""
+
 import os
 import re
 import inspect
@@ -21,6 +24,9 @@ class AppDetailMissingError(AttributeError):
 
 #==============================================================================
 class App(RequiredConfig):
+    app_name = 'socorro'
+    app_version = '3.0'
+    app_description = __doc__
     """The base class from which Socorro apps are based"""
     #--------------------------------------------------------------------------
     def __init__(self, config):
@@ -200,3 +206,7 @@ def main(initial_app, values_source_list=None, config_path=None):
             app(config)
         config.logger.info('done.')
         return 0
+
+
+if __name__ == '__main__':
+    main(App, config_path='.')

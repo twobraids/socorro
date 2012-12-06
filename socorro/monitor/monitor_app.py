@@ -933,4 +933,4 @@ class MonitorApp(App):
 
 
 if __name__ == '__main__':
-    main(MonitorApp)
+    main('socorro.monitor.monitor_app.MonitorApp')

@@ -129,7 +129,7 @@ class SubmitterCrashReader(CrashStorageBase):
 
 #==============================================================================
 class SubmitterApp(FetchTransformSaveApp):
-    app_name = 'submitter_app'
+    app_name = 'submitter'
     app_version = '3.0'
     app_description = __doc__
 
@@ -245,4 +245,4 @@ class SubmitterApp(FetchTransformSaveApp):
 
 
 if __name__ == '__main__':
-    main(SubmitterApp)
+    main('socorro.collector.submitter_app.SubmitterApp')

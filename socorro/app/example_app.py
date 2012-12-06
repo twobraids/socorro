@@ -48,4 +48,4 @@ class ExampleApp(App):
 
 
 if __name__ == '__main__':
-    main(ExampleApp)
+    main('socorro.app.example_app.ExampleApp')

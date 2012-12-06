@@ -19,4 +19,4 @@ class CrashMoverApp(FetchTransformSaveApp):
 
 
 if __name__ == '__main__':
-    main(CrashMoverApp)
+    main('socorro.collector.crashmover_app.CrashMoverApp')

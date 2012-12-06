@@ -112,4 +112,4 @@ class CollectorApp(App):
 
 
 if __name__ == '__main__':
-    main(CollectorApp)
+    main('socorro.collector.collector_app.CollectorApp')

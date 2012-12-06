@@ -427,4 +427,4 @@ class ImplementationWrapper(JsonWebServiceBase):
 
 
 if __name__ == '__main__':
-    main(MiddlewareApp)
+    main('socorro.middleware.middleware_app.MiddlewareApp')
