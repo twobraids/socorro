@@ -195,12 +195,13 @@ class Processor(object):
     self.priorityJobsTableName = "priority_jobs_%d" % self.processorId
     try:
       logger.debug("creating table '%s'", self.priorityJobsTableName)
+      db_cur.execute("drop table if exists %s" % self.priorityJobsTableName)
       db_cur.execute("create table %s (uuid varchar(50) not null "
                      "primary key)" % self.priorityJobsTableName)
       logger.debug("success")
       db_conn.commit()
     except sdb.exceptions_eligible_for_retry:
-      logger.debug("timout trouble")
+      logger.debug("timeout trouble")
       raise
     except sdb.db_module.ProgrammingError, x:
       logger.debug('the priority jobs table (%s) already exists',
