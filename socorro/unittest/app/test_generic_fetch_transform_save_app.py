@@ -82,7 +82,7 @@ class TestFetchTransformSaveApp(unittest.TestCase):
             def get_raw_crash(self, ooid):
                 return self.store[ooid]
 
-            def get_dumps(self, ooid):
+            def get_raw_dumps(self, ooid):
                 return {'upload_file_minidump': 'this is a fake dump'}
 
             def new_crashes(self):
@@ -124,7 +124,8 @@ class TestFetchTransformSaveApp(unittest.TestCase):
 
         self.assertEqual(source.store, destination.store)
         self.assertEqual(len(destination.dumps), 4)
-        self.assertEqual(destination.dumps['1237'], source.get_dumps('1237'))
+        self.assertEqual(destination.dumps['1237'],
+                         source.get_raw_dumps('1237'))
 
     def test_source_iterator(self):
 
