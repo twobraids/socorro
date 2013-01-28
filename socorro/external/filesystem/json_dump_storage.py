@@ -280,7 +280,7 @@ class JsonDumpStorage(socorro_dumpStorage.DumpStorage):
                              if dumpfilename.startswith(crash_id) and
                                 dumpfilename.endswith(self.dumpSuffix)]
         if not dump_pathnames:
-            raise OSError(errno.ENOENT, 'no dumps for ' + crash_id)
+            return {}
         dump_dict = dict(zip(self._dump_names_from_pathnames(dump_pathnames),
                              dump_pathnames))
         return dump_dict
