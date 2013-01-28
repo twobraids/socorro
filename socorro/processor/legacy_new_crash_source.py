@@ -23,7 +23,8 @@ class LegacyNewCrashSource(RequiredConfig):
     required_config.add_option(
         'database_class',
         doc="the class of the database",
-        default=ConnectionContext,
+        default=
+            'socorro.external.postgresql.connection_context.ConnectionContext',
         from_string_converter=class_converter
     )
     required_config.add_option(

@@ -31,7 +31,8 @@ class ProcessorAppRegistrationClient(RequiredConfig):
     required_config.add_option(
       'database',
       doc="the class of the registrar's database",
-      default=ConnectionContext,
+      default=
+          'socorro.external.postgresql.connection_context.ConnectionContext',
       from_string_converter=class_converter
     )
     required_config.add_option(

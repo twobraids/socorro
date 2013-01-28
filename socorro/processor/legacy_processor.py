@@ -21,8 +21,8 @@ from socorro.external.postgresql.dbapi2_util import (
     execute_no_results,
     execute_query_fetchall,
 )
-from socorro.external.postgresql.connection_context import ConnectionContext
-from socorro.database.transaction_executor import TransactionExecutor
+#from socorro.external.postgresql.connection_context import ConnectionContext
+#from socorro.database.transaction_executor import TransactionExecutor
 from socorro.lib.transform_rules import TransformRuleSystem
 from socorro.lib.datetimeutil import datetimeFromISOdateString, UTC
 from socorro.lib.ooid import dateFromOoid
@@ -51,7 +51,7 @@ class LegacyCrashProcessor(RequiredConfig):
     required_config.add_option(
         'database_class',
         doc="the class of the database",
-        default=ConnectionContext,
+        default='socorro.external.postgresql.connection_context.ConnectionContext',
         from_string_converter=class_converter
     )
     required_config.add_option(
