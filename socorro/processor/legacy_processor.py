@@ -51,7 +51,7 @@ class LegacyCrashProcessor(RequiredConfig):
     required_config.add_option(
         'database_class',
         doc="the class of the database",
-        default='socorro.external.postgresql.connection_context.ConnectionContext',
+        default='',
         from_string_converter=class_converter
     )
     required_config.add_option(
