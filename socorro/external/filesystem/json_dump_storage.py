@@ -327,21 +327,12 @@ class JsonDumpStorage(socorro_dumpStorage.DumpStorage):
 
         def handleLink(dir, name):
             nameDir = self.namePath(name)[0]
-            if not self.osModule.path.isfile(
-              os.path.join(nameDir, name + self.jsonSuffix)
-            ):
-                #print '        handleLink 1'
-                return None
-            if not self.osModule.path.isfile(
-              os.path.join(nameDir, name + self.dumpSuffix)
-            ):
-                #print '        handleLink 2'
-                return None
             if self.osModule.path.islink(os.path.join(nameDir, name)):
                 self.osModule.unlink(os.path.join(nameDir, name))
                 self.osModule.unlink(os.path.join(dir, name))
                 #print '        handleLink 3'
                 return name
+            return name
             #print '        handleLink off end'
         dailyParts = []
         try:
