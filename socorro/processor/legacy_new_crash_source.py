@@ -10,7 +10,7 @@ from socorro.external.postgresql.dbapi2_util import (
     execute_query_fetchall,
     single_value_sql
 )
-from socorro.external.postgresql.connection_context import ConnectionContext
+#from socorro.external.postgresql.connection_context import ConnectionContext
 from socorro.database.transaction_executor import TransactionExecutor
 
 
