@@ -10,7 +10,7 @@ from configman import Namespace, RequiredConfig
 from configman.converters import class_converter, timedelta_converter
 
 from socorro.lib.datetimeutil import utc_now, UTC
-from socorro.external.postgresql.connection_context import ConnectionContext
+#from socorro.external.postgresql.connection_context import ConnectionContext
 from socorro.database.transaction_executor import TransactionExecutor
 from socorro.external.postgresql.dbapi2_util import (
   single_value_sql,
