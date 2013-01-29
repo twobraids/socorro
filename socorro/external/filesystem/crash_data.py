@@ -5,7 +5,7 @@
 from socorro.external import MissingOrBadArgumentError, ResourceNotFound, \
                              ResourceUnavailable
 from socorro.external.crashstorage_base import CrashIDNotFound
-from socorro.external.postgresql import priorityjobs
+#from socorro.external.postgresql import priorityjobs
 from socorro.lib import external_common
 
 import crashstorage
@@ -53,8 +53,8 @@ class CrashData(object):
                 return get(params.uuid)
         except CrashIDNotFound:
             if params.datatype == 'processed':
-                self.get(datatype='raw', uuid=params.uuid)
-                j = priorityjobs.Priorityjobs(config=self.config)
-                j.create(uuid=params.uuid)
+                #self.get(datatype='raw', uuid=params.uuid)
+                #j = priorityjobs.Priorityjobs(config=self.config)
+                #j.create(uuid=params.uuid)
                 raise ResourceUnavailable(params.uuid)
             raise ResourceNotFound(params.uuid)
