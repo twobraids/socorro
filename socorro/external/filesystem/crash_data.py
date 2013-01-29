@@ -37,6 +37,8 @@ class CrashData(object):
             raise MissingOrBadArgumentError(
                         "Mandatory parameter 'datatype' is missing or empty")
 
+        self.config.logger.info(str(dict(self.config.filesystem)))
+
         store = crashstorage.FileSystemCrashStorage(self.config.filesystem)
 
         datatype_method_mapping = {
