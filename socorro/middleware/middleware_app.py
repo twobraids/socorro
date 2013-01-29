@@ -272,10 +272,11 @@ class MiddlewareApp(App):
                         [class_name]
                     )
                 except ImportError:
-                    raise ImportError(
-                        "Unable to import %s.%s.%s" %
-                        (base_module_path, file_name, class_name)
-                    )
+                    pass
+                    #raise ImportError(
+                        #"Unable to import %s.%s.%s" %
+                        #(base_module_path, file_name, class_name)
+                    #)
                 return getattr(module, class_name)
             raise ImplementationConfigurationError(file_and_class)
 
