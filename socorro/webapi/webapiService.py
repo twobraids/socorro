@@ -8,7 +8,7 @@ import web
 
 import socorro.lib.util as util
 #import socorro.database.database as db
-import socorro.storage.crashstorage as cs
+#import socorro.storage.crashstorage as cs
 from socorro.external import DatabaseError, InsertionError, \
                              MissingOrBadArgumentError
 
