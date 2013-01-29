@@ -272,7 +272,9 @@ class MiddlewareApp(App):
                         [class_name]
                     )
                 except ImportError:
-                    pass
+                    def null(*args, **kwargs):
+                        return None
+                    return null
                     #raise ImportError(
                         #"Unable to import %s.%s.%s" %
                         #(base_module_path, file_name, class_name)
