@@ -133,7 +133,8 @@ class MiddlewareApp(App):
     required_config.namespace('database')
     required_config.database.add_option(
         'database_class',
-        default='socorro.external.postgresql.connection_context.ConnectionContext',
+        #default='socorro.external.postgresql.connection_context.ConnectionContext',
+        default='',
         from_string_converter=class_converter
     )
 
@@ -144,7 +145,8 @@ class MiddlewareApp(App):
     required_config.namespace('hbase')
     required_config.hbase.add_option(
         'hbase_class',
-        default='socorro.external.hbase.crashstorage.HBaseCrashStorage',
+        #default='socorro.external.hbase.crashstorage.HBaseCrashStorage',
+        default='',
         from_string_converter=class_converter
     )
 
@@ -155,7 +157,8 @@ class MiddlewareApp(App):
     required_config.namespace('filesystem')
     required_config.filesystem.add_option(
         'filesystem_class',
-        default='socorro.external.filesystem.crashstorage.FileSystemCrashStorage',
+        #default='socorro.external.filesystem.crashstorage.FileSystemCrashStorage',
+        default='',
         from_string_converter=class_converter
     )
 
