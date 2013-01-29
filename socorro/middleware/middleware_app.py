@@ -17,9 +17,9 @@ from socorro.app.generic_app import App, main
 from socorro.external import MissingOrBadArgumentError, ResourceNotFound, \
                              ResourceUnavailable
 from socorro.webapi.webapiService import JsonWebServiceBase, Timeout
-from socorro.external.filesystem.crashstorage import FileSystemCrashStorage
-from socorro.external.hbase.crashstorage import HBaseCrashStorage
-from socorro.external.postgresql.connection_context import ConnectionContext
+#from socorro.external.filesystem.crashstorage import FileSystemCrashStorage
+#from socorro.external.hbase.crashstorage import HBaseCrashStorage
+#from socorro.external.postgresql.connection_context import ConnectionContext
 
 from configman import Namespace
 from configman.converters import class_converter
@@ -133,7 +133,7 @@ class MiddlewareApp(App):
     required_config.namespace('database')
     required_config.database.add_option(
         'database_class',
-        default=ConnectionContext,
+        default='socorro.external.postgresql.connection_context.ConnectionContext',
         from_string_converter=class_converter
     )
 
@@ -144,7 +144,7 @@ class MiddlewareApp(App):
     required_config.namespace('hbase')
     required_config.hbase.add_option(
         'hbase_class',
-        default=HBaseCrashStorage,
+        default='socorro.external.hbase.crashstorage.HBaseCrashStorage',
         from_string_converter=class_converter
     )
 
@@ -155,7 +155,7 @@ class MiddlewareApp(App):
     required_config.namespace('filesystem')
     required_config.filesystem.add_option(
         'filesystem_class',
-        default=FileSystemCrashStorage,
+        default='socorro.external.filesystem.crashstorage.FileSystemCrashStorage',
         from_string_converter=class_converter
     )
 

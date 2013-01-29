@@ -7,7 +7,7 @@ import logging
 import web
 
 import socorro.lib.util as util
-import socorro.database.database as db
+#import socorro.database.database as db
 import socorro.storage.crashstorage as cs
 from socorro.external import DatabaseError, InsertionError, \
                              MissingOrBadArgumentError
@@ -140,20 +140,20 @@ class JsonWebServiceBase(object):
                     "The PUT function has not been implemented.")
 
 
-class JsonServiceBase(JsonWebServiceBase):
+#class JsonServiceBase(JsonWebServiceBase):
 
-    """Provide an interface for JSON-based web services. For legacy services,
-    to be removed when all services are updated.
-    """
+    #"""Provide an interface for JSON-based web services. For legacy services,
+    #to be removed when all services are updated.
+    #"""
 
-    def __init__(self, config):
-        """
-        Set the DB and the pool up and store the config.
-        """
-        super(JsonServiceBase, self).__init__(config)
-        try:
-            self.database = db.Database(config)
-            self.crashStoragePool = cs.CrashStoragePool(config,
-                                        storageClass=config.hbaseStorageClass)
-        except (AttributeError, KeyError):
-            util.reportExceptionAndContinue(logger)
+    #def __init__(self, config):
+        #"""
+        #Set the DB and the pool up and store the config.
+        #"""
+        #super(JsonServiceBase, self).__init__(config)
+        #try:
+            #self.database = db.Database(config)
+            #self.crashStoragePool = cs.CrashStoragePool(config,
+                                        #storageClass=config.hbaseStorageClass)
+        #except (AttributeError, KeyError):
+            #util.reportExceptionAndContinue(logger)
