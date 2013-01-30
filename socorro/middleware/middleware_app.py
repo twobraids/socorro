@@ -272,13 +272,10 @@ class MiddlewareApp(App):
                         [class_name]
                     )
                 except ImportError:
-                    def null(*args, **kwargs):
-                        return None
-                    return null
-                    #raise ImportError(
-                        #"Unable to import %s.%s.%s" %
-                        #(base_module_path, file_name, class_name)
-                    #)
+                    raise ImportError(
+                        "Unable to import %s.%s.%s" %
+                        (base_module_path, file_name, class_name)
+                    )
                 return getattr(module, class_name)
             raise ImplementationConfigurationError(file_and_class)
 
@@ -288,6 +285,8 @@ class MiddlewareApp(App):
         def wrap(cls):
             return type(cls.__name__, (ImplementationWrapper,), {'cls': cls})
         services_list = ((x, wrap(y)) for x, y in services_list)
+
+        self.logger.info('services: %s', str(services_list))
 
         self.web_server = self.config.web_server.wsgi_server_class(
             self.config,  # needs the whole config not the local namespace
