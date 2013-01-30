@@ -286,7 +286,7 @@ class MiddlewareApp(App):
             return type(cls.__name__, (ImplementationWrapper,), {'cls': cls})
         services_list = ((x, wrap(y)) for x, y in services_list)
 
-        self.logger.info('services: %s', str(services_list))
+        self.config.logger.info('services: %s', str(services_list))
 
         self.web_server = self.config.web_server.wsgi_server_class(
             self.config,  # needs the whole config not the local namespace
