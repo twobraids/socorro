@@ -284,7 +284,7 @@ class MiddlewareApp(App):
         ## 2 wrap each class with the ImplementationWrapper class
         def wrap(cls):
             return type(cls.__name__, (ImplementationWrapper,), {'cls': cls})
-        services_list = ((x, wrap(y)) for x, y in services_list)
+        services_list = [(x, wrap(y)) for x, y in services_list]
 
         self.config.logger.info('services: %s', str(services_list))
 
