@@ -1,7 +1,8 @@
-class Products(object):
+from socorro.external.filesystem.service_base import FileSystemServiceBase
+
+class Products(FileSystemServiceBase):
 
     def get(self, **kwargs):
-        print kwargs
         return {
             "products": ["Fennicky"],
             "hits": { "Fennicky": "1.0"},
