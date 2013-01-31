@@ -17,7 +17,7 @@ class Products(FileSystemServiceBase):
                         "start_date": "2001-01-01",
                         "end_date": "2099-01-01",
                         "throttle": 10.0,
-                        "featured": false,
+                        "featured": False,
                         "release": "Nightly",
                         "has_builds": true
                     },
