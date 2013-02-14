@@ -586,6 +586,9 @@ class Processor(object):
 
         java_stack_trace = jsonDocument.setdefault('JavaStackTrace', None)
 
+        is_garbage_collecting = jsonDocument.setdefault('IsGarbageCollecting', None)
+        newReportRecordAsDict['is_garbage_collecting'] = is_garbage_collecting
+
         newReportRecordAsDict['additional_minidumps'] = []
         dumps_mapping = threadLocalCrashStorage.get_raw_dumps(jobUuid)
         for name, dump in dumps_mapping.iteritems():
@@ -634,7 +637,8 @@ class Processor(object):
         topmost_filenames = %%s,
         addons_checked = %%s,
         flash_version = %%s,
-        exploitability = %%s
+        exploitability = %%s,
+        is_garbage_collecting = %%s
       where id = %s and date_processed = timestamp with time zone '%s'
       """ % (reportId,date_processed)
       #logger.debug("newReportRecordAsDict %s, %s", newReportRecordAsDict['topmost_filenames'], newReportRecordAsDict['flash_version'])
@@ -656,7 +660,7 @@ class Processor(object):
       flash_version = newReportRecordAsDict.get('flash_version')
       processor_notes = '; '.join(processorErrorMessages)
       newReportRecordAsDict['processor_notes'] = processor_notes
-      infoTuple = (newReportRecordAsDict['signature'], processor_notes, startedDateTime, completedDateTime, newReportRecordAsDict["success"], newReportRecordAsDict["truncated"], topmost_filenames, addons_checked, flash_version, newReportRecordAsDict["exploitability"],)
+      infoTuple = (newReportRecordAsDict['signature'], processor_notes, startedDateTime, completedDateTime, newReportRecordAsDict["success"], newReportRecordAsDict["truncated"], topmost_filenames, addons_checked, flash_version, newReportRecordAsDict["exploitability"], newReportRecordAsDict["is_garbage_collecting"],)
       #logger.debug("Updated report %s (%s): %s", reportId, jobUuid, str(infoTuple))
       threadLocalCursor.execute(reportsSql, infoTuple)
       threadLocalDatabaseConnection.commit()

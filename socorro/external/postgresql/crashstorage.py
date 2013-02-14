@@ -59,6 +59,7 @@ class PostgreSQLCrashStorage(CrashStorageBase):
         ("flash_version", "flash_version"),
         ("hangid", "hangid"),
         ("install_age", "install_age"),
+        ("is_garbage_collecting", "is_garbage_collecting"),
         ("last_crash", "last_crash"),
         ("os_name", "os_name"),
         ("os_version", "os_version"),

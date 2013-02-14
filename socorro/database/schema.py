@@ -326,7 +326,8 @@ class ReportsTable(PartitionedTable):
                                               flash_version TEXT,
                                               hangid TEXT,
                                               process_type TEXT,
-                                              release_channel TEXT
+                                              release_channel TEXT,
+                                              is_garbage_collecting boolean
                                           );
                                           --CREATE TRIGGER reports_insert_trigger
                                           --    BEFORE INSERT ON reports
@@ -350,8 +351,8 @@ class ReportsTable(PartitionedTable):
                                       )
     self.columns = ("uuid", "client_crash_date", "date_processed", "product", "version", "build", "url", "install_age", "last_crash", "uptime", "email", "user_id", "user_comments", "app_notes", "distributor", "distributor_version", "topmost_filenames", "addons_checked", "flash_version", "hangid", "process_type", "release_channel")
     self.insertSql = """insert into TABLENAME
-                            (uuid, client_crash_date, date_processed, product, version, build, url, install_age, last_crash, uptime, email, user_id, user_comments, app_notes, distributor, distributor_version, topmost_filenames, addons_checked, flash_version, hangid, process_type, release_channel) values
-                            (%s,   %s,                %s,             %s,      %s,      %s,    %s,  %s,          %s,         %s,     %s,    %s,      %s,            %s,        %s,          %s,                  %s,                %s,             %s,            %s,     %s,           %s)"""
+                            (uuid, client_crash_date, date_processed, product, version, build, url, install_age, last_crash, uptime, email, user_id, user_comments, app_notes, distributor, distributor_version, topmost_filenames, addons_checked, flash_version, hangid, process_type, release_channel, is_garbage_collecting) values
+                            (%s,   %s,                %s,             %s,      %s,      %s,    %s,  %s,          %s,         %s,     %s,    %s,      %s,            %s,        %s,          %s,                  %s,                %s,             %s,            %s,     %s,           %s,              %s)"""
   #-----------------------------------------------------------------------------------------------------------------
   def additionalCreationProcedures(self, databaseCursor):
     pass

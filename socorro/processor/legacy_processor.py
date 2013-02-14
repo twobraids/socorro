@@ -348,6 +348,7 @@ class LegacyCrashProcessor(RequiredConfig):
         #processed_crash.flash_process_dump = None  # anticiptation of future
         processed_crash.hangid = None
         processed_crash.install_age = None
+        processed_crash.is_garbage_collecting = None
         processed_crash.last_crash = None
         processed_crash.os_name = None
         processed_crash.os_version = None
@@ -449,6 +450,10 @@ class LegacyCrashProcessor(RequiredConfig):
             raw_crash,
             'ProcessType',
             10
+        )
+        processed_crash.is_garbage_collecting = raw_crash.get(
+            'IsGarbageCollecting',
+            None
         )
         processed_crash.release_channel = raw_crash.get(
             'ReleaseChannel',
