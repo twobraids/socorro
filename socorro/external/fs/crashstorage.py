@@ -96,11 +96,6 @@ class FSRadixTreeStorage(CrashStorageBase):
         doc='the directory base name to use for the named radix tree storage',
         default='name'
     )
-    required_config.add_option(
-        'legacy_mode',
-        doc='use legacy directory structure for crashes',
-        default=False
-    )
 
     def __init__(self, *args, **kwargs):
         super(FSRadixTreeStorage, self).__init__(*args, **kwargs)
@@ -149,8 +144,7 @@ class FSRadixTreeStorage(CrashStorageBase):
                     [self.config.name_branch_base] + \
                     self._get_radix(crash_id)
 
-        if not self.config.legacy_mode:
-            directory.append(crash_id)
+        directory.append(crash_id)
 
         return os.sep.join(directory)
 
@@ -258,6 +252,15 @@ class FSRadixTreeStorage(CrashStorageBase):
         raise TypeError
 
 
+class FSLegacyRadixTreeStorage(FSRadixTreeStorage):
+
+    def _get_radixed_parent_directory(self, crash_id):
+        directory = self._get_base(crash_id) + \
+                    [self.config.name_branch_base] + \
+                    self._get_radix(crash_id)
+        return os.sep.join(directory)
+
+
 class FSDatedRadixTreeStorage(FSRadixTreeStorage):
     """
     This class implements dated radix tree storage -- it enables for traversing
@@ -295,12 +298,15 @@ class FSDatedRadixTreeStorage(FSRadixTreeStorage):
         default=4
     )
 
+    def __init__(self, *args, **kwargs):
+        super(FSDatedRadixTreeStorage, self).__init_(*args, **kwargs)
+        self._dir_depth = 1
+
     # This is just a constant for len(self._current_slot()).
     SLOT_DEPTH = 2
 
     def _get_date_root_name(self, crash_id):
-        return 'date_root' if not self.config.legacy_mode \
-                           else crash_id
+        return 'date_root'
 
     def _get_dump_file_name(self, crash_id, dump_name):
         if dump_name == self.config.dump_field or dump_name is None:
@@ -321,6 +327,31 @@ class FSDatedRadixTreeStorage(FSRadixTreeStorage):
                                now.second //
                                    self.config.minute_slice_interval)]
 
+    def _create_name_to_date_symlink(self, crash_id, slot):
+        """we traverse the path back up from date/slot... to make a link:
+           src:  "name"/radix.../crash_id (or "name"/radix... for legacy mode)
+           dest: "date"/slot.../crash_id"""
+        root = os.sep.join([os.path.pardir] * (self.SLOT_DEPTH + 1))
+        os.symlink(os.sep.join([root, self.config.name_branch_base] +
+                               self._get_radix(crash_id) +
+                               [crash_id]),
+                   os.sep.join([self._get_dated_parent_directory(crash_id,
+                                                                 slot),
+                                crash_id]))
+
+    def _create_date_to_name_symlink(crash_id, slot):
+        """the path is something like name/radix.../crash_id, so what we do is
+           add 2 to the directories to go up _dir_depth + len(radix).
+           we make a link:
+           src:  "date"/slot...
+           dest: "name"/radix.../crash_id/date_root_name"""
+        date_root_name = self._get_date_root_name(crash_id)
+
+        root = os.sep.join([os.path.pardir] *
+                           (self._dir_depth + len(self._get_radix(crash_id))))
+        os.symlink(os.sep.join([root, self.config.date_branch_base] + slot),
+                   os.sep.join([radixed_parent_dir, date_root_name]))
+
     def save_raw_crash(self, raw_crash, dumps, crash_id):
         super(FSDatedRadixTreeStorage, self).save_raw_crash(raw_crash,
                                                             dumps, crash_id)
@@ -337,32 +368,8 @@ class FSDatedRadixTreeStorage(FSRadixTreeStorage):
 
         radixed_parent_dir = self._get_radixed_parent_directory(crash_id)
 
-        # we traverse the path back up from date/slot... to make a link:
-        # src:  "name"/radix.../crash_id (or "name"/radix... for legacy mode)
-        # dest: "date"/slot.../crash_id
-        root = os.sep.join([os.path.pardir] * (self.SLOT_DEPTH + 1))
-        os.symlink(os.sep.join([root, self.config.name_branch_base] +
-                               self._get_radix(crash_id) +
-                               ([crash_id] if not self.config.legacy_mode
-                                           else
-                                [])),
-                   os.sep.join([self._get_dated_parent_directory(crash_id,
-                                                                 slot),
-                                crash_id]))
-
-        # the path is something like name/radix.../crash_id, so what we do is
-        # add 2 to the directories to go up 1 + len(radix) + (not legacy_mode).
-        #
-        # we make a link:
-        # src:  "date"/slot...
-        # dest: "name"/radix.../crash_id/date_root_name
-        date_root_name = self._get_date_root_name(crash_id)
-
-        root = os.sep.join([os.path.pardir] *
-                           (1 + len(self._get_radix(crash_id)) +
-                            (not self.config.legacy_mode)))
-        os.symlink(os.sep.join([root, self.config.date_branch_base] + slot),
-                   os.sep.join([radixed_parent_dir, date_root_name]))
+        self._create_name_to_date_symlink(crash_id, slot)
+        self._create_date_to_name_symlink(crash_id, slot)
 
     def remove(self, crash_id):
         date_root_name = self._get_date_root_name(crash_id)
@@ -437,3 +444,23 @@ class FSDatedRadixTreeStorage(FSRadixTreeStorage):
 
                 if not skip_dir:
                     os.rmdir(hour_slot_base)
+
+
+class FSLegacyDatedRadixTreeStorage(FSDatedRadixTreeStorage):
+    def __init__(self, *args, **kwargs):
+        super(FSLegacyDatedRadixTreeStorage, self).__init_(*args, **kwargs)
+        self._dir_depth = 2
+
+
+    def _get_date_root_name(self, crash_id):
+        return crash_id
+
+    def _create_name_to_date_symlink(self, crash_id, slot):
+        root = os.sep.join([os.path.pardir] * (self.SLOT_DEPTH + 1))
+        os.symlink(os.sep.join([root, self.config.name_branch_base] +
+                               self._get_radix(crash_id) +
+                               []),
+                   os.sep.join([self._get_dated_parent_directory(crash_id,
+                                                                 slot),
+                                crash_id]))
+
