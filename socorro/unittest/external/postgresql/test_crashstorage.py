@@ -28,6 +28,12 @@ DSN = {
   "database_password": databasePassword.default
 }
 
+a_raw_crash = {
+    "submitted_timestamp": "2012-04-08 10:52:42.0",
+    "ProductName": "Fennicky",
+    "Version": "6.02E23",
+}
+
 a_processed_crash = {
     "addons": [["{1a5dabbd-0e74-41da-b532-a364bb552cab}", "1.0.4.1"]],
     "addons_checked": None,
@@ -218,6 +224,58 @@ class TestPostgresCrashStorage(unittest.TestCase):
     """
     Tests where the actual PostgreSQL part is mocked.
     """
+
+    def test_basic_postgres_save_raw_crash_success(self):
+
+        mock_logging = mock.Mock()
+        mock_postgres = mock.Mock()
+        required_config = PostgreSQLCrashStorage.required_config
+        required_config.add_option('logger', default=mock_logging)
+
+        config_manager = ConfigurationManager(
+          [required_config],
+          app_name='testapp',
+          app_version='1.0',
+          app_description='app description',
+          values_source_list=[{
+            'logger': mock_logging,
+            'database_class': mock_postgres
+          }]
+        )
+
+        with config_manager.context() as config:
+            crashstorage = PostgreSQLCrashStorage(config)
+            database = crashstorage.database.return_value = mock.MagicMock()
+            self.assertTrue(isinstance(database, mock.Mock))
+
+            crashstorage.save_raw_crash(
+                a_raw_crash,
+                '',
+                "936ce666-ff3b-4c7a-9674-367fe2120408"
+            )
+
+            m = mock.MagicMock()
+            m.__enter__.return_value = m
+            database = crashstorage.database.return_value = m
+            crashstorage.save_processed(a_processed_crash)
+            self.assertEqual(m.cursor.call_count, 3)
+            self.assertEqual(m.cursor().execute.call_count, 3)
+
+            expected_execute_args = (
+                (('savepoint MainThread', None),),
+                (('insert into raw_crashes (uuid, raw_crash, date_processed) values (%s, %s %s)',
+                     [
+                         '936ce666-ff3b-4c7a-9674-367fe2120408',
+                         "",
+                         "2012-04-08 10:52:42.0"
+                    ]),),
+                (('release savepoint MainThread', None),),
+            )
+
+            actual_execute_args = m.cursor().execute.call_args_list
+            for expected, actual in zip(expected_execute_args,
+                                        actual_execute_args):
+                self.assertEqual(expected, actual)
 
     def test_basic_key_error_on_save_processed(self):
 
