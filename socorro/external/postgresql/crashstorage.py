@@ -104,7 +104,7 @@ class PostgreSQLCrashStorage(CrashStorageBase):
     #--------------------------------------------------------------------------
     def _save_raw_crash_transaction(self, connection, raw_crash, crash_id):
         raw_crash_table_name = (
-          'raw_crash_%s' % self._table_suffix_for_crash_id(crash_id)
+          'raw_crashes_%s' % self._table_suffix_for_crash_id(crash_id)
         )
         insert_sql = """insert into %s (uuid, raw_crash, date_processed) values
                         (%%s, %%s, %%s)""" % raw_crash_table_name
@@ -112,7 +112,7 @@ class PostgreSQLCrashStorage(CrashStorageBase):
         value_list = (
             crash_id,
             json.dumps(raw_crash),
-            raw_crash.submitted_timestamp
+            raw_crash["submitted_timestamp"]
         )
         execute_no_results(connection, "savepoint %s" % savepoint_name)
         try:

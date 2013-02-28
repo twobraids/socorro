@@ -7,7 +7,7 @@ import unittest
 import mock
 
 import psycopg2
-from psycopg2 import OperationalError
+from psycopg2 import OperationalError, IntegrityError
 from psycopg2.extensions import TRANSACTION_STATUS_IDLE
 
 from configman import ConfigurationManager
@@ -248,34 +248,128 @@ class TestPostgresCrashStorage(unittest.TestCase):
             database = crashstorage.database.return_value = mock.MagicMock()
             self.assertTrue(isinstance(database, mock.Mock))
 
+            self.assertTrue('submitted_timestamp' in a_raw_crash)
+
+            m = mock.MagicMock()
+            m.__enter__.return_value = m
+            database = crashstorage.database.return_value = m
             crashstorage.save_raw_crash(
                 a_raw_crash,
                 '',
                 "936ce666-ff3b-4c7a-9674-367fe2120408"
             )
-
-            m = mock.MagicMock()
-            m.__enter__.return_value = m
-            database = crashstorage.database.return_value = m
-            crashstorage.save_processed(a_processed_crash)
             self.assertEqual(m.cursor.call_count, 3)
             self.assertEqual(m.cursor().execute.call_count, 3)
 
             expected_execute_args = (
                 (('savepoint MainThread', None),),
-                (('insert into raw_crashes (uuid, raw_crash, date_processed) values (%s, %s %s)',
-                     [
+                (('insert into raw_crashes_20120402 (uuid, raw_crash, date_processed) values (%s, %s, %s)',
+                     (
                          '936ce666-ff3b-4c7a-9674-367fe2120408',
-                         "",
+                         '{"submitted_timestamp": "2012-04-08 10:52:42.0", "Version": "6.02E23", "ProductName": "Fennicky"}',
                          "2012-04-08 10:52:42.0"
-                    ]),),
+                    )),),
                 (('release savepoint MainThread', None),),
             )
 
             actual_execute_args = m.cursor().execute.call_args_list
             for expected, actual in zip(expected_execute_args,
                                         actual_execute_args):
-                self.assertEqual(expected, actual)
+                expeceted_sql, expected_params = expected[0]
+                expeceted_sql = expeceted_sql.replace('\n', '')
+                expeceted_sql = expeceted_sql.replace(' ', '')
+                actual_sql, actual_params = actual[0]
+                actual_sql = actual_sql.replace('\n', '')
+                actual_sql = actual_sql.replace(' ', '')
+                self.assertEqual(expeceted_sql, actual_sql)
+                self.assertEqual(expected_params, actual_params)
+
+    def test_basic_postgres_save_raw_crash_fail_then_succeed(self):
+        mock_logging = mock.Mock()
+        mock_postgres = mock.Mock()
+
+        required_config = PostgreSQLCrashStorage.required_config
+        required_config.add_option('logger', default=mock_logging)
+
+        config_manager = ConfigurationManager(
+          [required_config],
+          app_name='testapp',
+          app_version='1.0',
+          app_description='app description',
+          values_source_list=[{
+            'logger': mock_logging,
+            'database_class': mock_postgres,
+            'transaction_executor_class':
+                TransactionExecutorWithLimitedBackoff,
+            'backoff_delays': [0, 0, 0],
+          }]
+        )
+
+        with config_manager.context() as config:
+            crashstorage = PostgreSQLCrashStorage(config)
+            crashstorage.database.operational_exceptions = (OperationalError,)
+
+            database = crashstorage.database.return_value = mock.MagicMock()
+            self.assertTrue(isinstance(database, mock.Mock))
+
+            execute_returns = [None, None, None, None, None]
+            def execute_func(*args):
+                result = execute_returns.pop(0)
+                return result
+            execute_mock = mock.Mock()
+            execute_mock.execute.side_effect = execute_func
+
+            error_list = [None, IntegrityError('bad'),]
+            def touble(*args):
+                try:
+                    result = error_list.pop(0)
+                    if isinstance(result, Exception):
+                        raise result
+                    return execute_mock
+                except IndexError:
+                    return execute_mock
+
+            m = mock.MagicMock()
+            m.__enter__.return_value = m
+            database = crashstorage.database.return_value = m
+            m.cursor.side_effect = touble
+            crashstorage.save_processed(a_processed_crash)
+            self.assertEqual(m.cursor.call_count, 9)
+            self.assertEqual(m.cursor().fetchall.call_count, 3)
+            self.assertEqual(m.cursor().execute.call_count, 7)
+
+            expected_execute_args = (
+                (('savepoint MainThread', None),),
+                (('insert into raw_crashes_20120402 (uuid, raw_crash, date_processed) values (%s, %s, %s)',
+                     (
+                         '936ce666-ff3b-4c7a-9674-367fe2120408',
+                         '{"submitted_timestamp": "2012-04-08 10:52:42.0", "Version": "6.02E23", "ProductName": "Fennicky"}',
+                         "2012-04-08 10:52:42.0"
+                    )),),
+                (('release savepoint MainThread', None),),
+                (('rollback to savepoint MainThread', None),),
+                (('delete from raw_crashes_20120402 where uuid = %s'), (
+                  '936ce666-ff3b-4c7a-9674-367fe2120408',),)
+                (('insert into raw_crashes_20120402 (uuid, raw_crash, date_processed) values (%s, %s, %s)',
+                     (
+                         '936ce666-ff3b-4c7a-9674-367fe2120408',
+                         '{"submitted_timestamp": "2012-04-08 10:52:42.0", "Version": "6.02E23", "ProductName": "Fennicky"}',
+                         "2012-04-08 10:52:42.0"
+                    )),),
+            )
+
+            actual_execute_args = m.cursor().execute.call_args_list
+            for expected, actual in zip(expected_execute_args,
+                                        actual_execute_args):
+                expeceted_sql, expected_params = expected[0]
+                expeceted_sql = expeceted_sql.replace('\n', '')
+                expeceted_sql = expeceted_sql.replace(' ', '')
+                actual_sql, actual_params = actual[0]
+                actual_sql = actual_sql.replace('\n', '')
+                actual_sql = actual_sql.replace(' ', '')
+                self.assertEqual(expeceted_sql, actual_sql)
+                self.assertEqual(expected_params, actual_params)
+
 
     def test_basic_key_error_on_save_processed(self):
 
