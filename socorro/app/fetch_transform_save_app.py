@@ -104,9 +104,30 @@ class FetchTransformSaveApp(App):
         source to the destination without changing the data.  While this may
         be good enough for the raw crashmover, the processor would override
         this method to create and save processed crashes"""
-        raw_crash = self.source.get_raw_crash(crash_id)
-        dumps = self.source.get_raw_dumps(crash_id)
-        self.destination.save_raw_crash(raw_crash, dumps, crash_id)
+        try:
+            raw_crash = self.source.get_raw_crash(crash_id)
+        except Exception as x:
+            self.config.logger.error(
+                "reading raw_crash: %s",
+                str(x),
+                exc_info=True
+            )
+        try:
+            dumps = self.source.get_raw_dumps(crash_id)
+        except Exception as x:
+            self.config.logger.error(
+                "reading dump: %s",
+                str(x),
+                 exc_info=True
+            )
+        try:
+            self.destination.save_raw_crash(raw_crash, dumps, crash_id)
+        except Exception as x:
+            self.config.logger.error(
+                "writing raw: %s",
+                str(x),
+                exc_info=True
+            )
 
     #--------------------------------------------------------------------------
     def quit_check(self):
