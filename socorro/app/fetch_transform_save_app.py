@@ -112,6 +112,7 @@ class FetchTransformSaveApp(App):
                 str(x),
                 exc_info=True
             )
+            raw_crash = {}
         try:
             dumps = self.source.get_raw_dumps(crash_id)
         except Exception as x:
@@ -120,6 +121,7 @@ class FetchTransformSaveApp(App):
                 str(x),
                  exc_info=True
             )
+            dumps = {}
         try:
             self.destination.save_raw_crash(raw_crash, dumps, crash_id)
         except Exception as x:
