@@ -75,8 +75,7 @@ def processor2012(config):
     import socorro.external.elasticsearch.crashstorage
     trans_config.destination.storage_classes = '''
         socorro.external.postgresql.crashstorage.PostgreSQLCrashStorage,
-        socorro.external.hbase.crashstorage.HBaseCrashStorage,
-        socorro.external.elasticsearch.crashstorage.ElasticSearchCrashStorage
+        socorro.external.hbase.crashstorage.HBaseCrashStorage
     '''
 
     #--------------------------------------------------------------------------
@@ -215,32 +214,32 @@ def processor2012(config):
 
     #--------------------------------------------------------------------------
     # storage2 -
-    trans_config.destination.storage2 = DotDict()
+    #trans_config.destination.storage2 = DotDict()
 
     # name: destination.storage2.crashstorage_class
     # doc: None
     # converter: configman.converters.class_converter
-    trans_config.destination.storage2.crashstorage_class = \
-        socorro.external.elasticsearch.crashstorage.ElasticSearchCrashStorage
+    #trans_config.destination.storage2.crashstorage_class = \
+        #socorro.external.elasticsearch.crashstorage.ElasticSearchCrashStorage
 
     # name: destination.storage2.submission_url
     # doc: a url to submit crash_ids for Elastic Search (use %s in place of the
     #      crash_id) (leave blank to disable)
     # converter: str
-    trans_config.destination.storage2.submission_url = \
-        config.elasticSearchOoidSubmissionUrl
+    #trans_config.destination.storage2.submission_url = \
+        #config.elasticSearchOoidSubmissionUrl
 
     # name: destination.storage2.timeout
     # doc: how long to wait in seconds for confirmation of a submission
     # converter: int
-    trans_config.destination.storage2.timeout = 2
+    #trans_config.destination.storage2.timeout = 2
 
     # name: destination.storage2.transaction_executor_class
     # doc: a class that will manage transactions
     # converter: configman.converters.class_converter
-    import socorro.database.transaction_executor
-    trans_config.destination.storage2.transaction_executor_class = \
-        socorro.database.transaction_executor.TransactionExecutor
+    #import socorro.database.transaction_executor
+    #trans_config.destination.storage2.transaction_executor_class = \
+        #socorro.database.transaction_executor.TransactionExecutor
 
     #--------------------------------------------------------------------------
     # logging -
