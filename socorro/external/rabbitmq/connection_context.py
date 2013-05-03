@@ -95,7 +95,7 @@ class ConnectionContext(RequiredConfig):
     def in_transaction(self, connection):
         """detect if the supplied connection reports that it is in the middle
         of a transaction"""
-        return True
+        return False
 
     #--------------------------------------------------------------------------
     @contextlib.contextmanager
@@ -202,7 +202,6 @@ class ConnectionContextPooled(ConnectionContext):  # pragma: no cover
             channel.close()
             self.config.logger.debug("RabbitMQPooled - channel %s closed"
                                      % name)
-        
         self.conn.close()
 
     #--------------------------------------------------------------------------

@@ -101,11 +101,6 @@ class RabbitMQCrashStorage(CrashStorageBase):
             del self.internal_cache[crash_id]
         else:
             self.config.logger.error('Crash ID %s was not found in the internal cache', crash_id)
-    
-    
+
     def _transaction_ack_crash(self, channel, to_ack):
         channel.basic_ack(delivery_tag=to_ack.delivery_tag)
-        
-        
-        
-         
