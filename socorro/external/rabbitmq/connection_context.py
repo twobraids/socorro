@@ -89,7 +89,10 @@ class ConnectionContext(RequiredConfig):
                           derived class
         """
 
-        return self.conn.channel()
+        channel = self.conn.channel()
+        channel.queue_declare(queue='socorro.normal', durable=True)
+        channel.queue_declare(queue="socorro.priority", durable=True)
+        return channel
 
     #--------------------------------------------------------------------------
     def in_transaction(self, connection):
