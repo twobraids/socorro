@@ -393,8 +393,10 @@ class TaskThread(threading.Thread):
         """
         try:
             quit_request_detected = False
+            print "QQQQQ In  threaded task manager"
             while True:
                 aFunction, arguments = self.manager.task_queue.get()
+                print "QQQQQ",  arguments
                 if aFunction is None:
                     break
                 if quit_request_detected:

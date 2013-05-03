@@ -83,12 +83,13 @@ class RabbitMQCrashStorage(CrashStorageBase):
     def new_crashes(self):
         channel = self.rabbitmq.connection()
         data = channel.basic_get(queue="socorro.priority")
+        # RabbitMQ gives us: (channel information, meta information, payload)
         if data == (None, None, None):
             data = channel.basic_get(queue="socorro.normal")
 
         while data != (None, None, None):
             self.internal_cache[data[2]] = data[0]
-            yield data
+            yield data[2]
             data = channel.basic_get(queue="socorro.priority")
             if data == (None, None, None):
                 data = channel.basic_get(queue="socorro.normal")
