@@ -207,8 +207,12 @@ class LegacyCrashProcessor(RequiredConfig):
                 quit_check_callback
             )
 
-        self.raw_crash_transform_rule_system = TransformRuleSystem()
-        self._load_transform_rules()
+        self.raw_crash_transform_rule_system = self._load_transform_rules(
+            "processor.json_rewrite"
+        )
+        self.classifier_rule_system = self._load_transform_rules(
+            "processor.classifiers"
+        )
 
         # *** originally from the ExternalProcessor class
         #preprocess the breakpad_stackwalk command line
@@ -275,10 +279,10 @@ class LegacyCrashProcessor(RequiredConfig):
             crash_id = raw_crash.uuid
             started_timestamp = self._log_job_start(crash_id)
 
-            #self.config.logger.debug('about to apply rules')
+            self.config.logger.debug('about to raw crash apply rules')
             self.raw_crash_transform_rule_system.apply_all_rules(raw_crash,
                                                                  self)
-            #self.config.logger.debug('done applying transform rules')
+            self.config.logger.debug('done with raw crash transform rules')
 
             try:
                 submitted_timestamp = datetimeFromISOdateString(
@@ -319,6 +323,15 @@ class LegacyCrashProcessor(RequiredConfig):
                 processed_crash.get('topmost_filenames', [])
             )
             processed_crash.Winsock_LSP = raw_crash.get('Winsock_LSP', None)
+            self.config.logger.debug('about to apply classifier rules')
+            self.classifier_rule_system.apply_all_rules(
+                raw_crash,
+                processed_crash,
+                self
+            )
+            self.config.logger.debug('done with classifier rules')
+
+
         except Exception, x:
             self.config.logger.warning(
                 'Error while processing %s: %s',
@@ -1079,18 +1092,19 @@ class LegacyCrashProcessor(RequiredConfig):
         return signature
 
     #--------------------------------------------------------------------------
-    def _load_transform_rules(self):
+    def _load_transform_rules(self, rule_category):
         sql = (
             "select predicate, predicate_args, predicate_kwargs, "
             "       action, action_args, action_kwargs "
             "from transform_rules "
             "where "
-            "  category = 'processor.json_rewrite'"
+            "  category = %s"
         )
         try:
             rules = self.transaction(
                 execute_query_fetchall,
-                sql
+                sql,
+                (rule_category,)
             )
         except Exception:
             self.config.logger.warning(
@@ -1113,12 +1127,15 @@ class LegacyCrashProcessor(RequiredConfig):
                              x[4],
                              x[5])
                             for x in rules]
-        self.raw_crash_transform_rule_system.load_rules(translated_rules)
+        rule_system = TransformRuleSystem()
+        rule_system.load_rules(translated_rules)
 
         self.config.logger.debug(
-            'done loading rules: %s',
-            str(self.raw_crash_transform_rule_system.rules)
+            'done loading rules (%s): %s',
+            rule_category,
+            str(rule_system.rules)
         )
+        return rule_system
 
     #--------------------------------------------------------------------------
     @contextmanager
