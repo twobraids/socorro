@@ -102,6 +102,59 @@ class TestTransformRules(unittest.TestCase):
         assert_expected(r.action_args, ())
         assert_expected(r.action_kwargs, {})
 
+    def test_TransformRule_with_class(self):
+        """test to make sure that classes can be used as predicates and
+        actions"""
+        class MyRule(object):
+            def __init__(self):
+                self.predicate_called = False
+                self.action_called = False
+            def predicate(self):
+                self.predicate_called = True
+                return True
+            def action(self):
+                self.action_called = True
+                return True
+        r = transform_rules.TransformRule(
+            MyRule, (), {},
+            MyRule, (), {}
+        )
+        self.assertEqual(r.predicate, r._predicitate_implementation.predicate)
+        self.assertEqual(r.action, r._action_implementation.action)
+        self.assertEqual(r._action_implementation, r._predicitate_implementation)
+        r.act()
+        self.assertTrue(r._predicitate_implementation.predicate_called)
+        self.assertTrue(r._action_implementation.action_called)
+
+    def test_TransformRule_with_class_function_mix(self):
+        """test to make sure that classes can be mixed with functions as
+        predicates and actions"""
+        class MyRule(object):
+            def __init__(self):
+                self.predicate_called = False
+                self.action_called = False
+            def predicate(self):
+                self.predicate_called = True
+                return True
+            def action(self):
+                self.action_called = True
+                return True
+
+        def my_predicate():
+            return True
+
+        r = transform_rules.TransformRule(
+            my_predicate, (), {},
+            MyRule, (), {}
+        )
+        self.assertEqual(r.predicate, my_predicate)
+        self.assertEqual(r.action, r._action_implementation.action)
+        self.assertNotEqual(r._action_implementation, r._predicitate_implementation)
+        r.act()
+        # make sure that the class predicate function was not called
+        self.assertFalse(r._action_implementation.predicate_called)
+        self.assertTrue(r._action_implementation.action_called)
+
 
     def test_TransfromRule_function_or_constant(self):
         r = transform_rules.TransformRule.function_invocation_proxy(True,
