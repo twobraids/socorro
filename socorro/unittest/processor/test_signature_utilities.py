@@ -78,6 +78,8 @@ def testNormalize():
           (('module', '', '', '23', '0xFFF'), 'module@0xFFF'),
           (('module', '', '', '', '0xFFF'), 'module@0xFFF'),
           ((None, '', '', '', '0xFFF'), '@0xFFF'),
+          (('this', 'is', 'completely', 'utterly', 'bogus', '', '',
+            'normalized'), 'normalized'),
         ]
     for args, e in a:
         r = s.normalize_signature(*args)
