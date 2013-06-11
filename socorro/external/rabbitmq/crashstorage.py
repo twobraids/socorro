@@ -73,7 +73,7 @@ class RabbitMQCrashStorage(CrashStorageBase):
     def save_raw_crash(self, raw_crash, dumps, crash_id):
         try:
             this_crash_should_be_queued = raw_crash.legacy_processing == 0
-        except KeyError:
+        except (KeyError, AttributeError):
             self.config.logger.debug(
                 'RabbitMQCrashStorage legacy_processing key absent in crash '
                 '%s', crash_id
