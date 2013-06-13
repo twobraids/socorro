@@ -14,6 +14,8 @@ from socorro.processor.signature_utilities import JavaSignatureTool
 
 import re
 
+from mock import (Mock, patch, call)
+
 
 class BaseTestClass(unittest.TestCase):
 
@@ -274,6 +276,87 @@ class TestCSignatureTools(BaseTestClass):
             self.assert_expected(e,sig)
 
 
+class TestCSignatureToolsDB(BaseTestClass):
+
+    @staticmethod
+    def setup_config():
+        config = sutil.DotDict()
+        config.logger = sutil.FakeLogger()
+        config.database_class = Mock()
+        config.transaction_executor_class = Mock()
+        return config
+
+    
+    def test__init__(self):
+        query_results = [
+            (('@0x[0-9a-fA-F]{2,}',), ('app_process@0x.*',), ('libc\.so@.*',)),
+            (('@0x0',), ('.*abort',), ('(libxul\.so|xul\.dll|XUL)@0x.*',)),
+            (('js_Interpret',),),
+            (('_purecall',), 
+             ("('sentinel', lambda x: 'sentinel companion' in x",),
+             ('fake sentinel',),),
+        ]
+        def query_results_mock_fn():
+            return query_results.pop()
+        expected_re_dict = { 
+            'signatures_with_line_numbers_re': re.compile('js_Interpret'),
+            'prefix_signature_re': re.compile(
+                '@0x0|.*abort|(libxul\.so|xul\.dll|XUL)@0x.*'
+            ),
+            'irrelevant_signature_re': re.compile(
+                '@0x[0-9a-fA-F]{2,}|app_process@0x.*|libc\.so@.*'
+            ),
+            'signature_sentinels': [
+                '_purecall',
+                ('sentinel', lambda x: 'mmm' in x),
+                'fake sentinel',
+            ]
+        }
+        database_query_patch_str = \
+            'socorro.processor.signature_utilities.execute_query_fetchall'
+        with patch(database_query_patch_str) as execute_query_mock:
+            execute_query_mock.side_effect = query_results_mock_fn
+            config = self.setup_config()
+            c_sig_tool = sig.CSignatureToolDB(config)
+            
+            config.database_class.assert_called_once_with(config)
+            config.transaction_executor_class.assert_called_once_with(config)
+            self.assertEqual(
+                c_sig_tool.signatures_with_line_numbers_re, 
+                expected_re_dict['signatures_with_line_numbers_re']
+            )
+            self.assertEqual(
+                c_sig_tool.irrelevant_signature_re, 
+                expected_re_dict['irrelevant_signature_re']
+            )
+            self.assertEqual(
+                c_sig_tool.prefix_signature_re, 
+                expected_re_dict['prefix_signature_re']
+            )
+            self.assertEqual(len(c_sig_tool.signature_sentinels), 3)
+            self.assertEqual(
+                c_sig_tool.signature_sentinels[0],
+                expected_re_dict['signature_sentinels'][0]
+            )
+            self.assertEqual(
+                c_sig_tool.signature_sentinels[1][0],
+                expected_re_dict['signature_sentinels'][1][0]
+            )
+            self.assertEqual(
+                c_sig_tool.signature_sentinels[2],
+                expected_re_dict['signature_sentinels'][2]
+            )
+            actual_fn = c_sig_tool.signature_sentinels[1][1]
+            # can't test directly for equality of lambdas - so test 
+            # functionality instead
+            self.assertTrue(
+                actual_fn(['x', 'y', 'z', 'mmm', 'i', 'j', 'k'])
+            )
+            self.assertFalse(
+                actual_fn(['x', 'y', 'z', 'i', 'j', 'k'])
+            )
+        
+
 class TestJavaSignatureTools(BaseTestClass):
     def test_generate_signature_1(self):
         config = DotDict()
@@ -407,6 +490,9 @@ class TestJavaSignatureTools(BaseTestClass):
         self.assert_expected(e, notes)
 
     def test_generate_signature_10_no_interference(self):
+        """In general addresses of the form @xxxxxxxx are to be replaced with
+        the literal "<addr>", however in this case, the hex address is not in
+        the expected location and should therefore be left alone"""
         config = DotDict()
         j = JavaSignatureTool(config)
         java_stack_trace = ('SomeJavaException: totally made up  \n'

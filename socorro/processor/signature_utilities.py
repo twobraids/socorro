@@ -440,9 +440,7 @@ class CSignatureToolDB(CSignatureToolBase):
     #--------------------------------------------------------------------------
     def __init__(self, config, quit_check_callback=None):
         super(CSignatureToolDB, self).__init__(config, quit_check_callback)
-        self.database = config.database_class(
-            config
-        )
+        self.database = config.database_class(config)
         self.transaction = \
             self.config.transaction_executor_class(
                 config,
@@ -459,8 +457,8 @@ class CSignatureToolDB(CSignatureToolBase):
             ('line_number', 'signatures_with_line_numbers_re')
         ):
             rule_element_list = [
-                x[0]
-                for x in execute_query_fetchall(
+                a_rule
+                for (a_rule,) in execute_query_fetchall(
                     connection,
                     "select rule from csignature_rules "
                     "where category = %s",
@@ -475,10 +473,10 @@ class CSignatureToolDB(CSignatureToolBase):
 
         # get sentinel rules
         self.signature_sentinels = [
-            eval(x[0])  # eval quoted strings and tuples
-                if x[0][0] in "'(" else
-            x[0]  # already a string, don't need to eval
-            for x in execute_query_fetchall(
+            eval(sentinel_rule)  # eval quoted strings and tuples
+                if sentinel_rule[0] in "'\"(" else
+            sentinel_rule  # already a string, don't need to eval
+            for (sentinel_rule,) in execute_query_fetchall(
                 connection,
                 "select rule from csignature_rules "
                 "where category = 'sentinel'"
