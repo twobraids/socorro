@@ -31,6 +31,7 @@ from socorro.lib.util import (
     emptyFilter,
     StrCachingIterator
 )
+from socorro.processor.breakpad_pipe_to_json import pipe_dump_to_json_dump
 
 
 #------------------------------------------------------------------------------
@@ -183,6 +184,12 @@ class LegacyCrashProcessor(RequiredConfig):
         'collected',
         default=True,
     )
+    required_config.add_option(
+        'save_mdsw_json',
+        doc='boolean if the json version of the MDSW pipe dump should be saved'
+            'with the pipedump',
+        default=False,
+    )
     required_config.namespace('statistics')
     required_config.statistics.add_option(
         'stats_class',
@@ -190,6 +197,7 @@ class LegacyCrashProcessor(RequiredConfig):
         doc='name of a class that will gather statistics',
         from_string_converter=class_converter
     )
+
 
     #--------------------------------------------------------------------------
     def __init__(self, config, quit_check_callback=None):
@@ -315,6 +323,9 @@ class LegacyCrashProcessor(RequiredConfig):
                         submitted_timestamp,
                         processor_notes
                     )
+                dump_analysis.json_dump = pipe_dump_to_json_dump(
+                    dump_analysis.dump
+                )
                 if name == self.config.dump_field:
                     processed_crash.update(dump_analysis)
                 else:
@@ -323,6 +334,7 @@ class LegacyCrashProcessor(RequiredConfig):
                 processed_crash.get('topmost_filenames', [])
             )
             processed_crash.Winsock_LSP = raw_crash.get('Winsock_LSP', None)
+
             self.config.logger.debug('about to apply classifier rules')
             self.classifier_rule_system.apply_all_rules(
                 raw_crash,
@@ -825,6 +837,9 @@ class LegacyCrashProcessor(RequiredConfig):
                         # cache doesn't get truncated
             pipe_dump_str = ('\n'.join(mdsw_iter.cache))
             processed_crash_update.dump = pipe_dump_str
+            processed_crash_update.json_dump = pipe_dump_to_json_dump(
+                mdsw_iter.cache
+            )
 
         return_code = mdsw_subprocess_handle.wait()
         if return_code is not None and return_code != 0:
