@@ -299,7 +299,6 @@ class LegacyCrashProcessor(RequiredConfig):
             except KeyError:
                 submitted_timestamp = dateFromOoid(crash_id)
 
-            assert len(processor_notes) == 1
             processed_crash = self._create_basic_processed_crash(
                 crash_id,
                 raw_crash,
@@ -323,9 +322,13 @@ class LegacyCrashProcessor(RequiredConfig):
                         submitted_timestamp,
                         processor_notes
                     )
-                dump_analysis.json_dump = pipe_dump_to_json_dump(
-                    dump_analysis.dump
-                )
+                try:
+                    dump_analysis.json_dump = pipe_dump_to_json_dump(
+                        dump_analysis.dump
+                    )
+                except KeyError:
+                    processor_notes.append(
+                        "Pipe dump missing from '%s'" % name)
                 if name == self.config.dump_field:
                     processed_crash.update(dump_analysis)
                 else:
@@ -352,7 +355,7 @@ class LegacyCrashProcessor(RequiredConfig):
                 exc_info=True
             )
             processed_crash.success = False
-            processor_notes.append('unrecoverable processor error')
+            processor_notes.append('unrecoverable processor error: %s' % x)
             self._statistics.incr('errors')
 
         processor_notes = '; '.join(processor_notes)
