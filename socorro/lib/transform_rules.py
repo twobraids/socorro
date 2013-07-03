@@ -5,6 +5,7 @@
 import re
 import configman
 import collections
+import inspect
 
 #------------------------------------------------------------------------------
 # support methods
@@ -56,6 +57,11 @@ class TransformRule(object):
             self.predicate = configman.converters.class_converter(predicate)
         except TypeError:
             self.predicate = predicate
+        if inspect.isclass(self.predicate):
+            self._predicitate_implementation = self.predicate()
+            self.predicate = self._predicitate_implementation.predicate
+        else:
+            self._predicitate_implementation = type(self.predicate)
 
         try:
             if predicate_args in ('', None):
@@ -73,6 +79,14 @@ class TransformRule(object):
             self.action = configman.class_converter(action)
         except TypeError:
             self.action = action
+
+        if inspect.isclass(self.action):
+            if self._predicitate_implementation.__class__ is self.action:
+                self._action_implementation = self._predicitate_implementation
+            else:
+                self._action_implementation = self.action()
+            self.action = self._action_implementation.action
+
         try:
             if action_args in ('', None):
                 self.action_args = ()
