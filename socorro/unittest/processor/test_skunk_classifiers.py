@@ -9,7 +9,10 @@ from socorro.lib.util import DotDict
 from socorro.processor.skunk_classifiers import (
     SkunkClassificationRule,
     UpdateWindowAttributes,
-    SetWindowPos
+    SetWindowPos,
+    SendWaitReceivePort,
+    Bug811804,
+    Bug812318,
 )
 from socorro.processor.signature_utilities import CSignatureTool
 from socorro.unittest.processor.test_breakpad_pipe_to_json import (
@@ -154,8 +157,9 @@ class TestUpdateWindowAttributes(unittest.TestCase):
         rc = DotDict()
 
         rule = UpdateWindowAttributes()
-        rule.action(rc, pc, faked_processor)
+        action_result = rule.action(rc, pc, faked_processor)
 
+        self.assertTrue(action_result)
         self.assertTrue('classifications' in pc)
         self.assertTrue('skunk_works' in pc['classifications'])
 
@@ -178,8 +182,9 @@ class TestUpdateWindowAttributes(unittest.TestCase):
         rc = DotDict()
 
         rule = UpdateWindowAttributes()
-        rule.action(rc, pc, faked_processor)
+        action_result = rule.action(rc, pc, faked_processor)
 
+        self.assertFalse(action_result)
         self.assertFalse('classifications' in pc)
 
 
@@ -204,8 +209,9 @@ class TestSetWindowPos(unittest.TestCase):
         rc = DotDict()
 
         rule = SetWindowPos()
-        rule.action(rc, pc, faked_processor)
+        action_result = rule.action(rc, pc, faked_processor)
 
+        self.assertTrue(action_result)
         self.assertTrue('classifications' in pc)
         self.assertTrue('skunk_works' in pc.classifications)
         self.assertEqual(
@@ -233,8 +239,9 @@ class TestSetWindowPos(unittest.TestCase):
         rc = DotDict()
 
         rule = SetWindowPos()
-        rule.action(rc, pc, faked_processor)
+        action_result = rule.action(rc, pc, faked_processor)
 
+        self.assertTrue(action_result)
         self.assertTrue('classifications' in pc)
         self.assertTrue('skunk_works' in pc.classifications)
         self.assertEqual(
@@ -262,8 +269,9 @@ class TestSetWindowPos(unittest.TestCase):
         rc = DotDict()
 
         rule = SetWindowPos()
-        rule.action(rc, pc, faked_processor)
+        action_result = rule.action(rc, pc, faked_processor)
 
+        self.assertTrue(action_result)
         self.assertTrue('classifications' in pc)
         self.assertTrue('skunk_works' in pc.classifications)
         self.assertEqual(
@@ -289,14 +297,16 @@ class TestSetWindowPos(unittest.TestCase):
         rc = DotDict()
 
         rule = SetWindowPos()
-        rule.action(rc, pc, faked_processor)
+        action_result = rule.action(rc, pc, faked_processor)
 
+        self.assertTrue(action_result)
         self.assertTrue('classifications' in pc)
         self.assertTrue('skunk_works' in pc.classifications)
         self.assertEqual(
             pc.classifications.skunk_works.classification,
             'NtUserSetWindowPos | other'
         )
+
     def test_action_case_5(self):
         """nothing in either dump"""
         pc = DotDict()
@@ -313,12 +323,172 @@ class TestSetWindowPos(unittest.TestCase):
         rc = DotDict()
 
         rule = SetWindowPos()
-        rule.action(rc, pc, faked_processor)
+        action_result = rule.action(rc, pc, faked_processor)
 
+        self.assertFalse(action_result)
         self.assertFalse('classifications' in pc)
 
 
 
+class TestSendWaitReceivePort(unittest.TestCase):
+
+    def test_action_case_1(self):
+        """success - target found in top 5 frames of stack"""
+        pc = DotDict()
+        f2jd = copy.deepcopy(cannonical_json_dump)
+        pc.flash2 = DotDict()
+        pc.flash2.json_dump = f2jd
+        pc.flash2.json_dump['threads'][0]['frames'][2]['function'] = \
+            'NtAlpcSendWaitReceivePort'
+
+        faked_processor = DotDict()
+        faked_processor.c_signature_tool = c_signature_tool
+
+        rc = DotDict()
+
+        rule = SendWaitReceivePort()
+        action_result = rule.action(rc, pc, faked_processor)
+
+        self.assertTrue(action_result)
+        self.assertTrue('classifications' in pc)
+
+    def test_action_case_2(self):
+        """failure - target not found in top 5 frames of stack"""
+        pc = DotDict()
+        f2jd = copy.deepcopy(cannonical_json_dump)
+        pc.flash2 = DotDict()
+        pc.flash2.json_dump = f2jd
+        pc.flash2.json_dump['threads'][0]['frames'][6]['function'] = \
+            'NtAlpcSendWaitReceivePort'
+
+        faked_processor = DotDict()
+        faked_processor.c_signature_tool = c_signature_tool
+
+        rc = DotDict()
+
+        rule = SendWaitReceivePort()
+        action_result = rule.action(rc, pc, faked_processor)
+
+        self.assertFalse(action_result)
+        self.assertFalse('classifications' in pc)
+
+
+
+class TestBug811804(unittest.TestCase):
+
+    def test_action_success(self):
+        """success - target signature fonud"""
+        pc = DotDict()
+        f2jd = copy.deepcopy(cannonical_json_dump)
+        pc.flash2 = DotDict()
+        pc.flash2.json_dump = f2jd
+        pc.flash2.signature = 'hang | NtUserWaitMessage | F34033164' \
+                              '________________________________'
+
+        faked_processor = DotDict()
+        faked_processor.c_signature_tool = c_signature_tool
+
+        rc = DotDict()
+
+        rule = Bug811804()
+        action_result = rule.action(rc, pc, faked_processor)
+
+        self.assertTrue(action_result)
+        self.assertTrue('classifications' in pc)
+        self.assertEqual(
+            pc.classifications.skunk_works.classification,
+            'bug811804-NtUserWaitMessage'
+        )
+
+    def test_action_failure(self):
+        """success - target signature not found"""
+        pc = DotDict()
+        f2jd = copy.deepcopy(cannonical_json_dump)
+        pc.flash2 = DotDict()
+        pc.flash2.json_dump = f2jd
+        pc.flash2.signature = 'lars was here'
+
+        faked_processor = DotDict()
+        faked_processor.c_signature_tool = c_signature_tool
+
+        rc = DotDict()
+
+        rule = Bug811804()
+        action_result = rule.action(rc, pc, faked_processor)
+
+        self.assertFalse(action_result)
+        self.assertFalse('classifications' in pc)
+
+
+class TestBug812318(unittest.TestCase):
+
+    def test_action_case_1(self):
+        """success - both targets found in top 5 frames of stack"""
+        pc = DotDict()
+        f2jd = copy.deepcopy(cannonical_json_dump)
+        pc.flash2 = DotDict()
+        pc.flash2.json_dump = f2jd
+        pc.flash2.json_dump['threads'][0]['frames'][1]['function'] = \
+            'NtUserPeekMessage'
+        pc.flash2.json_dump['threads'][0]['frames'][2]['function'] = \
+            'F849276792______________________________'
+
+        faked_processor = DotDict()
+        faked_processor.c_signature_tool = c_signature_tool
+
+        rc = DotDict()
+
+        rule = Bug812318()
+        action_result = rule.action(rc, pc, faked_processor)
+
+        self.assertTrue(action_result)
+        self.assertTrue('classifications' in pc)
+        self.assertEqual(
+            pc.classifications.skunk_works.classification,
+            'bug812318-PeekMessage'
+        )
+
+    def test_action_case_2(self):
+        """success - only 1st target found in top 5 frames of stack"""
+        pc = DotDict()
+        f2jd = copy.deepcopy(cannonical_json_dump)
+        pc.flash2 = DotDict()
+        pc.flash2.json_dump = f2jd
+        pc.flash2.json_dump['threads'][0]['frames'][1]['function'] = \
+            'NtUserPeekMessage'
+
+        faked_processor = DotDict()
+        faked_processor.c_signature_tool = c_signature_tool
+
+        rc = DotDict()
+
+        rule = Bug812318()
+        action_result = rule.action(rc, pc, faked_processor)
+
+        self.assertTrue(action_result)
+        self.assertTrue('classifications' in pc)
+        self.assertEqual(
+            pc.classifications.skunk_works.classification,
+            'NtUserPeekMessage-other'
+        )
+
+    def test_action_case_3(self):
+        """failure - no targets found in top 5 frames of stack"""
+        pc = DotDict()
+        f2jd = copy.deepcopy(cannonical_json_dump)
+        pc.flash2 = DotDict()
+        pc.flash2.json_dump = f2jd
+
+        faked_processor = DotDict()
+        faked_processor.c_signature_tool = c_signature_tool
+
+        rc = DotDict()
+
+        rule = Bug812318()
+        action_result = rule.action(rc, pc, faked_processor)
+
+        self.assertFalse(action_result)
+        self.assertFalse('classifications' in pc)
 
 
 

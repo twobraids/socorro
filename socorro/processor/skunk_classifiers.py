@@ -194,3 +194,93 @@ class SetWindowPos(SkunkClassificationRule):
             )
             return True
         return False
+
+
+#==============================================================================
+class SendWaitReceivePort(SkunkClassificationRule):
+    #--------------------------------------------------------------------------
+    def version(self):
+        return '0.1'
+
+    #--------------------------------------------------------------------------
+    def action(self, raw_crash,  processed_crash, processor):
+
+        stack = self._get_stack(processed_crash, 'flash2')
+        if stack is False:
+            return False
+
+        if self._stack_contains(
+            stack[:5],
+            'NtAlpcSendWaitReceivePort',
+            processor.c_signature_tool,
+        ):
+            self._add_classification(
+                processed_crash,
+                'NtAlpcSendWaitReceivePort',
+                None
+            )
+
+            return True
+        return False
+
+
+#==============================================================================
+class Bug811804(SkunkClassificationRule):
+    #--------------------------------------------------------------------------
+    def version(self):
+        return '0.1'
+
+    #--------------------------------------------------------------------------
+    def action(self, raw_crash,  processed_crash, processor):
+
+        try:
+            signature = processed_crash.flash2.signature
+        except KeyError:
+            return False
+
+        if (signature == 'hang | NtUserWaitMessage | F34033164'
+                         '________________________________'):
+            self._add_classification(
+                processed_crash,
+                'bug811804-NtUserWaitMessage',
+                None
+            )
+            return True
+        return False
+
+
+#==============================================================================
+class Bug812318(SkunkClassificationRule):
+    #--------------------------------------------------------------------------
+    def version(self):
+        return '0.1'
+
+    #--------------------------------------------------------------------------
+    def action(self, raw_crash,  processed_crash, processor):
+        stack = self._get_stack(processed_crash, 'flash2')
+        if stack is False:
+            return False
+
+        primary_found = self._stack_contains(
+            stack[:5],
+            'NtUserPeekMessage',
+            processor.c_signature_tool,
+        )
+        if not primary_found:
+            return False
+
+        secondary_found = self._stack_contains(
+            stack[:5],
+            'F849276792______________________________',
+            processor.c_signature_tool,
+        )
+        if secondary_found:
+            classification = 'bug812318-PeekMessage'
+        else:
+            classification = 'NtUserPeekMessage-other'
+        self._add_classification(
+            processed_crash,
+            classification,
+            None
+        )
+        return True
