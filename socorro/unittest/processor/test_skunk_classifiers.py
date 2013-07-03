@@ -1,0 +1,324 @@
+# This Source Code Form is subject to the terms of the Mozilla Public
+# License, v. 2.0. If a copy of the MPL was not distributed with this
+# file, You can obtain one at http://mozilla.org/MPL/2.0/.
+
+import unittest
+import copy
+
+from socorro.lib.util import DotDict
+from socorro.processor.skunk_classifiers import (
+    SkunkClassificationRule,
+    UpdateWindowAttributes,
+    SetWindowPos
+)
+from socorro.processor.signature_utilities import CSignatureTool
+from socorro.unittest.processor.test_breakpad_pipe_to_json import (
+    cannonical_json_dump
+)
+
+csig_config = DotDict()
+csig_config.irrelevant_signature_re = ''
+csig_config.prefix_signature_re = ''
+csig_config.signatures_with_line_numbers_re = ''
+c_signature_tool = CSignatureTool(csig_config)
+
+
+class TestSkunkClassificationRule(unittest.TestCase):
+
+    def test_predicate(self):
+        rc = DotDict()
+        pc = DotDict()
+        pc.classifications = DotDict()
+        processor = None
+
+        skunk_rule = SkunkClassificationRule()
+        self.assertTrue(skunk_rule.predicate(rc, pc, processor))
+
+        pc.classifications.skunk_works = DotDict()
+        self.assertTrue(skunk_rule.predicate(rc, pc, processor))
+
+        pc.classifications.skunk_works.classification = 'stupid'
+        self.assertFalse(skunk_rule.predicate(rc, pc, processor))
+
+    def test_action(self):
+        rc = DotDict()
+        pc = DotDict()
+        processor = None
+
+        skunk_rule = SkunkClassificationRule()
+        self.assertTrue(skunk_rule.action(rc, pc, processor))
+
+    def test_version(self):
+        skunk_rule = SkunkClassificationRule()
+        self.assertEqual(skunk_rule.version(), '0.0')
+
+    def test_add_classification_to_processed_crash(self):
+        rc = DotDict()
+        pc = DotDict()
+        pc.classifications = DotDict()
+        processor = None
+
+        skunk_rule = SkunkClassificationRule()
+        skunk_rule._add_classification(
+            pc,
+            'stupid',
+            'extra stuff'
+        )
+        self.assertTrue('classifications' in pc)
+        self.assertTrue('skunk_works' in pc.classifications)
+        self.assertEqual(
+            'stupid',
+            pc.classifications.skunk_works.classification
+        )
+        self.assertEqual(
+            'extra stuff',
+            pc.classifications.skunk_works.classification_data
+        )
+        self.assertEqual(
+            '0.0',
+            pc.classifications.skunk_works.classification_version
+        )
+
+    def test_get_stack(self):
+        pc = DotDict()
+        skunk_rule = SkunkClassificationRule()
+        processor = DotDict()
+
+        self.assertFalse(skunk_rule._get_stack(pc, 'plugin'))
+
+        pc.plugin = DotDict()
+        pc.plugin.json_dump = DotDict()
+        pc.plugin.json_dump.threads = []
+        self.assertFalse(skunk_rule._get_stack(pc, 'plugin'))
+
+        pc.plugin.json_dump.crash_info = DotDict()
+        pc.plugin.json_dump.crash_info.crashing_thread = 1
+        self.assertFalse(skunk_rule._get_stack(pc, 'plugin'))
+
+        pc.plugin.json_dump = cannonical_json_dump
+        self.assertEqual(
+            skunk_rule._get_stack(pc, 'plugin'),
+            cannonical_json_dump['threads'][0]['frames']
+        )
+
+    def test_stack_contains(self):
+        stack = cannonical_json_dump['threads'][1]['frames']
+
+        skunk_rule = SkunkClassificationRule()
+        self.assertTrue(
+            skunk_rule._stack_contains(
+                stack,
+                'ha_',
+                c_signature_tool,
+                cache_normalizations=False
+            ),
+        )
+        self.assertFalse(
+            skunk_rule._stack_contains(
+                stack,
+                'heh_',
+                c_signature_tool,
+                cache_normalizations=False
+            ),
+        )
+        self.assertFalse('normalized' in stack[0])
+        self.assertTrue(
+            skunk_rule._stack_contains(
+                stack,
+                'ha_ha2',
+                c_signature_tool,
+            ),
+        )
+        self.assertTrue('normalized' in stack[0])
+
+
+
+class TestUpdateWindowAttributes(unittest.TestCase):
+
+    def test_action_success(self):
+        jd = copy.deepcopy(cannonical_json_dump)
+        jd['threads'][0]['frames'][1]['function'] = \
+            "F_1152915508___________________________________"
+        jd['threads'][0]['frames'][3]['function'] = \
+            "mozilla::plugins::PluginInstanceChild::UpdateWindowAttributes" \
+                "(bool)"
+        jd['threads'][0]['frames'][5]['function'] = \
+            "mozilla::ipc::RPCChannel::Call(IPC::Message*, IPC::Message*)"
+        pc = DotDict()
+        pc.plugin = DotDict()
+        pc.plugin.json_dump = jd
+
+        faked_processor = DotDict()
+        faked_processor.c_signature_tool = c_signature_tool
+
+        rc = DotDict()
+
+        rule = UpdateWindowAttributes()
+        rule.action(rc, pc, faked_processor)
+
+        self.assertTrue('classifications' in pc)
+        self.assertTrue('skunk_works' in pc['classifications'])
+
+    def test_action_wrong_order(self):
+        jd = copy.deepcopy(cannonical_json_dump)
+        jd['threads'][0]['frames'][4]['function'] = \
+            "F_1152915508___________________________________"
+        jd['threads'][0]['frames'][3]['function'] = \
+            "mozilla::plugins::PluginInstanceChild::UpdateWindowAttributes" \
+                "(bool)"
+        jd['threads'][0]['frames'][5]['function'] = \
+            "mozilla::ipc::RPCChannel::Call(IPC::Message*, IPC::Message*)"
+        pc = DotDict()
+        pc.plugin = DotDict()
+        pc.plugin.json_dump = jd
+
+        faked_processor = DotDict()
+        faked_processor.c_signature_tool = c_signature_tool
+
+        rc = DotDict()
+
+        rule = UpdateWindowAttributes()
+        rule.action(rc, pc, faked_processor)
+
+        self.assertFalse('classifications' in pc)
+
+
+
+class TestSetWindowPos(unittest.TestCase):
+
+    def test_action_case_1(self):
+        """sentinel exsits in stack, but no secondaries"""
+        pc = DotDict()
+        pc.plugin = DotDict()
+        pijd = copy.deepcopy(cannonical_json_dump)
+        pc.plugin.json_dump = pijd
+        pc.plugin.json_dump['threads'][0]['frames'][2]['function'] = \
+            'NtUserSetWindowPos'
+        f2jd = copy.deepcopy(cannonical_json_dump)
+        pc.flash2 = DotDict()
+        pc.flash2.json_dump = f2jd
+
+        faked_processor = DotDict()
+        faked_processor.c_signature_tool = c_signature_tool
+
+        rc = DotDict()
+
+        rule = SetWindowPos()
+        rule.action(rc, pc, faked_processor)
+
+        self.assertTrue('classifications' in pc)
+        self.assertTrue('skunk_works' in pc.classifications)
+        self.assertEqual(
+            pc.classifications.skunk_works.classification,
+            'NtUserSetWindowPos | other'
+        )
+
+    def test_action_case_2(self):
+        """sentinel exsits in stack, plus one secondary"""
+        pc = DotDict()
+        pc.plugin = DotDict()
+        pijd = copy.deepcopy(cannonical_json_dump)
+        pc.plugin.json_dump = pijd
+        pc.plugin.json_dump['threads'][0]['frames'][2]['function'] = \
+            'NtUserSetWindowPos'
+        pc.plugin.json_dump['threads'][0]['frames'][4]['function'] = \
+            'F_1378698112'
+        f2jd = copy.deepcopy(cannonical_json_dump)
+        pc.flash2 = DotDict()
+        pc.flash2.json_dump = f2jd
+
+        faked_processor = DotDict()
+        faked_processor.c_signature_tool = c_signature_tool
+
+        rc = DotDict()
+
+        rule = SetWindowPos()
+        rule.action(rc, pc, faked_processor)
+
+        self.assertTrue('classifications' in pc)
+        self.assertTrue('skunk_works' in pc.classifications)
+        self.assertEqual(
+            pc.classifications.skunk_works.classification,
+            'NtUserSetWindowPos | F_1378698112'
+        )
+
+    def test_action_case_3(self):
+        """nothing in 1st dump, sentinel and secondary in flash2 dump"""
+        pc = DotDict()
+        pc.plugin = DotDict()
+        pijd = copy.deepcopy(cannonical_json_dump)
+        pc.plugin.json_dump = pijd
+        f2jd = copy.deepcopy(cannonical_json_dump)
+        pc.flash2 = DotDict()
+        pc.flash2.json_dump = f2jd
+        pc.flash2.json_dump['threads'][0]['frames'][2]['function'] = \
+            'NtUserSetWindowPos'
+        pc.flash2.json_dump['threads'][0]['frames'][4]['function'] = \
+            'F455544145'
+
+        faked_processor = DotDict()
+        faked_processor.c_signature_tool = c_signature_tool
+
+        rc = DotDict()
+
+        rule = SetWindowPos()
+        rule.action(rc, pc, faked_processor)
+
+        self.assertTrue('classifications' in pc)
+        self.assertTrue('skunk_works' in pc.classifications)
+        self.assertEqual(
+            pc.classifications.skunk_works.classification,
+            'NtUserSetWindowPos | F455544145'
+        )
+
+    def test_action_case_4(self):
+        """nothing in 1st dump, sentinel but no secondary in flash2 dump"""
+        pc = DotDict()
+        pc.plugin = DotDict()
+        pijd = copy.deepcopy(cannonical_json_dump)
+        pc.plugin.json_dump = pijd
+        f2jd = copy.deepcopy(cannonical_json_dump)
+        pc.flash2 = DotDict()
+        pc.flash2.json_dump = f2jd
+        pc.flash2.json_dump['threads'][0]['frames'][2]['function'] = \
+            'NtUserSetWindowPos'
+
+        faked_processor = DotDict()
+        faked_processor.c_signature_tool = c_signature_tool
+
+        rc = DotDict()
+
+        rule = SetWindowPos()
+        rule.action(rc, pc, faked_processor)
+
+        self.assertTrue('classifications' in pc)
+        self.assertTrue('skunk_works' in pc.classifications)
+        self.assertEqual(
+            pc.classifications.skunk_works.classification,
+            'NtUserSetWindowPos | other'
+        )
+    def test_action_case_5(self):
+        """nothing in either dump"""
+        pc = DotDict()
+        pc.plugin = DotDict()
+        pijd = copy.deepcopy(cannonical_json_dump)
+        pc.plugin.json_dump = pijd
+        f2jd = copy.deepcopy(cannonical_json_dump)
+        pc.flash2 = DotDict()
+        pc.flash2.json_dump = f2jd
+
+        faked_processor = DotDict()
+        faked_processor.c_signature_tool = c_signature_tool
+
+        rc = DotDict()
+
+        rule = SetWindowPos()
+        rule.action(rc, pc, faked_processor)
+
+        self.assertFalse('classifications' in pc)
+
+
+
+
+
+

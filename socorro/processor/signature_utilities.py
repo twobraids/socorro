@@ -289,14 +289,19 @@ class CSignatureTool(SignatureTool):
         line,
         offset,
         module_offset='unknown',
-        function_offset='unknown'
+        function_offset='unknown',
+        normalized=None,
+        **kwargs  # eat any extra kwargs passed in
     ):
         """ returns a structured conglomeration of the input parameters to
         serve as a signature.  The parameter names of this function reflect the
         exact names of the fields from the jsonMDSW frame output.  This allows
-        this function to be invoked by passing a frame as **kwargs
+        this function to be invoked by passing a frame as **a_frame. Sometimes,
+        a frame may already have a normalized version cached.  If that exsists,
+        return it instead.
         """
-        #if function is not None:
+        if normalized is not None:
+            return normalized
         if function:
             if self.signatures_with_line_numbers_re.match(function):
                 function = "%s:%s" % (function, line)

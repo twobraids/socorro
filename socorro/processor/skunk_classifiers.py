@@ -2,11 +2,12 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-from socorro.lib.transform_rules import TransformRule
+#from socorro.lib.transform_rules import TransformRule
+from socorro.lib.util import DotDict
 
 
 #==============================================================================
-class SkunkClassificationRule(TransformRule):
+class SkunkClassificationRule(object):
 
     #--------------------------------------------------------------------------
     def predicate(self, raw_crash,  processed_crash, processor):
@@ -19,23 +20,22 @@ class SkunkClassificationRule(TransformRule):
 
     #--------------------------------------------------------------------------
     def action(self, raw_crash,  processed_crash, processor):
-        return False
+        return True
 
     #--------------------------------------------------------------------------
     def version(self):
         return '0.0'
 
     #--------------------------------------------------------------------------
-    def _add_classification_to_processed_crash(
+    def _add_classification(
         self,
         processed_crash,
-        category,
         classification,
         classification_data
     ):
         if 'classifications' not in processed_crash:
             processed_crash.classifications = DotDict()
-        processed_crash.classifications[category] = DotDict({
+        processed_crash.classifications['skunk_works'] = DotDict({
             'classification': classification,
             'classification_data': classification_data,
             'classification_version': self.version()
@@ -50,7 +50,12 @@ class SkunkClassificationRule(TransformRule):
             # no plugin or plugin json dump
             return False
         try:
-            stack = a_json_dump.threads[a_json_dump.crash_info.crashing_thread]
+            stack = \
+                a_json_dump['threads'][
+                    a_json_dump['crash_info']['crashing_thread']
+                ]['frames']
+        # these exceptions are kept as separate cases just to help keep track
+        # of what situations they cover
         except KeyError:
             # no threads or no crash_info or no crashing_thread
             return False
@@ -74,12 +79,15 @@ class SkunkClassificationRule(TransformRule):
             try:
                 normalized_frame = a_frame['normalized']
             except KeyError:
-                normalized_frame = a_signature_tool.normalize(**a_frame)
+                normalized_frame = a_signature_tool.normalize_signature(
+                    **a_frame
+                )
                 if cache_normalizations:
                     a_frame['normalized'] = normalized_frame
             if normalized_frame.startswith(signature):
                 return True
         return False
+
 
 #==============================================================================
 class UpdateWindowAttributes(SkunkClassificationRule):
@@ -88,8 +96,8 @@ class UpdateWindowAttributes(SkunkClassificationRule):
         return '0.1'
 
     #--------------------------------------------------------------------------
-    def action(raw_crash,  processed_crash, processor):
-        stack = _get_stack(processed_crash)
+    def action(self, raw_crash,  processed_crash, processor):
+        stack = self._get_stack(processed_crash, 'plugin')
         if stack is False:
             return False
 
@@ -102,11 +110,12 @@ class UpdateWindowAttributes(SkunkClassificationRule):
             "mozilla::ipc::RPCChannel::Call(IPC::Message*, IPC::Message*)"
         ]
 
-        current_target_signature = target_signatures.pop()
+        current_target_signature = target_signatures.pop(0)
         for i, a_frame in enumerate(stack):
-            if (processor.c_signature_tool.normalize_signature(**a_frame) ==
-                current_target_signature):
-                current_target_signature = target_signatures.pop()
+            normalized_signature = \
+                processor.c_signature_tool.normalize_signature(**a_frame)
+            if (current_target_signature in normalized_signature):
+                current_target_signature = target_signatures.pop(0)
                 if not target_signatures:
                     break
         if target_signatures:
@@ -114,13 +123,12 @@ class UpdateWindowAttributes(SkunkClassificationRule):
 
         try:
             classification_data = \
-                processor.c_signature_tool.normalize_signature(stack[i + 1])
+                processor.c_signature_tool.normalize_signature(**stack[i + 1])
         except IndexError:
             classification_data = None
 
-        _add_classification(
+        self._add_classification(
             processed_crash,
-            'skunk_works',
             'adbe-3355131',
             classification_data
         )
@@ -135,7 +143,7 @@ class SetWindowPos(SkunkClassificationRule):
         return '0.1'
 
     #--------------------------------------------------------------------------
-    def action(raw_crash,  processed_crash, processor):
+    def action(self, raw_crash,  processed_crash, processor):
         found = self._do_set_window_pos_classification(
             processed_crash,
             processor.c_signature_tool,
@@ -175,14 +183,12 @@ class SetWindowPos(SkunkClassificationRule):
                 if stack_contains_secondary:
                         self._add_classification(
                             processed_crash,
-                            'skunk_works',
                             'NtUserSetWindowPos | %s' % a_second_sentinel,
                             None
                         )
                         return True
             self._add_classification(
                 processed_crash,
-                'skunk_works',
                 'NtUserSetWindowPos | other',
                 None
             )

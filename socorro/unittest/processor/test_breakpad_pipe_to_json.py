@@ -8,6 +8,336 @@ import socorro.processor.breakpad_pipe_to_json as bpj
 
 from socorro.lib.util import DotDict
 
+cannonical_json_dump = {
+    #"status": ,
+    "system_info": {
+        'os': 'Windows NT',
+        'os_ver': '5.1.2600 Service Pack 2',
+        "cpu_arch": 'x86',
+        "cpu_info": 'GenuineIntel family 6 model 22 stepping 1',
+        "cpu_count": 4
+    },
+    "crash_info": {
+        "type": 'EXCEPTION_ACCESS_VIOLATION_READ',
+        "crash_address": '0x676c',
+        "crashing_thread": 0
+    },
+    "main_module": 0,
+    "modules": [
+        {
+            "filename": 'firefox.exe',
+            "version": '24.0.0.4925',
+            "debug_file": 'firefox.pdb',
+            "debug_id": '9FFDDF56AADE45988C759EF5ABAE53862',
+            "base_addr": '0x00400000',
+            "end_addr": '0x004e0fff',
+        },
+        {
+            "filename": 'nss3.dll',
+            "version": '24.0.0.4925',
+            "debug_file": 'nss3.pdb',
+            "debug_id": '30EAD90FEEBD495398D46EFA41814E261',
+            "base_addr": '0x00a00000',
+            "end_addr": '0x00bb5fff',
+        },
+        {
+            "filename": 'mozjs.dll',
+            "version": '',
+            "debug_file": 'mozjs.pdb',
+            "debug_id": 'CC7AA5DA1FB144C4B40C2DF1B08709232',
+            "base_addr": '0x00bd0000',
+            "end_addr": '0x00ef9fff',
+        },
+        {
+            "filename": 'mozalloc.dll',
+            "version": '24.0.0.4925',
+            "debug_file": 'mozalloc.pdb',
+            "debug_id": 'F4C1BFD2BA3A487CA37EBF3D7E543F7B1',
+            "base_addr": '0x01000000',
+            "end_addr": '0x01005fff',
+        },
+        {
+            "filename": 'gkmedias.dll',
+            "version": '24.0.0.4925',
+            "debug_file": 'gkmedias.pdb',
+            "debug_id": '02FE96BEFEAE4570AA12E766CF2C8A361',
+            "base_addr": '0x01010000',
+            "end_addr": '0x01337fff',
+        },
+    ],
+    "thread_count": 2,
+    "threads": [
+        {
+            "frame_count": 13,
+            "frames": [
+                {
+                    "frame": 0,
+                    "module": "mozjs.dll",
+                    "function": "bogus_sig_1",
+                    "file": "jsinferinlines.h:17666746e8cc",
+                    "line": 1321,
+                    "offset": "0x0",
+                    "module_offset": "unknown",
+                    "function_offset": "unknown"
+                },
+                {
+                    "frame": 1,
+                    "module": "mozjs.dll",
+                    "function": "bogus_sig_2",
+                    "file": "jsobj.cpp:17666746e8cc",
+                    "line": 1552,
+                    "offset": "0x2d",
+                    "module_offset": "unknown",
+                    "function_offset": "unknown"
+                },
+                {
+                    "frame": 2,
+                    "module": "mozjs.dll",
+                    "function": "bogus_sig_3",
+                    "file": "CodeGenerator.cpp:17666746e8cc",
+                    "line": 3119,
+                    "offset": "0x13",
+                    "module_offset": "unknown",
+                    "function_offset": "unknown"
+                },
+                {
+                    "frame": 3,
+                    "module": "mozjs.dll",
+                    "function": "",
+                    "file": "",
+                    "line": None,
+                    "offset": "0xcc9d0",
+                    "module_offset": "unknown",
+                    "function_offset": "unknown"
+                },
+                {
+                    "frame": 4,
+                    "module": "",
+                    "function": "",
+                    "file": "",
+                    "line": None,
+                    "offset": "0x80b6fe0",
+                    "module_offset": "unknown",
+                    "function_offset": "unknown"
+                },
+                {
+                    "frame": 5,
+                    "module": "",
+                    "function": "",
+                    "file": "",
+                    "line": None,
+                    "offset": "0x3cf5ee6",
+                    "module_offset": "unknown",
+                    "function_offset": "unknown"
+                },
+                {
+                    "frame": 6,
+                    "module": "mozjs.dll",
+                    "function": "bogus_sig_7",
+                    "file": "BaselineJIT.cpp:17666746e8cc",
+                    "line": 105,
+                    "offset": "0x20",
+                    "module_offset": "unknown",
+                    "function_offset": "unknown"
+                },
+                {
+                    "frame": 7,
+                    "module": "mozjs.dll",
+                    "function": "bogus_sig_8",
+                    "file": "BaselineCompiler-shared.cpp:17666746e8cc",
+                    "line": 71,
+                    "offset": "0x3d",
+                    "module_offset": "unknown",
+                    "function_offset": "unknown"
+                },
+                {
+                    "frame": 8,
+                    "module": "mozjs.dll",
+                    "function": "bogus_sig_9",
+                    "file": "Ion.cpp:17666746e8cc",
+                    "line": 1708,
+                    "offset": "0x1b",
+                    "module_offset": "unknown",
+                    "function_offset": "unknown"
+                },
+                {
+                    "frame": 9,
+                    "module": "mozjs.dll",
+                    "function": "bogus_sig_10",
+                    "file": "Interpreter.cpp:17666746e8cc",
+                    "line": 2586,
+                    "offset": "0x26",
+                    "module_offset": "unknown",
+                    "function_offset": "unknown"
+                },
+                {
+                    "frame": 10,
+                    "module": "mozjs.dll",
+                    "function": "bogus_sig_11",
+                    "file": "Interpreter.cpp:17666746e8cc",
+                    "line": 438,
+                    "offset": "0x9",
+                    "module_offset": "unknown",
+                    "function_offset": "unknown"
+                },
+                {
+                    "frame": 11,
+                    "module": "mozjs.dll",
+                    "function": "bogus_sig_12",
+                    "file": "Interpreter.cpp:17666746e8cc",
+                    "line": 622,
+                    "offset": "0x37",
+                    "module_offset": "unknown",
+                    "function_offset": "unknown"
+                },
+                {
+                    "frame": 12,
+                    "module": "mozjs.dll",
+                    "function": "bogus_sig_13",
+                    "file": "Interpreter.cpp:17666746e8cc",
+                    "line": 659,
+                    "offset": "0x1b",
+                    "module_offset": "unknown",
+                    "function_offset": "unknown"
+                },
+            ]
+        },
+        {
+            "frame_count": 2,
+            "frames": [
+                {
+                    "frame": 0,
+                    "module": "lars_crash.dll",
+                    "function": "ha_ha",
+                    "file": "no source",
+                    "line": 0,
+                    "offset": "0x3",
+                    "module_offset": "0x2",
+                    "function_offset": "0x1"
+                },
+                {
+                    "frame": 1,
+                    "module": "lars_crash.dll",
+                    "function": "ha_ha2",
+                    "file": "no source",
+                    "line": 0,
+                    "offset": "0x5",
+                    "module_offset": "0x1",
+                    "function_offset": "0x3"
+                },
+            ]
+        }
+
+    ],
+    "crashing_thread": {
+        "threads_index": 0,
+        "total_frames": 13,
+        "frames": [
+            {
+                "frame": 0,
+                "module": "mozjs.dll",
+                "function": "bogus_sig_1",
+                "file": "jsinferinlines.h:17666746e8cc",
+                "line": 1321,
+                "offset": "0x0",
+                "module_offset": "unknown",
+                "function_offset": "unknown"
+            },
+            {
+                "frame": 1,
+                "module": "mozjs.dll",
+                "function": "bogus_sig_2",
+                "file": "jsobj.cpp:17666746e8cc",
+                "line": 1552,
+                "offset": "0x2d",
+                "module_offset": "unknown",
+                "function_offset": "unknown"
+            },
+            {
+                "frame": 2,
+                "module": "mozjs.dll",
+                "function": "bogus_sig_3",
+                "file": "CodeGenerator.cpp:17666746e8cc",
+                "line": 3119,
+                "offset": "0x13",
+                "module_offset": "unknown",
+                "function_offset": "unknown"
+            },
+            {
+                "frame": 3,
+                "module": "mozjs.dll",
+                "function": "",
+                "file": "",
+                "line": None,
+                "offset": "0xcc9d0",
+                "module_offset": "unknown",
+                "function_offset": "unknown"
+            },
+            {
+                "frame": 4,
+                "module": "",
+                "function": "",
+                "file": "",
+                "line": None,
+                "offset": "0x80b6fe0",
+                "module_offset": "unknown",
+                "function_offset": "unknown"
+            },
+            {
+                "frame": 5,
+                "module": "",
+                "function": "",
+                "file": "",
+                "line": None,
+                "offset": "0x3cf5ee6",
+                "module_offset": "unknown",
+                "function_offset": "unknown"
+            },
+            {
+                "frame": 6,
+                "module": "mozjs.dll",
+                "function": "bogus_sig_7",
+                "file": "BaselineJIT.cpp:17666746e8cc",
+                "line": 105,
+                "offset": "0x20",
+                "module_offset": "unknown",
+                "function_offset": "unknown"
+            },
+            {
+                "frame": 7,
+                "module": "mozjs.dll",
+                "function": "bogus_sig_8",
+                "file": "BaselineCompiler-shared.cpp:17666746e8cc",
+                "line": 71,
+                "offset": "0x3d",
+                "module_offset": "unknown",
+                "function_offset": "unknown"
+            },
+            {
+                "frame": 8,
+                "module": "mozjs.dll",
+                "function": "bogus_sig_9",
+                "file": "Ion.cpp:17666746e8cc",
+                "line": 1708,
+                "offset": "0x1b",
+                "module_offset": "unknown",
+                "function_offset": "unknown"
+            },
+            {
+                "frame": 9,
+                "module": "mozjs.dll",
+                "function": "bogus_sig_10",
+                "file": "Interpreter.cpp:17666746e8cc",
+                "line": 2586,
+                "offset": "0x26",
+                "module_offset": "unknown",
+                "function_offset": "unknown"
+            },
+        ]
+    }
+}
+
+
 class TestCase(unittest.TestCase):
     def test_get(self):
         a_list = ['a', 'b', 'c']
@@ -222,336 +552,5 @@ class TestCase(unittest.TestCase):
             "1|1|lars_crash.dll|ha_ha2|no source|0|0x5|0x1|0x3",
         ]
         json_dump = bpj.pipe_dump_to_json_dump(pipe_dump)
-        self.assertEqual(
-            json_dump,
-            {
-                #"status": ,
-                "system_info": {
-                    'os': 'Windows NT',
-                    'os_ver': '5.1.2600 Service Pack 2',
-                    "cpu_arch": 'x86',
-                    "cpu_info": 'GenuineIntel family 6 model 22 stepping 1',
-                    "cpu_count": 4
-                },
-                "crash_info": {
-                    "type": 'EXCEPTION_ACCESS_VIOLATION_READ',
-                    "crash_address": '0x676c',
-                    "crashing_thread": 0
-                },
-                "main_module": 0,
-                "modules": [
-                    {
-                        "filename": 'firefox.exe',
-                        "version": '24.0.0.4925',
-                        "debug_file": 'firefox.pdb',
-                        "debug_id": '9FFDDF56AADE45988C759EF5ABAE53862',
-                        "base_addr": '0x00400000',
-                        "end_addr": '0x004e0fff',
-                    },
-                    {
-                        "filename": 'nss3.dll',
-                        "version": '24.0.0.4925',
-                        "debug_file": 'nss3.pdb',
-                        "debug_id": '30EAD90FEEBD495398D46EFA41814E261',
-                        "base_addr": '0x00a00000',
-                        "end_addr": '0x00bb5fff',
-                    },
-                    {
-                        "filename": 'mozjs.dll',
-                        "version": '',
-                        "debug_file": 'mozjs.pdb',
-                        "debug_id": 'CC7AA5DA1FB144C4B40C2DF1B08709232',
-                        "base_addr": '0x00bd0000',
-                        "end_addr": '0x00ef9fff',
-                    },
-                    {
-                        "filename": 'mozalloc.dll',
-                        "version": '24.0.0.4925',
-                        "debug_file": 'mozalloc.pdb',
-                        "debug_id": 'F4C1BFD2BA3A487CA37EBF3D7E543F7B1',
-                        "base_addr": '0x01000000',
-                        "end_addr": '0x01005fff',
-                    },
-                    {
-                        "filename": 'gkmedias.dll',
-                        "version": '24.0.0.4925',
-                        "debug_file": 'gkmedias.pdb',
-                        "debug_id": '02FE96BEFEAE4570AA12E766CF2C8A361',
-                        "base_addr": '0x01010000',
-                        "end_addr": '0x01337fff',
-                    },
-                ],
-                "thread_count": 2,
-                "threads": [
-                    {
-                        "frame_count": 13,
-                        "frames": [
-                            {
-                                "frame": 0,
-                                "module": "mozjs.dll",
-                                "function": "bogus_sig_1",
-                                "file": "jsinferinlines.h:17666746e8cc",
-                                "line": 1321,
-                                "offset": "0x0",
-                                "module_offset": "unknown",
-                                "function_offset": "unknown"
-                            },
-                            {
-                                "frame": 1,
-                                "module": "mozjs.dll",
-                                "function": "bogus_sig_2",
-                                "file": "jsobj.cpp:17666746e8cc",
-                                "line": 1552,
-                                "offset": "0x2d",
-                                "module_offset": "unknown",
-                                "function_offset": "unknown"
-                            },
-                            {
-                                "frame": 2,
-                                "module": "mozjs.dll",
-                                "function": "bogus_sig_3",
-                                "file": "CodeGenerator.cpp:17666746e8cc",
-                                "line": 3119,
-                                "offset": "0x13",
-                                "module_offset": "unknown",
-                                "function_offset": "unknown"
-                            },
-                            {
-                                "frame": 3,
-                                "module": "mozjs.dll",
-                                "function": "",
-                                "file": "",
-                                "line": None,
-                                "offset": "0xcc9d0",
-                                "module_offset": "unknown",
-                                "function_offset": "unknown"
-                            },
-                            {
-                                "frame": 4,
-                                "module": "",
-                                "function": "",
-                                "file": "",
-                                "line": None,
-                                "offset": "0x80b6fe0",
-                                "module_offset": "unknown",
-                                "function_offset": "unknown"
-                            },
-                            {
-                                "frame": 5,
-                                "module": "",
-                                "function": "",
-                                "file": "",
-                                "line": None,
-                                "offset": "0x3cf5ee6",
-                                "module_offset": "unknown",
-                                "function_offset": "unknown"
-                            },
-                            {
-                                "frame": 6,
-                                "module": "mozjs.dll",
-                                "function": "bogus_sig_7",
-                                "file": "BaselineJIT.cpp:17666746e8cc",
-                                "line": 105,
-                                "offset": "0x20",
-                                "module_offset": "unknown",
-                                "function_offset": "unknown"
-                            },
-                            {
-                                "frame": 7,
-                                "module": "mozjs.dll",
-                                "function": "bogus_sig_8",
-                                "file": "BaselineCompiler-shared.cpp:17666746e8cc",
-                                "line": 71,
-                                "offset": "0x3d",
-                                "module_offset": "unknown",
-                                "function_offset": "unknown"
-                            },
-                            {
-                                "frame": 8,
-                                "module": "mozjs.dll",
-                                "function": "bogus_sig_9",
-                                "file": "Ion.cpp:17666746e8cc",
-                                "line": 1708,
-                                "offset": "0x1b",
-                                "module_offset": "unknown",
-                                "function_offset": "unknown"
-                            },
-                            {
-                                "frame": 9,
-                                "module": "mozjs.dll",
-                                "function": "bogus_sig_10",
-                                "file": "Interpreter.cpp:17666746e8cc",
-                                "line": 2586,
-                                "offset": "0x26",
-                                "module_offset": "unknown",
-                                "function_offset": "unknown"
-                            },
-                            {
-                                "frame": 10,
-                                "module": "mozjs.dll",
-                                "function": "bogus_sig_11",
-                                "file": "Interpreter.cpp:17666746e8cc",
-                                "line": 438,
-                                "offset": "0x9",
-                                "module_offset": "unknown",
-                                "function_offset": "unknown"
-                            },
-                            {
-                                "frame": 11,
-                                "module": "mozjs.dll",
-                                "function": "bogus_sig_12",
-                                "file": "Interpreter.cpp:17666746e8cc",
-                                "line": 622,
-                                "offset": "0x37",
-                                "module_offset": "unknown",
-                                "function_offset": "unknown"
-                            },
-                            {
-                                "frame": 12,
-                                "module": "mozjs.dll",
-                                "function": "bogus_sig_13",
-                                "file": "Interpreter.cpp:17666746e8cc",
-                                "line": 659,
-                                "offset": "0x1b",
-                                "module_offset": "unknown",
-                                "function_offset": "unknown"
-                            },
-                        ]
-                    },
-                    {
-                        "frame_count": 2,
-                        "frames": [
-                            {
-                                "frame": 0,
-                                "module": "lars_crash.dll",
-                                "function": "ha_ha",
-                                "file": "no source",
-                                "line": 0,
-                                "offset": "0x3",
-                                "module_offset": "0x2",
-                                "function_offset": "0x1"
-                            },
-                            {
-                                "frame": 1,
-                                "module": "lars_crash.dll",
-                                "function": "ha_ha2",
-                                "file": "no source",
-                                "line": 0,
-                                "offset": "0x5",
-                                "module_offset": "0x1",
-                                "function_offset": "0x3"
-                            },
-                        ]
-                    }
-
-                ],
-                "crashing_thread": {
-                    "threads_index": 0,
-                    "total_frames": 13,
-                    "frames": [
-                        {
-                            "frame": 0,
-                            "module": "mozjs.dll",
-                            "function": "bogus_sig_1",
-                            "file": "jsinferinlines.h:17666746e8cc",
-                            "line": 1321,
-                            "offset": "0x0",
-                            "module_offset": "unknown",
-                            "function_offset": "unknown"
-                        },
-                        {
-                            "frame": 1,
-                            "module": "mozjs.dll",
-                            "function": "bogus_sig_2",
-                            "file": "jsobj.cpp:17666746e8cc",
-                            "line": 1552,
-                            "offset": "0x2d",
-                            "module_offset": "unknown",
-                            "function_offset": "unknown"
-                        },
-                        {
-                            "frame": 2,
-                            "module": "mozjs.dll",
-                            "function": "bogus_sig_3",
-                            "file": "CodeGenerator.cpp:17666746e8cc",
-                            "line": 3119,
-                            "offset": "0x13",
-                            "module_offset": "unknown",
-                            "function_offset": "unknown"
-                        },
-                        {
-                            "frame": 3,
-                            "module": "mozjs.dll",
-                            "function": "",
-                            "file": "",
-                            "line": None,
-                            "offset": "0xcc9d0",
-                            "module_offset": "unknown",
-                            "function_offset": "unknown"
-                        },
-                        {
-                            "frame": 4,
-                            "module": "",
-                            "function": "",
-                            "file": "",
-                            "line": None,
-                            "offset": "0x80b6fe0",
-                            "module_offset": "unknown",
-                            "function_offset": "unknown"
-                        },
-                        {
-                            "frame": 5,
-                            "module": "",
-                            "function": "",
-                            "file": "",
-                            "line": None,
-                            "offset": "0x3cf5ee6",
-                            "module_offset": "unknown",
-                            "function_offset": "unknown"
-                        },
-                        {
-                            "frame": 6,
-                            "module": "mozjs.dll",
-                            "function": "bogus_sig_7",
-                            "file": "BaselineJIT.cpp:17666746e8cc",
-                            "line": 105,
-                            "offset": "0x20",
-                            "module_offset": "unknown",
-                            "function_offset": "unknown"
-                        },
-                        {
-                            "frame": 7,
-                            "module": "mozjs.dll",
-                            "function": "bogus_sig_8",
-                            "file": "BaselineCompiler-shared.cpp:17666746e8cc",
-                            "line": 71,
-                            "offset": "0x3d",
-                            "module_offset": "unknown",
-                            "function_offset": "unknown"
-                        },
-                        {
-                            "frame": 8,
-                            "module": "mozjs.dll",
-                            "function": "bogus_sig_9",
-                            "file": "Ion.cpp:17666746e8cc",
-                            "line": 1708,
-                            "offset": "0x1b",
-                            "module_offset": "unknown",
-                            "function_offset": "unknown"
-                        },
-                        {
-                            "frame": 9,
-                            "module": "mozjs.dll",
-                            "function": "bogus_sig_10",
-                            "file": "Interpreter.cpp:17666746e8cc",
-                            "line": 2586,
-                            "offset": "0x26",
-                            "module_offset": "unknown",
-                            "function_offset": "unknown"
-                        },
-                    ]
-                }
-
-            }
-        )
+        self.assertEqual(json_dump, cannonical_json_dump)
 
