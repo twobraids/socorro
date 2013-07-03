@@ -339,7 +339,7 @@ class LegacyCrashProcessor(RequiredConfig):
             processed_crash.Winsock_LSP = raw_crash.get('Winsock_LSP', None)
 
             self.config.logger.debug('about to apply classifier rules')
-            self.classifier_rule_system.apply_all_rules(
+            self.classifier_rule_system.apply_until_action_succeeds(
                 raw_crash,
                 processed_crash,
                 self
