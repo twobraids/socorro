@@ -63,6 +63,20 @@ def _get_stack(processed_crash, dump_name='plugin'):
         return False
     return stack
 
+#------------------------------------------------------------------------------
+def _stack_contains(
+    stack,
+    signature,
+    a_signature_tool,
+    cache_normalizations=True
+):
+    found = False
+    for a_frame
+    reduce(
+        lambda x, y: x or y.startswith(signature),
+        signature,
+        False
+    )
 
 #==============================================================================
 # Rules
