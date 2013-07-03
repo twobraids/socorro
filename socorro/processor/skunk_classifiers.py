@@ -5,7 +5,6 @@
 from socorro.lib.transform_rules import TransformRule
 
 
-
 #==============================================================================
 class SkunkClassificationRule(TransformRule):
 
