@@ -2,7 +2,15 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-#from socorro.lib.transform_rules import TransformRule
+"""This package is a Socorro implementation of bsmedberg's skunk processor
+crash classification system.  This package is intended for use in Socorro
+Processor2012.  It is implemented on top of the Processor TransformRule
+System.  It is intended that this package demonstrate the implementation
+technique for all future enhancements to Processor2012 and well as how
+the entirety of the future BixieProcessor2013 and SocorroProcessor2014
+implementations.
+"""
+
 from socorro.lib.util import DotDict
 
 
