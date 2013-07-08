@@ -9,6 +9,45 @@ System.  It is intended that this package demonstrate the implementation
 technique for all future enhancements to Processor2012 and well as how
 the entirety of the future BixieProcessor2013 and SocorroProcessor2014
 implementations.
+
+The intent is to provide a framework for which ad hoc classification rules
+can be added to the processor easily.  The rules, that all follow the same
+programatic form, are executed one at a time, in order, until one of the rules
+reports that it succeeds.  At that point, execution of classificiation rules
+stops.
+
+Classification rules are applied after all other processing of a crash is
+complete.  Classification rules are given access to both the raw_crash and the
+processed_crash.  In this version, the classification rule has complete read
+and write access to all fields with in both versions two versions of the crash.
+Rules should probably refrain from making modifications and instead use the
+base class API for adding a classification to the processed_cash.
+
+All rules have two major components: a predicate and an action.
+
+The predicate: this method is used to initially determine if the rule should
+be applied.
+
+The action: if the predicate succeeds, the 'action' function is executed.  If
+this method succeeds, it uses the '_add_classification' method from the base
+class to tag the crash with new data and return True.  If this method fails or
+otherwise decides that its action should not apply, it just quits returning
+False.  The act of returning False tells the underlying TransformRule system to
+continue trying to apply rules.
+
+Successful application of an action results in the following structure to be
+added to the processed crash:
+
+{...
+    'classifications': {
+        'skunk_works': {
+            'classification': 'some classification',
+            'classification_data': 'extra information saved by rule',
+            'classificaiton_version': '0.0',
+        }
+    }
+
+...}
 """
 
 from socorro.lib.util import DotDict
@@ -16,9 +55,35 @@ from socorro.lib.util import DotDict
 
 #==============================================================================
 class SkunkClassificationRule(object):
+    """the base class for Skunk Rules.  It provides the framework for the rules
+    'predicate', 'action', and 'version' as well as utilites to help rules do
+    their jobs."""
 
     #--------------------------------------------------------------------------
     def predicate(self, raw_crash,  processed_crash, processor):
+        """"The default predicate is too look into the processed crash to see
+        if the 'skunk_works' classification has already been applied.
+        parameters:
+            raw_crash - a mapping representing the raw crash data originally
+                        submitted by the client
+            processed_crash - the ultimate result of the processor, this is the
+                              analized version of a crash.  It contains the
+                              output of the MDSW program for each of the dumps
+                              within the crash.
+            processor - a reference to the processor object that is assigned
+                        to working on the current crash. This object contains
+                        resources that might be useful to a classifier rule.
+                        'processor.config' is the configuration for the
+                        processor in which database connection paramaters can
+                        be found.  'processor.logger' is useful for any logging
+                        of debug information. 'processor.c_signature_tool' or
+                        'processor.java_signature_tool' contain utilities that
+                        might be useful during classification.
+
+        returns:
+            True - this rule should be applied
+            False - this rule should not be applied
+        """
         try:
             if 'classification' in processed_crash.classifications.skunk_works:
                 return False
@@ -28,10 +93,38 @@ class SkunkClassificationRule(object):
 
     #--------------------------------------------------------------------------
     def action(self, raw_crash,  processed_crash, processor):
+        """Rules derived from this base class ought to override this method
+        with an actual classification rule.  Successful application of this
+        method should include a call to '_add_classification'.
+
+        parameters:
+            raw_crash - a mapping representing the raw crash data originally
+                        submitted by the client
+            processed_crash - the ultimate result of the processor, this is the
+                              analized version of a crash.  It contains the
+                              output of the MDSW program for each of the dumps
+                              within the crash.
+            processor - a reference to the processor object that is assigned
+                        to working on the current crash. This object contains
+                        resources that might be useful to a classifier rule.
+                        'processor.config' is the configuration for the
+                        processor in which database connection paramaters can
+                        be found.  'processor.logger' is useful for any logging
+                        of debug information. 'processor.c_signature_tool' or
+                        'processor.java_signature_tool' contain utilities that
+                        might be useful during classification.
+
+        returns:
+            True - this rule was applied successfully and no further rules
+                   should be applied
+            False - this rule did not succeed and further rules should be
+                    tried
+        """
         return True
 
     #--------------------------------------------------------------------------
     def version(self):
+        """This method should be overridden in a base class."""
         return '0.0'
 
     #--------------------------------------------------------------------------
@@ -41,6 +134,16 @@ class SkunkClassificationRule(object):
         classification,
         classification_data
     ):
+        """This method adds a 'skunk_works' classification to a processed
+        crash.
+
+        parameters:
+            processed_crash - a reference to the processed crash to which the
+                              classification is to be added.
+            classification - a string that is the classification.
+            classification_data - a string of extra data that goes along with a
+                                  classification
+        """
         if 'classifications' not in processed_crash:
             processed_crash.classifications = DotDict()
         processed_crash.classifications['skunk_works'] = DotDict({
@@ -52,6 +155,30 @@ class SkunkClassificationRule(object):
     #--------------------------------------------------------------------------
     @staticmethod
     def _get_stack(processed_crash, dump_name='plugin'):
+        """This utility method offers derived classes a way to fetch the stack
+        for the thread that caused the crash
+
+        parameters:
+            processed_crash - this is the mapping that contains the MDSW output
+            dump_name - each dump within a crash has a name.
+
+        returns:
+            False - if something goes wrong in trying to get the stack
+            a list of frames from the crashing thread of the specified dump in
+            this form:
+                [
+                    {
+                        'module': '...',
+                        'function': '...',
+                        'file': '...',
+                        'line': '...',
+                        'offset': '...',
+                        'module_offset': '...',
+                        'funtion_offset': '...',
+                    }, ...
+                ]
+
+        """
         try:
             a_json_dump = processed_crash[dump_name].json_dump
         except KeyError:
@@ -83,6 +210,24 @@ class SkunkClassificationRule(object):
         a_signature_tool,
         cache_normalizations=True
     ):
+        """this utility will return a boolean indicitating if a string
+        appears at the beginning of any of the nomalized frame signatures
+        within a stack.
+
+        parameters:
+            stack - the stack to examine
+            signature - the string to search for
+            a_signature_tool - a reference to an object having a
+                               'normalize_signature' method.  This is applied
+                               to each frame of the stack prior to testing
+            cache_normalizations - sometimes many rules will need to do the
+                                   same normalizations over and over.  This
+                                   method will save the normalized form of a
+                                   stack frame within the processed_crash's
+                                   copy of the processed stack.  This cache
+                                   will persist and get saved to processed
+                                   crash storage.
+        """
         for a_frame in stack:
             try:
                 normalized_frame = a_frame['normalized']
@@ -99,6 +244,7 @@ class SkunkClassificationRule(object):
 
 #==============================================================================
 class UpdateWindowAttributes(SkunkClassificationRule):
+    """"""
     #--------------------------------------------------------------------------
     def version(self):
         return '0.1'
