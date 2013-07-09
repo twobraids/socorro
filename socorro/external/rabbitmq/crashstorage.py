@@ -49,6 +49,11 @@ class RabbitMQCrashStorage(CrashStorageBase):
         default=TransactionExecutorWithInfiniteBackoff,
         doc='Transaction wrapper class'
     )
+    required_config.add_option(
+        'queue_name',
+        default='socorro.normal',
+        doc='the name of the queue within RabbitMQ to which to submit'
+    )
 
     #--------------------------------------------------------------------------
     def __init__(self, config, quit_check_callback=None):
@@ -92,7 +97,7 @@ class RabbitMQCrashStorage(CrashStorageBase):
     def _save_raw_crash_transaction(self, connection, crash_id):
         connection.channel.basic_publish(
             exchange='',
-            routing_key='socorro.normal',
+            routing_key=self.config.queue_name,
             body=crash_id,
             properties=pika.BasicProperties(
                 delivery_mode = 2, # make message persistent

@@ -121,6 +121,50 @@ class SubmitterFileSystemWalkerSource(CrashStorageBase):
 
 
 #==============================================================================
+class DBSamplingPriorityQueueSource(RequiredConfig):
+    required_config = Namespace()
+    required_config.add_option(
+        'database_class',
+        default='socorro.external.postgresql.connection_context'
+                '.ConnectionContext',
+        doc='the class that connects to the database',
+        from_string_converter=class_converter
+    )
+    required_config.add_option(
+        'sql',
+        default='select uuid from jobs order by queueddatetime DESC '
+                'limit 1000',
+        doc='an sql string that selects crash_ids',
+    )
+
+    #--------------------------------------------------------------------------
+    def __init__(self, config, quit_check_callback=None):
+        self.config = config
+        self.quit_check = quit_check_callback
+
+    #--------------------------------------------------------------------------
+    def new_crashes(self):
+        self.config.logger.debug('starting new_crashes')
+        with self.config.database_class(self.config)() as conn:
+            self.quit_check()
+            yield_did_not_happen = True
+            for (a_crash_id,) in execute_query_iter(conn, self.config.sql):
+                self.quit_check()
+                yield a_crash_id
+                yield_did_not_happen = False
+            if yield_did_not_happen:
+                yield None
+
+    #--------------------------------------------------------------------------
+    def get_raw_crash(self, crash_id):
+        raw_crash = DotDict()
+        raw_crash.uuid = crash_id
+        raw_crash.legacy_processing = 0
+        return raw_crash
+
+
+
+#==============================================================================
 class DBSamplingCrashSource(RequiredConfig):
     """this class will take a random sample of crashes in the jobs table
     and then pull them from whatever primary storages is in use. """
