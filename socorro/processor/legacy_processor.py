@@ -290,7 +290,7 @@ class LegacyCrashProcessor(RequiredConfig):
                 submitted_timestamp = datetimeFromISOdateString(
                     raw_crash.submitted_timestamp
                 )
-            except KeyError:
+            except (KeyError, AttributeError):
                 submitted_timestamp = dateFromOoid(crash_id)
 
             assert len(processor_notes) == 1
@@ -317,6 +317,22 @@ class LegacyCrashProcessor(RequiredConfig):
                         submitted_timestamp,
                         processor_notes
                     )
+
+                try:
+                    dump_analysis.json_dump = pipe_dump_to_json_dump(
+                        dump_analysis.dump.split('\n')
+                    )
+                except (KeyError, AttributeError):
+                    processor_notes.append(
+                        "Pipe dump missing from '%s'" % name)
+                except Exception, x:
+                    error_message = (
+                        "Conversion to json dump format has failed for '%s'" %
+                        name
+                    )
+                    processor_notes.append(error_message)
+                    self.config.logger.info(error_message)
+
                 if name == self.config.dump_field:
                     processed_crash.update(dump_analysis)
                 else:
@@ -340,6 +356,18 @@ class LegacyCrashProcessor(RequiredConfig):
         processed_crash.processor_notes = processor_notes
         completed_datetime = utc_now()
         processed_crash.completeddatetime = completed_datetime
+
+        if not self.config.save_mdsw_json:
+            try:
+                del processed_crash['json_dump']
+            except (KeyError, AttributeError):
+                pass
+            for a_dump_name in processed_crash.additional_minidumps:
+                try:
+                    del processed_crash[a_dump_name]['json_dump']
+                except (KeyError, AttributeError):
+                    pass
+
         self._log_job_end(
             completed_datetime,
             processed_crash.success,
@@ -1179,7 +1207,7 @@ class LegacyCrashProcessor(RequiredConfig):
                               default=None, max_length=10000):
         try:
             return a_mapping[key][:max_length]
-        except KeyError:
+        except (KeyError, AttributeError):
             notes_list.append("WARNING: raw_crash missing %s" % key)
             return default
         except TypeError, x:
@@ -1194,7 +1222,7 @@ class LegacyCrashProcessor(RequiredConfig):
     def _get_truncate_or_none(a_mapping, key, maxLength=10000):
         try:
             return a_mapping[key][:maxLength]
-        except (KeyError, IndexError, TypeError):
+        except (KeyError, AttributeError, IndexError, TypeError):
             return None
 
     #--------------------------------------------------------------------------
