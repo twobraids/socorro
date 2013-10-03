@@ -714,7 +714,7 @@ class CronTabber(App):
             # when debugging tests that mock logging, uncomment this otherwise
             # the exc_info=True doesn't compute and record what the exception
             # was
-            #raise
+            raise
 
             _debug('error when running %r on %s',
                    job_class, last_success, exc_info=True)
