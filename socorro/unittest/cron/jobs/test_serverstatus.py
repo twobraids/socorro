@@ -28,17 +28,21 @@ class IntegrationTestServerStatus(IntegrationTestCaseBase):
         super(IntegrationTestServerStatus, self).tearDown()
 
 
-    def _setup_config_manager(self):
+    def _setup_config_manager(self, config_file):
         _super = super(IntegrationTestServerStatus, self)._setup_config_manager
         config_manager, json_file = _super(
           'socorro.cron.jobs.serverstatus.ServerStatusCronApp|5m',
+          config=config_file
         )
         return config_manager, json_file
 
 
     def test_server_status(self):
-        """ Simple test of status monitor """
-        config_manager, json_file = self._setup_config_manager()
+        """ Simple test of status monitor
+            'make test-socorro' copies test_serverstatus.ini-dist to .ini
+            for this test
+        """
+        config_manager, json_file = self._setup_config_manager('./config/test_serverstatus.ini')
 
         cursor = self.conn.cursor()
 
