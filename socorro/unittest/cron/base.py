@@ -12,7 +12,7 @@ import psycopg2
 
 from psycopg2.extensions import TRANSACTION_STATUS_IDLE
 from nose.plugins.attrib import attr
-from collections import Sequence
+from collections import Sequence, Mapping
 
 from configman import ConfigurationManager
 from socorro.cron import crontabber
@@ -41,8 +41,7 @@ class TestCaseBase(unittest.TestCase):
         if os.path.isdir(self.tempdir):
             shutil.rmtree(self.tempdir)
 
-    def _setup_config_manager(self, jobs_string, config=None,
-                              extra_value_source=None):
+    def _setup_config_manager(self, jobs_string, extra_value_source=None):
         """setup and return a ConfigurationManager and a the crontabber
         json file.
             jobs_string - a formatted string list services to be offered
@@ -52,8 +51,6 @@ class TestCaseBase(unittest.TestCase):
             extra_value_source - supplemental values required by a service
 
         """
-        if not extra_value_source:
-            extra_value_source = {}
         mock_logging = mock.Mock()
         required_config = crontabber.CronTabber.required_config
         #required_config.namespace('logging')
@@ -70,22 +67,22 @@ class TestCaseBase(unittest.TestCase):
                 'admin.strict': True,
             },
             DSN,
-            extra_value_source,
         ]
 
-        if config is None:
+        if extra_value_source is None:
             pass
-        elif isinstance(config, basestring):
+        elif isinstance(extra_value_source, basestring):
             value_source.append(config)
-        elif isinstance(config, Sequence):
-            value_source.extend(config)
-        else:
-            value_source.append(config)
+        elif isinstance(extra_value_source, Sequence):
+            value_source.extend(extra_value_source)
+        elif isinstance(extra_value_source, Mapping):
+            value_source.append(extra_value_source)
 
         config_manager = ConfigurationManager(
             [required_config,
              #logging_required_config(app_name)
              ],
+            values_source_list=value_source,
             app_name='crontabber',
             app_description=__doc__,
             values_source_list=value_source
