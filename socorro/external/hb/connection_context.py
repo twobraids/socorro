@@ -49,22 +49,26 @@ class HBaseConnectionContext(RequiredConfig):
         'hbase_host',
         doc='Host to HBase server',
         default='localhost',
+        alt_path='external.hb',
     )
     required_config.add_option(
         'hbase_port',
         doc='Port to HBase server',
         default=9090,
+        alt_path='external.hb',
     )
     required_config.add_option(
         'hbase_timeout',
         doc='timeout in milliseconds for an HBase connection',
         default=5000,
+        alt_path='external.hb',
     )
     required_config.add_option(
         'forbidden_keys',
         default='email, url, user_id, exploitability',
         doc='a comma delimited list of keys banned from the processed crash '
             'in HBase',
+        alt_path='external.hb',
         from_string_converter=lambda s: [x.strip() for x in s.split(',')]
     )
     required_config.add_option(
@@ -72,11 +76,13 @@ class HBaseConnectionContext(RequiredConfig):
         doc='a local filesystem path where dumps temporarily '
             'during processing',
         default='/tmp',
+        alt_path='external.hb',
     )
     required_config.add_option(
         'dump_file_suffix',
         doc='the suffix used to identify a dump file (for use in temp files)',
-        default='.dump'
+        default='.dump',
+        alt_path='external.hb',
     )
 
     operational_exceptions = (

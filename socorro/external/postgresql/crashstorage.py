@@ -33,15 +33,20 @@ class PostgreSQLCrashStorage(CrashStorageBase):
 
     required_config = Namespace()
 
-    required_config.add_option('transaction_executor_class',
-                               default="socorro.database.transaction_executor."
-                                    "TransactionExecutorWithInfiniteBackoff",
-                               doc='a class that will manage transactions',
-                               from_string_converter=class_converter)
-    required_config.add_option('database_class',
-                               default=ConnectionContext,
-                               doc='the class responsible for connecting to'
-                               'Postgres')
+    required_config.add_option(
+        'transaction_executor_class',
+        default="socorro.database.transaction_executor."
+             "TransactionExecutorWithInfiniteBackoff",
+        doc='a class that will manage transactions',
+        alt_path='external.postgresql',
+        from_string_converter=class_converter
+    )
+    required_config.add_option(
+        'database_class',
+        default=ConnectionContext,
+        doc='the class responsible for connecting to Postgres',
+        alt_path='external.postgresql',
+    )
 
     _reports_table_mappings = (
         # processed name, reports table name
