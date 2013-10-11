@@ -50,20 +50,20 @@ class RabbitMQCrashStorage(CrashStorageBase):
         default="socorro.database.transaction_executor."
                 "TransactionExecutorWithInfiniteBackoff",
         doc='a class that will manage transactions',
-        alt_path='external.rabbitmq',
+        symbolic_link='external.rabbitmq',
         from_string_converter=class_converter
     )
     required_config.add_option(
         'routing_key',
         default='socorro.normal',
         doc='the name of the queue to recieve crashes',
-        alt_path='external.rabbitmq',
+        symbolic_link='external.rabbitmq',
     )
     required_config.add_option(
         'filter_on_legacy_processing',
         default=True,
         doc='toggle for using or ignoring the throttling flag',
-        alt_path='external.rabbitmq',
+        symbolic_link='external.rabbitmq',
     )
 
     #--------------------------------------------------------------------------

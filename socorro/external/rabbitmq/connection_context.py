@@ -85,49 +85,49 @@ class ConnectionContext(RequiredConfig):
         name='host',
         default='localhost',
         doc='the hostname of the RabbitMQ server',
-        alt_path='external.rabbitmq',
+        symbolic_link='external.rabbitmq',
     )
     required_config.add_option(
         name='virtual_host',
         default='/',
         doc='the name of the RabbitMQ virtual host',
-        alt_path='external.rabbitmq',
+        symbolic_link='external.rabbitmq',
     )
     required_config.add_option(
         name='port',
         default=5672,
         doc='the port for the RabbitMQ server',
-        alt_path='external.rabbitmq',
+        symbolic_link='external.rabbitmq',
     )
     required_config.add_option(
         name='rabbitmq_user',
         default='guest',
         doc='the name of the user within the RabbitMQ instance',
-        alt_path='external.rabbitmq',
+        symbolic_link='external.rabbitmq',
     )
     required_config.add_option(
         name='rabbitmq_password',
         default='guest',
         doc="the user's RabbitMQ password",
-        alt_path='external.rabbitmq',
+        symbolic_link='external.rabbitmq',
     )
     required_config.add_option(
         name='standard_queue_name',
         default='socorro.normal',
         doc="the name of standard crash queue name within RabbitMQ",
-        alt_path='external.rabbitmq',
+        symbolic_link='external.rabbitmq',
     )
     required_config.add_option(
         name='priority_queue_name',
         default='socorro.priority',
         doc="the name of priority crash queue name within RabbitMQ",
-        alt_path='external.rabbitmq',
+        symbolic_link='external.rabbitmq',
     )
     required_config.add_option(
         name='rabbitmq_connection_wrapper_class',
         default=Connection,
         doc="a classname for the type of wrapper for RabbitMQ connections",
-        alt_path='external.rabbitmq',
+        symbolic_link='external.rabbitmq',
     )
 
     #--------------------------------------------------------------------------

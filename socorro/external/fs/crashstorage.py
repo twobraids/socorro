@@ -59,7 +59,7 @@ class FSRadixTreeStorage(CrashStorageBase):
         'fs_root',
         doc='a path to a file system',
         default='./crashes',
-        alt_path='external.fs',
+        symbolic_link='external.fs',
         # We strip / from the right so we can consistently use os.sep.join
         # instead of os.path.join (which is faster).
         from_string_converter=lambda x: x.rstrip('/')
@@ -68,45 +68,45 @@ class FSRadixTreeStorage(CrashStorageBase):
         'umask',
         doc='umask to use for new files',
         default=0o022,
-        alt_path='external.fs',
+        symbolic_link='external.fs',
     )
     required_config.add_option(
         'json_file_suffix',
         doc='the suffix used to identify a json file',
         default='.json',
-        alt_path='external.fs',
+        symbolic_link='external.fs',
     )
     required_config.add_option(
         'jsonz_file_suffix',
         doc='the suffix used to identify a gzipped json file',
         default='.jsonz',
-        alt_path='external.fs',
+        symbolic_link='external.fs',
     )
     required_config.add_option(
         'dump_file_suffix',
         doc='the suffix used to identify a dump file',
         default='.dump',
-        alt_path='external.fs',
+        symbolic_link='external.fs',
     )
     required_config.add_option(
         'dump_field',
         doc='the default dump field',
         default='upload_file_minidump',
-        alt_path='external.fs',
+        symbolic_link='external.fs',
     )
     required_config.add_option(
         'forbidden_keys',
         doc='a comma delimited list of keys to not allowed in the processed '
             'crash',
         default='url, email, user_id, exploitability',
-        alt_path='external.fs',
+        symbolic_link='external.fs',
         from_string_converter=lambda x: [i.strip() for i in x.split(',')]
     )
     required_config.add_option(
         'name_branch_base',
         doc='the directory base name to use for the named radix tree storage',
         default='name',
-        alt_path='external.fs',
+        symbolic_link='external.fs',
     )
 
     def __init__(self, *args, **kwargs):
@@ -341,14 +341,14 @@ class FSDatedRadixTreeStorage(FSRadixTreeStorage):
         'date_branch_base',
         doc='the directory base name to use for the dated radix tree storage',
         default='date',
-        alt_path='external.fs',
+        symbolic_link='external.fs',
     )
     required_config.add_option(
         'minute_slice_interval',
         doc='how finely to slice minutes into slots, e.g. 4 means every 4 '
             'seconds a new slot will be allocated',
         default=4,
-        alt_path='external.fs',
+        symbolic_link='external.fs',
     )
 
     # This is just a constant for len(self._current_slot()).

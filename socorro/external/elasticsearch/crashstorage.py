@@ -38,14 +38,14 @@ class ElasticSearchCrashStorage(CrashStorageBase):
         default="socorro.database.transaction_executor."
                 "TransactionExecutorWithInfiniteBackoff",
         doc='a class that will manage transactions',
-        alt_path='external.elasticsearch',
+        symbolic_link='external.elasticsearch',
         from_string_converter=class_converter
     )
     required_config.add_option(
         'elasticsearch_urls',
         doc='the urls to the elasticsearch instances (leave blank to disable)',
         default=['http://localhost:9200'],
-        alt_path='external.elasticsearch',
+        symbolic_link='external.elasticsearch',
         from_string_converter=string_to_list
     )
     required_config.add_option(
@@ -53,13 +53,13 @@ class ElasticSearchCrashStorage(CrashStorageBase):
         doc="an index to insert crashes in elasticsearch (use datetime's "
             "strftime format to have daily, weekly or monthly indexes)",
         default='socorro%Y%W',
-        alt_path='external.elasticsearch',
+        symbolic_link='external.elasticsearch',
     )
     required_config.add_option(
         'elasticsearch_doctype',
         doc='a type to insert crashes in elasticsearch',
         default='crash_reports',
-        alt_path='external.elasticsearch',
+        symbolic_link='external.elasticsearch',
     )
     required_config.add_option(
         'elasticsearch_index_settings',
@@ -67,14 +67,14 @@ class ElasticSearchCrashStorage(CrashStorageBase):
         default='%s/socorro_index_settings.json' % (
             os.path.dirname(os.path.abspath(__file__))
         ),
-        alt_path='external.elasticsearch',
+        symbolic_link='external.elasticsearch',
     )
     required_config.add_option(
         'timeout',
         doc='how long to wait in seconds for '
             'confirmation of a submission',
         default=2,
-        alt_path='external.elasticsearch',
+        symbolic_link='external.elasticsearch',
     )
 
     operational_exceptions = (
