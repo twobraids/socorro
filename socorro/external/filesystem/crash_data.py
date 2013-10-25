@@ -5,7 +5,7 @@
 from socorro.external import MissingArgumentError, ResourceNotFound, \
                              ResourceUnavailable
 from socorro.external.crashstorage_base import CrashIDNotFound
-from socorro.external.postgresql import priorityjobs
+from socorro.external.rabbitmq import priorityjobs
 from socorro.lib import external_common
 
 import crashstorage
@@ -40,7 +40,8 @@ class CrashData(object):
         datatype_method_mapping = {
             'raw': 'get_raw_dump',
             'meta': 'get_raw_crash',
-            'processed': 'get_processed'
+            'processed': 'get_processed',
+            'unredacted': 'get_unredacted_processed',
         }
 
         get = store.__getattribute__(datatype_method_mapping[params.datatype])
@@ -50,7 +51,7 @@ class CrashData(object):
             else:
                 return get(params.uuid)
         except CrashIDNotFound:
-            if params.datatype == 'processed':
+            if params.datatype in ('processed', 'unredacted'):
                 self.get(datatype='raw', uuid=params.uuid)
                 j = priorityjobs.Priorityjobs(config=self.config)
                 j.create(uuid=params.uuid)

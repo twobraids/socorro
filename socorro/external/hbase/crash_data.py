@@ -13,9 +13,6 @@ from socorro.lib import external_common
 from . import crashstorage
 from hbase_client import OoidNotFoundException
 
-logger = logging.getLogger("webapi")
-
-
 class CrashData(object):
 
     """
@@ -47,7 +44,8 @@ class CrashData(object):
             datatype_method_mapping = {
                 "raw": "get_raw_dump",
                 "meta": "get_raw_crash",
-                "processed": "get_processed"
+                "processed": "get_processed",
+                'unredacted': 'get_unredacted_processed',
             }
 
         else:
@@ -62,7 +60,8 @@ class CrashData(object):
             datatype_method_mapping = {
                 "raw": "get_raw_dump",
                 "meta": "get_meta",
-                "processed": "get_processed"
+                "processed": "get_processed",
+                'unredacted': 'get_unredacted_processed',
             }
 
         get = store.__getattribute__(datatype_method_mapping[params.datatype])
@@ -72,7 +71,7 @@ class CrashData(object):
             else:
                 return get(params.uuid)
         except (CrashIDNotFound, OoidNotFoundException):
-            if params.datatype == 'processed':
+            if params.datatype in ('processed', 'unredacted'):
                 self.get(datatype='raw', uuid=params.uuid)
                 j = priorityjobs.Priorityjobs(config=self.config)
                 j.create(uuid=params.uuid)

@@ -2,30 +2,32 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
+import logging
+
 from socorro.external import MissingArgumentError, ResourceNotFound, \
                              ResourceUnavailable
 from socorro.external.crashstorage_base import CrashIDNotFound
+# hard coding rabbit
 from socorro.external.rabbitmq import priorityjobs
 from socorro.lib import external_common
 
-import crashstorage
-
+from . import crashstorage
 
 class CrashData(object):
 
     """
-    Implement the /crash_data service with the file system.
+    Implement the /crash_data service with HBase.
     """
 
     def __init__(self, *args, **kwargs):
         super(CrashData, self).__init__()
-        self.config = kwargs['config']
+        self.config = kwargs["config"]
 
     def get(self, **kwargs):
         """Return JSON data of a crash report, given its uuid. """
         filters = [
-            ('uuid', None, 'str'),
-            ('datatype', None, 'str')
+            ("uuid", None, "str"),
+            ("datatype", None, "str")
         ]
         params = external_common.parse_arguments(filters, kwargs)
 
@@ -35,14 +37,32 @@ class CrashData(object):
         if not params.datatype:
             raise MissingArgumentError('datatype')
 
-        store = self.config.filesystem.filesystem_class(self.config.filesystem)
+        if hasattr(self.config, 'hbase'):
+            config = self.config.hbase
+            store = crashstorage.HBaseCrashStorage(config)
 
-        datatype_method_mapping = {
-            'raw': 'get_raw_dump',
-            'meta': 'get_raw_crash',
-            'processed': 'get_processed',
-            'unredacted': 'get_unredacted_processed',
-        }
+            datatype_method_mapping = {
+                "raw": "get_raw_dump",
+                "meta": "get_raw_crash",
+                "processed": "get_processed",
+                'unredacted': 'get_unredacted_processed',
+            }
+
+        else:
+            # old middleware
+            config = self.config
+            import socorro.storage.crashstorage as cs
+            store = cs.CrashStoragePool(
+                config,
+                storageClass=config.hbaseStorageClass
+            ).crashStorage()
+
+            datatype_method_mapping = {
+                "raw": "get_raw_dump",
+                "meta": "get_meta",
+                "processed": "get_processed",
+                'unredacted': 'get_unredacted_processed',
+            }
 
         get = store.__getattribute__(datatype_method_mapping[params.datatype])
         try:
