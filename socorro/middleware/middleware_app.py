@@ -354,6 +354,8 @@ class MiddlewareApp(App):
                 return getattr(module, class_name)
             raise ImplementationConfigurationError(file_and_class)
 
+        services_list = []
+
         ## 2 wrap each class with the ImplementationWrapper class
         def wrap(cls, file_and_class):
             return type(
@@ -362,10 +364,10 @@ class MiddlewareApp(App):
                 {
                     'cls': cls,
                     'file_and_class': file_and_class,
+                    'all_services': services_list,
                 }
             )
 
-        services_list = []
         for url, impl_class in SERVICES_LIST:
             impl_instance = lookup(impl_class)
             wrapped_impl = wrap(impl_instance, impl_class)
@@ -419,9 +421,15 @@ class ImplementationWrapper(JsonWebServiceBase):
                     "Unable to import %s.%s.%s (implementation code is %s)" %
                     (base_module_path, file_name, class_name, impl_code)
                 )
-            instance = getattr(module, class_name)(config=self.context)
+            instance = getattr(module, class_name)(
+                config=self.context,
+                all_services=self.all_services
+            )
         else:
-            instance = self.cls(config=self.context)
+            instance = self.cls(
+                config=self.context,
+                all_services=self.all_services
+            )
 
         # find the method to call
         default_method = kwargs.pop('default_method', 'get')
