@@ -3,7 +3,7 @@
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 from socorro.middleware.crash_data import CrashDataBase
-
+import crashstorage
 
 class CrashData(CrashDataBase):
     """

@@ -38,6 +38,7 @@ class PostgreSQLBase(object):
         config -- Configuration of the application.
 
         """
+        print "you got postgres"
         self.context = kwargs.get("config")
         if hasattr(self.context, 'database'):
             # XXX this should be replaced with connection_context instead

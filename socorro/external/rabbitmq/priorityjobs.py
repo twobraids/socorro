@@ -21,6 +21,7 @@ class Priorityjobs(object):
     """Implement the /priorityjobs service with RabbitMQ."""
 
     def __init__(self, config):
+        print "you got a rabbit"
         rabbitconfig = DotDict()
         rabbitconfig.host = config['rabbitMQHost']
         rabbitconfig.port = config['rabbitMQPort']
