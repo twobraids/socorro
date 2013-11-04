@@ -916,13 +916,23 @@ class TestModels(TestCase):
                   "Theme": "classic/1.0",
                   "Version": "5.0a1",
                   "Email": "socorro-123@restmail.net",
-                  "Vendor": "Mozilla"
+                  "Vendor": "Mozilla",
+                  "upload_file_minidump_browser": "other dump1",
+                  "upload_file_minidump_flash1": "other dump2",
+                  "upload_file_minidump_flash2": "other dump3",
+                  "upload_file_minidump_plugin": "other dump4",
+                  "upload_file_not_real": "other dump5",
                   }
             """)
 
         rget.side_effect = mocked_get
         r = api.get(crash_id='some-crash-id')
         eq_(r['Vendor'], 'Mozilla')
+        self.assertEqual(r["upload_file_minidump_browser"], "other dump1")
+        self.assertEqual(r["upload_file_minidump_flash1"], "other dump2")
+        self.assertEqual(r["upload_file_minidump_flash2"], "other dump3")
+        self.assertEqual(r["upload_file_minidump_plugin"], "other dump4")
+        self.assertTrue("upload_file_not_real" not in r)
 
     @mock.patch('requests.put')
     def test_put_featured_versions(self, rput):
