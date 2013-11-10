@@ -295,10 +295,12 @@ class HybridCrashProcessor(RequiredConfig):
 
             processed_crash.additional_minidumps = []
 
+            self.quit_check()
             for name, dump_pathname in raw_dumps.iteritems():
                 if name != self.config.dump_field:
                     processed_crash.additional_minidumps.append(name)
                 with self._temp_file_context(dump_pathname) as temp_pathname:
+                    self.quit_check()
                     dump_analysis = self._do_breakpad_stack_dump_analysis(
                         crash_id,
                         temp_pathname,
@@ -740,6 +742,7 @@ class HybridCrashProcessor(RequiredConfig):
         processor_notes
         ):
         with closing(dump_analysis_line_iterator) as mdsw_iter:
+            self.quit_check()
             processed_crash_update = self._analyze_header(
                 crash_id,
                 mdsw_iter,
@@ -752,6 +755,7 @@ class HybridCrashProcessor(RequiredConfig):
                     processed_crash_update.os_name in ('Windows NT')
             except (KeyError, TypeError):
                 make_modules_lowercase = True
+            self.quit_check()
             processed_crash_from_frames = self._analyze_frames(
                 is_hang,
                 java_stack_trace,
@@ -762,19 +766,22 @@ class HybridCrashProcessor(RequiredConfig):
                 processor_notes
             )
             processed_crash_update.update(processed_crash_from_frames)
-            
+
+            self.quit_check()
             try:
                 mdsw_iter.cache.remove("====PIPE DUMP ENDS===")
             except ValueError:
                 pass  # the sentinel is not there, this is ok, ignore the error
-            if mdsw_iter.cache[-1].startswith('{'):
+
+            # TODO: fix this below
+            if len(mdsw_iter.cache) > 0 and mdsw_iter.cache[-1].startswith('{'):
                 # we've gone too far and consumed the jDump - get it back
                 json_dump_lines = [mdsw_iter.cache[-1]]
                 pipe_dump_str = ('\n'.join(mdsw_iter.cache[:-1]))
             else:
                 pipe_dump_str = ('\n'.join(mdsw_iter.cache))
                 json_dump_lines = []
-            
+
             processed_crash_update.dump = pipe_dump_str
 
             for x in mdsw_iter:
@@ -785,7 +792,7 @@ class HybridCrashProcessor(RequiredConfig):
             except ValueError, x:
                 processed_crash_update.json_dump = {}
                 processor_notes.append("no json output found from MDSW")
-                
+
             try:
                 processed_crash_update.exploitability = (
                     processed_crash_update.json_dump
@@ -794,7 +801,7 @@ class HybridCrashProcessor(RequiredConfig):
             except KeyError:
                 processed_crash_update.exploitability = 'unknown'
                 processor_notes.append("exploitablity information missing")
-                
+
             try:
                 processed_crash_update.truncated = (
                     processed_crash_update.json_dump
@@ -802,12 +809,13 @@ class HybridCrashProcessor(RequiredConfig):
                 )
             except KeyError:
                 processed_crash_update.truncated = False
-                
+
             mdsw_error_string = processed_crash_update.json_dump.setdefault(
                 'status',
                 'unknown error'
             )
 
+        self.quit_check()
         return_code = mdsw_subprocess_handle.wait()
         if ((return_code is not None and return_code != 0) or
               mdsw_error_string != 'OK'):
@@ -1044,7 +1052,7 @@ class HybridCrashProcessor(RequiredConfig):
                 # of the pipe dump with no more processing.
                 crashing_thread_found = True
         dump_analysis_line_iterator.stopUsingSecondaryCache()
-        
+
         signature = self._generate_signature(signature_generation_frames,
                                              java_stack_trace,
                                              hang_type,

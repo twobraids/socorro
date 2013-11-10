@@ -196,6 +196,7 @@ class HBasePooledConnectionContext(HBaseConnectionContext):
         authority.  You are responsible for actually closing the connection or
         not, if it is really hosed."""
         if name is None:
-            name = threading.currentThread().getName()
+            name = self.config.executor_identity()
+            self.config.logger.debug('identity: %s', name)
         if name in self.pool:
             del self.pool[name]

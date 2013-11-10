@@ -226,5 +226,5 @@ class TestHBasePooledConnectionContext(unittest.TestCase):
             hb_context.close()
             self.assertEqual(
                 a_fake_hbase_connection.close_counter,
-                0
+                1
             )
