@@ -137,3 +137,81 @@ class HBasePersistentConnectionContext(HBaseConnectionContext):
         if self.conn is not None:
             super(HBasePersistentConnectionContext,
                   self).close_connection(self.conn)
+
+
+#==============================================================================
+class HBasePooledConnectionContext(HBaseConnectionContext):
+    """a configman compliant class that pools HBase database connections"""
+    #--------------------------------------------------------------------------
+    def __init__(self, config):
+        super(HBasePooledConnectionContext, self).__init__(config)
+        #self.config.logger.debug("HBasePooledConnectionContext - "
+        #                         "setting up connection pool")
+        self.pool = {}
+
+    #--------------------------------------------------------------------------
+    def connection(self, name=None):
+        """return a named connection.
+
+        This function will return a named connection by either finding one
+        in its pool by the name or creating a new one.  If no name is given,
+        it will use the name of the current executing thread as the name of
+        the connection.
+
+        parameters:
+            name - a name as a string
+        """
+        if not name:
+            name = self.config.executor_identity()
+            self.config.logger.debug('identity: %s', name)
+        if name in self.pool:
+            #self.config.logger.debug('connection: %s', name)
+            return self.pool[name]
+        self.pool[name] = \
+            super(HBaseConnectionContextPooled, self).connection(name)
+        return self.pool[name]
+
+    #--------------------------------------------------------------------------
+    def close_connection(self, connection, force=False):
+        """overriding the baseclass function, this routine will decline to
+        close a connection at the end of a transaction context.  This allows
+        for reuse of connections."""
+        if force:
+            try:
+                (super(HBasePooledConnectionContext, self)
+                  .close_connection(connection, force))
+            except self.operational_exceptions:
+                self.config.logger.error(
+                    'HBasePooledConnectionContext - failed closing'
+                )
+            for name, conn in self.pool.iteritems():
+                if conn is connection:
+                    break
+            del self.pool[name]
+
+    #--------------------------------------------------------------------------
+    def close(self):
+        """close all pooled connections"""
+        self.config.logger.debug(
+            "HBasePooledConnectionContext - shutting down connection pool"
+        )
+        for name, conn in self.pool.iteritems():
+            self.close_connection(connection, force=True)
+            self.config.logger.debug(
+                "HBasePooledConnectionContext - connection %s closed",
+                name
+            )
+
+    #--------------------------------------------------------------------------
+    def force_reconnect(self, name=None):
+        """tell this functor that the next time it gives out a connection
+        under the given name, it had better make sure it is brand new clean
+        connection.  Use this when you discover that your connection has
+        gone bad and you want to report that fact to the appropriate
+        authority.  You are responsible for actually closing the connection or
+        not, if it is really hosed."""
+        if name is None:
+            name = self.config.executor_identity()
+            self.config.logger.debug('identity: %s', name)
+        if name in self.pool:
+            del self.pool[name]
