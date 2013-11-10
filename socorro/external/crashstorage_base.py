@@ -71,7 +71,8 @@ class CrashStorageBase(RequiredConfig):
     required_config.add_option(
         name="redactor_class",
         doc="the name of the class that implements a 'redact' method",
-        default=Redactor
+        default=Redactor,
+        reference_value_from='resource.redaction'
     )
 
     #--------------------------------------------------------------------------

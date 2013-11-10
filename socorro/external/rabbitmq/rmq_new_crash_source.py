@@ -17,13 +17,13 @@ class RMQNewCrashSource(RequiredConfig):
         'crashstorage_class',
         doc='the source storage class',
         default='socorro.external.rabbitmq.crashstorage.RabbitMQCrashStorage',
-        from_string_converter=class_converter
+        from_string_converter=class_converter,
     )
 
     #--------------------------------------------------------------------------
     def __init__(self, config, processor_name, quit_check_callback=None):
         self.crash_store = config.crashstorage_class(
-            config, 
+            config,
             quit_check_callback
         )
 

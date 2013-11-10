@@ -6,7 +6,7 @@ PREFIX=/data/socorro
 ABS_PREFIX = $(shell readlink -f $(PREFIX))
 VIRTUALENV=$(CURDIR)/socorro-virtualenv
 PYTHONPATH = "."
-NOSE = $(VIRTUALENV)/bin/nosetests socorro -s --with-xunit
+NOSE = $(VIRTUALENV)/bin/nosetests socorro -s --with-xunit -v
 SETUPDB = $(VIRTUALENV)/bin/python ./socorro/external/postgresql/setupdb_app.py
 COVEROPTS = --with-coverage --cover-package=socorro
 COVERAGE = $(VIRTUALENV)/bin/coverage
