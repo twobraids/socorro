@@ -96,39 +96,53 @@ class HBaseCrashStorage(CrashStorageBase):
 
     #--------------------------------------------------------------------------
     def get_raw_crash(self, crash_id):
-        return DotDict(self.transaction_executor(
-            hbase_client.HBaseConnectionForCrashReports.get_json,
-            crash_id,
-            number_of_retries=self.config.number_of_retries
-        ))
+        try:
+            return DotDict(self.transaction_executor(
+                hbase_client.HBaseConnectionForCrashReports.get_json,
+                crash_id,
+                number_of_retries=self.config.number_of_retries
+            ))
+        except hbase_client.OoidNotFoundException:
+            raise CrashIDNotFound(crash_id)
 
     #--------------------------------------------------------------------------
     def get_raw_dump(self, crash_id, name=None):
-        return self.transaction_executor(
-            hbase_client.HBaseConnectionForCrashReports.get_dump,
-            crash_id,
-            name,
-            number_of_retries=self.config.number_of_retries
-        )
+        try:
+            return self.transaction_executor(
+                hbase_client.HBaseConnectionForCrashReports.get_dump,
+                crash_id,
+                name,
+                number_of_retries=self.config.number_of_retries
+            )
+        except hbase_client.OoidNotFoundException:
+            raise CrashIDNotFound(crash_id)
+
 
     #--------------------------------------------------------------------------
     def get_raw_dumps(self, crash_id):
-        return self.transaction_executor(
-            hbase_client.HBaseConnectionForCrashReports.get_dumps,
-            crash_id,
-            number_of_retries=self.config.number_of_retries
-        )
+        try:
+            return self.transaction_executor(
+                hbase_client.HBaseConnectionForCrashReports.get_dumps,
+                crash_id,
+                number_of_retries=self.config.number_of_retries
+            )
+        except hbase_client.OoidNotFoundException:
+            raise CrashIDNotFound(crash_id)
+
     #--------------------------------------------------------------------------
     def get_raw_dumps_as_files(self, crash_id):
         """this method fetches a set of dumps from HBase and writes each one
         to a temporary file.  The pathname for the dump includes the string
         'TEMPORARY' as a signal to the processor that it has the responsibilty
         to delete the file when it is done using it."""
-        dumps_mapping = self.transaction_executor(
-            hbase_client.HBaseConnectionForCrashReports.get_dumps,
-            crash_id,
-            number_of_retries=self.config.number_of_retries
-        )
+        try:
+            dumps_mapping = self.transaction_executor(
+                hbase_client.HBaseConnectionForCrashReports.get_dumps,
+                crash_id,
+                number_of_retries=self.config.number_of_retries
+            )
+        except hbase_client.OoidNotFoundException:
+            raise CrashIDNotFound(crash_id)
         name_to_pathname_mapping = {}
         for name, dump in dumps_mapping.iteritems():
             dump_pathname = os.path.join(
