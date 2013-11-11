@@ -6,8 +6,7 @@ import threading
 import contextlib
 
 from socorro.external.hbase import hbase_client
-from configman.config_manager import RequiredConfig
-from configman import Namespace
+from configman import Namespace, RequiredConfig, class_converter
 
 
 class HBaseSingleConnectionContext(RequiredConfig):
@@ -53,6 +52,13 @@ class HBaseSingleConnectionContext(RequiredConfig):
         'dump_file_suffix',
         doc='the suffix used to identify a dump file (for use in temp files)',
         default='.dump',
+        reference_value_from='resource.hbase'
+    )
+    required_config.add_option(
+        'transaction_executor_class',
+        default=TransactionExecutor,
+        doc='a class that will execute transactions',
+        from_string_converter=class_converter,
         reference_value_from='resource.hbase'
     )
 

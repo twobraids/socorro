@@ -19,13 +19,13 @@ from configman import Namespace, class_converter
 class HBaseCrashStorage(CrashStorageBase):
 
     required_config = Namespace()
-    required_config.add_option(
-        'transaction_executor_class',
-        default=TransactionExecutor,
-        doc='a class that will execute transactions',
-        from_string_converter=class_converter,
-        reference_value_from='resource.hbase'
-    )
+    #required_config.add_option(
+        #'transaction_executor_class',
+        #default=TransactionExecutor,
+        #doc='a class that will execute transactions',
+        #from_string_converter=class_converter,
+        #reference_value_from='resource.hbase'
+    #)
     required_config.add_option(
         'hbase_connection_pool_class',
         default=HBaseConnectionContextPooled,

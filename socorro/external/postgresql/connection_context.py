@@ -8,8 +8,7 @@ import contextlib
 import psycopg2
 import psycopg2.extensions
 
-from configman.config_manager import RequiredConfig
-from configman import Namespace
+from configman import Namespace, RequiredConfig, class_converter
 
 
 class ConnectionContext(RequiredConfig):
@@ -47,6 +46,14 @@ class ConnectionContext(RequiredConfig):
         name='database_password',
         default='aPassword',
         doc="the user's database password",
+        reference_value_from='resource.postgresql'
+    )
+    required_config.add_option(
+        'transaction_executor_class',
+        default="socorro.database.transaction_executor."
+                "TransactionExecutorWithInfiniteBackoff",
+        doc='a class that will manage transactions',
+        from_string_converter=class_converter,
         reference_value_from='resource.postgresql'
     )
 

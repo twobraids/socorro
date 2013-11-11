@@ -72,14 +72,14 @@ class HBaseCrashStorage(CrashStorageBase):
         doc='the maximum number of new crashes to yield at a time',
         reference_value_from='resource.hb'
     )
-    required_config.add_option(
-        'transaction_executor_class',
-        default="socorro.database.transaction_executor."
-                "TransactionExecutorWithInfiniteBackoff",
-        doc='a class that will execute transactions',
-        from_string_converter=class_converter,
-        reference_value_from='resource.hb'
-    )
+    #required_config.add_option(
+        #'transaction_executor_class',
+        #default="socorro.database.transaction_executor."
+                #"TransactionExecutorWithInfiniteBackoff",
+        #doc='a class that will execute transactions',
+        #from_string_converter=class_converter,
+        #reference_value_from='resource.hb'
+    #)
     required_config.add_option(
         'hbase_connection_context_class',
         default=HBaseConnectionContext,

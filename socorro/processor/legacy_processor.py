@@ -53,13 +53,13 @@ class LegacyCrashProcessor(RequiredConfig):
         default=ConnectionContext,
         from_string_converter=class_converter
     )
-    required_config.add_option(
-        'transaction_executor_class',
-        default="socorro.database.transaction_executor."
-                "TransactionExecutorWithInfiniteBackoff",
-        doc='a class that will manage transactions',
-        from_string_converter=class_converter
-    )
+    #required_config.add_option(
+        #'transaction_executor_class',
+        #default="socorro.database.transaction_executor."
+                #"TransactionExecutorWithInfiniteBackoff",
+        #doc='a class that will manage transactions',
+        #from_string_converter=class_converter
+    #)
     required_config.add_option(
         'exploitability_tool_command_line',
         doc='the template for the command to invoke the exploitability tool',

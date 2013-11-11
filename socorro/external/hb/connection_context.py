@@ -5,8 +5,7 @@
 import contextlib
 import socket
 
-from configman.config_manager import RequiredConfig
-from configman import Namespace
+from configman import Namespace, RequiredConfig, class_converter
 
 from thrift import Thrift
 from thrift.transport import TSocket, TTransport
@@ -74,6 +73,14 @@ class HBaseConnectionContext(RequiredConfig):
         'dump_file_suffix',
         doc='the suffix used to identify a dump file (for use in temp files)',
         default='.dump',
+        reference_value_from='resource.hb'
+    )
+    required_config.add_option(
+        'transaction_executor_class',
+        default="socorro.database.transaction_executor."
+                "TransactionExecutorWithInfiniteBackoff",
+        doc='a class that will execute transactions',
+        from_string_converter=class_converter,
         reference_value_from='resource.hb'
     )
 
