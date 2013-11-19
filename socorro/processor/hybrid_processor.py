@@ -204,19 +204,36 @@ class HybridCrashProcessor(RequiredConfig):
                 quit_check_callback
             )
 
-        self.raw_crash_transform_rule_system = self._load_transform_rules(
+        self.rule_system = DotDict()
+
+        self.rule_system.raw_crash_transform = self._load_transform_rules(
             "processor.json_rewrite"
         )
-        self.classifier_rule_system = self._load_transform_rules(
+        self.rule_system.skunk_classifier = self._load_transform_rules(
             "processor.classifiers"
         )
-        if not self.classifier_rule_system.rules:
+        if not self.rule_system.skunk_classifier.rules:
             self.config.logger.info(
                 'falling back to default skunk_classifier rules'
             )
             from socorro.processor.skunk_classifiers import \
                  default_classifier_rules
-            self.classifier_rule_system.load_rules(default_classifier_rules)
+            self.rule_system.skunk_classifier.load_rules(
+                default_classifier_rules
+            )
+
+        self.rule_system.support_classifier = self._load_transform_rules(
+            "processor.support_classifiers"
+        )
+        if not self.rule_system.support_classifier.rules:
+            self.config.logger.info(
+                'falling back to default support_classifier rules'
+            )
+            from socorro.processor.support_classifiers import \
+                 default_support_classifier_rules
+            self.rule_system.support_classifier.load_rules(
+                default_support_classifier_rules
+            )
 
         # *** originally from the ExternalProcessor class
         #preprocess the breakpad_stackwalk command line
@@ -274,7 +291,7 @@ class HybridCrashProcessor(RequiredConfig):
             crash_id = raw_crash.uuid
             started_timestamp = self._log_job_start(crash_id)
 
-            self.raw_crash_transform_rule_system.apply_all_rules(raw_crash,
+            self.rule_system.raw_crash_transform.apply_all_rules(raw_crash,
                                                                  self)
 
             try:
@@ -317,7 +334,7 @@ class HybridCrashProcessor(RequiredConfig):
             processed_crash.Winsock_LSP = raw_crash.get('Winsock_LSP', None)
 
             try:
-                self.classifier_rule_system.apply_until_action_succeeds(
+                self.rule_system.skunk_classifier.apply_until_action_succeeds(
                     raw_crash,
                     processed_crash,
                     self
@@ -326,10 +343,26 @@ class HybridCrashProcessor(RequiredConfig):
                 # let's catch any unexpected error here and not let them
                 # derail the rest of the processing.
                 self.config.logger.error(
-                    'classifiers have failed: %s',
+                    'skunk classifiers have failed: %s',
                     str(x),
                     exc_info=True
                 )
+
+            try:
+                self.rule_system.support_classifier.apply_all_rules(
+                    raw_crash,
+                    processed_crash,
+                    self
+                )
+            except Exception, x:
+                # let's catch any unexpected error here and not let them
+                # derail the rest of the processing.
+                self.config.logger.error(
+                    'support classifiers have failed: %s',
+                    str(x),
+                    exc_info=True
+                )
+
 
 
         except Exception, x:
