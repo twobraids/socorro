@@ -276,7 +276,11 @@ class TestHybridProcessor(unittest.TestCase):
                             'aux_dump_001':
                             '/some/path/aux_001.%s.dump' % raw_crash.uuid,
                             }
-                leg_proc = HybridCrashProcessor(config, config.mock_quit_fn)
+                raw_crash_as_pathname = '/some/path/%s.json' % raw_crash.uuid
+                class MyCrashProcessor(HybridCrashProcessor):
+                    def _read_raw_crash_pathname(self, raw_crash_pathname):
+                        return raw_crash
+                leg_proc = MyCrashProcessor(config, config.mock_quit_fn)
 
                 started_timestamp = datetime(2012, 5, 4, 15, 10, tzinfo=UTC)
                 leg_proc._log_job_start = mock.Mock(
@@ -301,9 +305,10 @@ class TestHybridProcessor(unittest.TestCase):
                 leg_proc._cleanup_temp_file = mock.Mock()
 
                  # Here's the call being tested
-                processed_crash = \
+                new_raw_crash, processed_crash = \
                     leg_proc.convert_raw_crash_to_processed_crash(
-                      raw_crash,
+                      raw_crash.uuid,
+                      raw_crash_as_pathname,
                       raw_dump
                     )
 
@@ -334,7 +339,7 @@ class TestHybridProcessor(unittest.TestCase):
                   started_timestamp,
                   [
                       'testing_processor:2012',
-                      'HybridCrashProcessor'
+                      'MyCrashProcessor'
                   ]
                 )
 
@@ -346,21 +351,24 @@ class TestHybridProcessor(unittest.TestCase):
                     leg_proc._do_breakpad_stack_dump_analysis.call_args_list
                 self.assertEqual(
                   first_call,
-                  ((raw_crash.uuid, '/some/path/%s.dump' % raw_crash.uuid,
+                  ((raw_crash.uuid,
+                    '/some/path/%s.json' % raw_crash.uuid,
+                    '/some/path/%s.dump' % raw_crash.uuid,
                    0, None, datetime(2012, 5, 4, 15, 33, 33, tzinfo=UTC),
                    [
                       'testing_processor:2012',
-                      'HybridCrashProcessor'
+                      'MyCrashProcessor'
                    ]),)
                 )
                 self.assertEqual(
                   second_call,
                   ((raw_crash.uuid,
-                   '/some/path/aux_001.%s.dump' % raw_crash.uuid,
+                    '/some/path/%s.json' % raw_crash.uuid,
+                    '/some/path/aux_001.%s.dump' % raw_crash.uuid,
                    0, None, datetime(2012, 5, 4, 15, 33, 33, tzinfo=UTC),
                    [
                       'testing_processor:2012',
-                      'HybridCrashProcessor'
+                      'MyCrashProcessor'
                    ]),)
                 )
 
@@ -375,7 +383,7 @@ class TestHybridProcessor(unittest.TestCase):
                 epc.uuid = raw_crash.uuid
                 epc.topmost_filenames = ''
                 epc.processor_notes = \
-                    "testing_processor:2012; HybridCrashProcessor"
+                    "testing_processor:2012; MyCrashProcessor"
 
                 epc.success = True
                 epc.completeddatetime = datetime(2012, 5, 4, 15, 11,
@@ -386,7 +394,7 @@ class TestHybridProcessor(unittest.TestCase):
                 epc.additional_minidumps = ['aux_dump_001']
                 epc.aux_dump_001 = {'success': True}
                 self.assertEqual(
-                  processed_crash,
+                  dict(processed_crash),
                   dict(epc)
                 )
 
@@ -445,8 +453,9 @@ class TestHybridProcessor(unittest.TestCase):
                 )
 
                  # Here's the call being tested
-                processed_crash = \
+                new_raw_crash, processed_crash = \
                     leg_proc.convert_raw_crash_to_processed_crash(
+                      raw_crash.uuid,
                       raw_crash,
                       raw_dump
                     )
@@ -863,8 +872,15 @@ class TestHybridProcessor(unittest.TestCase):
 
         class MyProcessor(HybridCrashProcessor):
 
-            def _invoke_minidump_stackwalk(self, dump_pathname):
+            def _invoke_minidump_stackwalk(
+                self,
+                dump_pathname,
+                raw_crash_pathname
+            ):
                 return m_iter, mock.Mock()
+
+            def _read_raw_crash_pathname(self, raw_crash_pathname):
+                return {}
 
             def _analyze_header(self, ooid, dump_analysis_line_iterator,
                                 submitted_timestamp, processor_notes):
@@ -908,6 +924,7 @@ class TestHybridProcessor(unittest.TestCase):
                 processed_crash_update = \
                     leg_proc._do_breakpad_stack_dump_analysis(
                       '3bc4bcaa-b61d-4d1f-85ae-30cb32120504',
+                      'raw_crash_path',
                       'some_path',
                       0,
                       None,

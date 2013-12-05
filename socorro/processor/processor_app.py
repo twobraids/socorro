@@ -118,7 +118,9 @@ class ProcessorApp(FetchTransformSaveApp):
         is called."""
         try:
             try:
-                raw_crash = self.source.get_raw_crash(crash_id)
+                raw_crash_as_pathname = self.source.get_raw_crash_as_file(
+                    crash_id
+                )
                 dumps = self.source.get_raw_dumps_as_files(crash_id)
             except CrashIDNotFound:
                 self.processor.reject_raw_crash(
@@ -138,11 +140,10 @@ class ProcessorApp(FetchTransformSaveApp):
                 )
                 return
 
-            if 'uuid' not in raw_crash:
-                raw_crash.uuid = crash_id
-            processed_crash = (
+            raw_crash, processed_crash = (
                 self.processor.convert_raw_crash_to_processed_crash(
-                    raw_crash,
+                    crash_id,
+                    raw_crash_as_pathname,
                     dumps
                 )
             )

@@ -65,8 +65,9 @@ class HybridCrashProcessor(RequiredConfig):
     required_config.add_option(
         'stackwalk_command_line',
         doc='the template for the command to invoke stackwalker',
-        default='$minidump_stackwalk_pathname --pipe $dumpfilePathname '
-        '$processor_symbols_pathname_list 2>/dev/null',
+        default='$minidump_stackwalk_pathname --pipe-dump $dumpfilePathname '
+                '--input-json $rawcrashfilePathname '
+                '$processor_symbols_pathname_list 2>/dev/null',
     )
     required_config.add_option(
         'minidump_stackwalk_pathname',
@@ -246,6 +247,7 @@ class HybridCrashProcessor(RequiredConfig):
         )
         # Convert canonical $dumpfilePathname to DUMPFILEPATHNAME
         tmp = tmp.replace('$dumpfilePathname', 'DUMPFILEPATHNAME')
+        tmp = tmp.replace('$rawcrashfilePathname', 'RAWCRASHPATHNAME')
         # finally, convert any remaining $param to pythonic %(param)s
         tmp = convert_to_python_substitution_format_re.sub(r'%(\1)s', tmp)
         self.mdsw_command_line = tmp % config
@@ -274,7 +276,18 @@ class HybridCrashProcessor(RequiredConfig):
         self._log_job_end(utc_now(), False, crash_id)
 
     #--------------------------------------------------------------------------
-    def convert_raw_crash_to_processed_crash(self, raw_crash, raw_dumps):
+    def _read_raw_crash_pathname(self, raw_crash_pathname):
+        with open(raw_crash_pathname) as f:
+            raw_crash = json.load(f)
+        return DotDict(raw_crash)
+
+    #--------------------------------------------------------------------------
+    def convert_raw_crash_to_processed_crash(
+        self,
+        crash_id,
+        raw_crash_pathname,
+        raw_dumps_to_pathname_mapping
+    ):
         """ This function is run only by a worker thread.
             Given a job, fetch a thread local database connection and the json
             document.  Use these to create the record in the 'reports' table,
@@ -283,10 +296,14 @@ class HybridCrashProcessor(RequiredConfig):
             input parameters:
         """
         self._statistics.incr('jobs')
+        if isinstance(raw_crash_pathname, basestring):
+            raw_crash = self._read_raw_crash_pathname(raw_crash_pathname)
+        else:
+            raw_crash = raw_crash_pathname
+        raw_crash.uuid = crash_id
         processor_notes = [self.config.processor_name, self.__class__.__name__]
         try:
             self.quit_check()
-            crash_id = raw_crash.uuid
             started_timestamp = self._log_job_start(crash_id)
 
             self.rule_system.raw_crash_transform.apply_all_rules(raw_crash,
@@ -310,22 +327,27 @@ class HybridCrashProcessor(RequiredConfig):
 
             processed_crash.additional_minidumps = []
 
-            for name, dump_pathname in raw_dumps.iteritems():
-                if name != self.config.dump_field:
-                    processed_crash.additional_minidumps.append(name)
-                with self._temp_file_context(dump_pathname) as temp_pathname:
-                    dump_analysis = self._do_breakpad_stack_dump_analysis(
-                        crash_id,
-                        temp_pathname,
-                        processed_crash.hang_type,
-                        processed_crash.java_stack_trace,
-                        submitted_timestamp,
-                        processor_notes
-                    )
-                if name == self.config.dump_field:
-                    processed_crash.update(dump_analysis)
-                else:
-                    processed_crash[name] = dump_analysis
+            with self._temp_file_context(raw_crash_pathname) as \
+                temp_raw_crash_pathname:
+                for name, dump_pathname in \
+                    raw_dumps_to_pathname_mapping.iteritems():
+                    if name != self.config.dump_field:
+                        processed_crash.additional_minidumps.append(name)
+                    with self._temp_file_context(dump_pathname) as \
+                        temp_dump_pathname:
+                        dump_analysis = self._do_breakpad_stack_dump_analysis(
+                            crash_id,
+                            temp_raw_crash_pathname,
+                            temp_dump_pathname,
+                            processed_crash.hang_type,
+                            processed_crash.java_stack_trace,
+                            submitted_timestamp,
+                            processor_notes
+                        )
+                    if name == self.config.dump_field:
+                        processed_crash.update(dump_analysis)
+                    else:
+                        processed_crash[name] = dump_analysis
             processed_crash.topmost_filenames = "|".join(
                 processed_crash.get('topmost_filenames', [])
             )
@@ -383,7 +405,7 @@ class HybridCrashProcessor(RequiredConfig):
             processed_crash.success,
             crash_id
         )
-        return processed_crash
+        return raw_crash, processed_crash
 
     def _create_minimal_processed_crash(self):
         processed_crash = DotDict()
@@ -702,7 +724,7 @@ class HybridCrashProcessor(RequiredConfig):
         return process_type_additions_dict
 
     #--------------------------------------------------------------------------
-    def _invoke_minidump_stackwalk(self, dump_pathname):
+    def _invoke_minidump_stackwalk(self, dump_pathname, raw_crash_pathname):
         """ This function invokes breakpad_stackdump as an external process
         capturing and returning the text output of stdout.  This version
         represses the stderr output.
@@ -711,8 +733,15 @@ class HybridCrashProcessor(RequiredConfig):
                 dump_pathname: the complete pathname of the dumpfile to be
                                   analyzed
         """
-        command_line = self.mdsw_command_line.replace("DUMPFILEPATHNAME",
-                                                      dump_pathname)
+        command_line = self.mdsw_command_line.replace(
+            "DUMPFILEPATHNAME",
+            dump_pathname
+        )
+        command_line = command_line.replace(
+            "RAWCRASHPATHNAME",
+            raw_crash_pathname
+        )
+        #self.config.logger.debug(command_line)
         subprocess_handle = subprocess.Popen(
             command_line,
             shell=True,
@@ -722,10 +751,15 @@ class HybridCrashProcessor(RequiredConfig):
                 subprocess_handle)
 
     #--------------------------------------------------------------------------
-    def _do_breakpad_stack_dump_analysis(self, crash_id, dump_pathname,
-                                         is_hang, java_stack_trace,
-                                         submitted_timestamp,
-                                         processor_notes):
+    def _do_breakpad_stack_dump_analysis(
+        self,
+        crash_id,
+        raw_crash_pathname,
+        dump_pathname,
+        is_hang, java_stack_trace,
+        submitted_timestamp,
+        processor_notes
+    ):
         """ This function coordinates the steps of running the
         breakpad_stackdump process and analyzing the textual output for
         insertion into the database.
@@ -743,7 +777,7 @@ class HybridCrashProcessor(RequiredConfig):
           processor_notes
         """
         dump_analysis_line_iterator, mdsw_subprocess_handle = \
-            self._invoke_minidump_stackwalk(dump_pathname)
+            self._invoke_minidump_stackwalk(dump_pathname, raw_crash_pathname)
         dump_analysis_line_iterator.secondaryCacheMaximumSize = \
             self.config.crashing_thread_tail_frame_threshold + 1
 
@@ -764,8 +798,11 @@ class HybridCrashProcessor(RequiredConfig):
         """make one string from all the cached lines of the stackwalker
         output.  If we've got linefeeds at the end of the lines, don't add
         any more."""
-        if pipedump_lines[0].endswith('\n'):
-            return ''.join(pipedump_lines)
+        try:
+            if pipedump_lines[0].endswith('\n'):
+                return ''.join(pipedump_lines)
+        except IndexError:
+            return '\n'
         return '\n'.join(pipedump_lines) + '\n'
 
     #--------------------------------------------------------------------------
@@ -807,7 +844,9 @@ class HybridCrashProcessor(RequiredConfig):
                 mdsw_iter.cache.remove("====PIPE DUMP ENDS===")
             except ValueError:
                 pass  # the sentinel is not there, this is ok, ignore the error
-            if mdsw_iter.cache[-1].startswith('{'):
+            if (len(mdsw_iter.cache) > 0 and
+                mdsw_iter.cache[-1].startswith('{')
+            ):
                 # we've gone too far and consumed the jDump - get it back
                 json_dump_lines = [mdsw_iter.cache[-1]]
                 pipe_dump_str = self._create_pipe_dump_entry(
@@ -1182,24 +1221,30 @@ class HybridCrashProcessor(RequiredConfig):
 
     #--------------------------------------------------------------------------
     @contextmanager
-    def _temp_file_context(self, raw_dump_path):
+    def _temp_file_context(self, a_pathname):
         """this contextmanager implements conditionally deleting a pathname
         at the end of a context iff the pathname indicates that it is a temp
         file by having the word 'TEMPORARY' embedded in it."""
-        yield raw_dump_path
-        if 'TEMPORARY' in raw_dump_path:
-            try:
-                os.unlink(raw_dump_path)
-            except OSError:
-                self.config.logger.warning(
-                    'unable to delete %s. manual deletion is required.',
-                    raw_dump_path,
-                    exc_info=True
-                )
+        try:
+            yield a_pathname
+        finally:
+            if 'TEMPORARY' in a_pathname:
+                try:
+                    os.unlink(a_pathname)
+                except OSError:
+                    self.config.logger.warning(
+                        'unable to delete %s. manual deletion is required.',
+                        a_pathname,
+                        exc_info=True
+                    )
 
     #--------------------------------------------------------------------------
-    def __call__(self, raw_crash, raw_dumps):
-        self.convert_raw_crash_to_processed_crash(raw_crash, raw_dumps)
+    def __call__(self, crash_id, raw_crash, raw_dumps):
+        self.convert_raw_crash_to_processed_crash(
+            crash_id,
+            raw_crash,
+            raw_dumps
+        )
 
     #--------------------------------------------------------------------------
     def _log_job_start(self, crash_id):

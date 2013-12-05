@@ -70,12 +70,6 @@ class HBaseConnectionContext(RequiredConfig):
         default=5000,
     )
     required_config.add_option(
-        'temporary_file_system_storage_path',
-        doc='a local filesystem path where dumps temporarily '
-            'during processing',
-        default='/tmp',
-    )
-    required_config.add_option(
         'dump_file_suffix',
         doc='the suffix used to identify a dump file (for use in temp files)',
         default='.dump'

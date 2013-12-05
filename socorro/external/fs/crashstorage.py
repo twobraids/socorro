@@ -211,6 +211,19 @@ class FSRadixTreeStorage(CrashStorageBase):
                   'r') as f:
             return json.load(f, object_hook=DotDict)
 
+    def get_raw_crash_as_file(self, crash_id):
+        """fetch a raw crash as a file
+
+        parameters:
+           crash_id - the id of a raw crash to fetch"""
+        parent_dir = self._get_radixed_parent_directory(crash_id)
+        if not os.path.exists(parent_dir):
+            raise CrashIDNotFound
+        return os.sep.join([
+            parent_dir,
+            crash_id + self.config.json_file_suffix
+        ])
+
     def get_raw_dump(self, crash_id, name=None):
         parent_dir = self._get_radixed_parent_directory(crash_id)
         if not os.path.exists(parent_dir):

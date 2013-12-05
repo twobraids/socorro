@@ -9,6 +9,9 @@ saving, fetching and iterating over raw crashes, dumps and processed crashes.
 import sys
 import collections
 import re
+import json
+import os
+import threading
 
 from configman import Namespace,  RequiredConfig
 from configman.converters import classes_in_namespaces_converter, \
@@ -72,6 +75,12 @@ class CrashStorageBase(RequiredConfig):
         name="redactor_class",
         doc="the name of the class that implements a 'redact' method",
         default=Redactor
+    )
+    required_config.add_option(
+        'temporary_file_system_storage_path',
+        doc='a local filesystem path where temp files can live temporarily '
+            'during processing',
+        default='/tmp',
     )
 
     #--------------------------------------------------------------------------
@@ -174,6 +183,27 @@ class CrashStorageBase(RequiredConfig):
         parameters:
            crash_id - the id of a raw crash to fetch"""
         raise NotImplementedError("get_raw_crash is not implemented")
+
+    #--------------------------------------------------------------------------
+    def get_raw_crash_as_file(self, crash_id):
+        """fetch a raw crash as a file
+
+        parameters:
+           crash_id - the id of a raw crash to fetch"""
+
+        raw_crash_json_pathname = os.path.join(
+            self.config.temporary_file_system_storage_path,
+            "%s.%s.TEMPORARY.json" % (
+                crash_id,
+                threading.currentThread().getName()
+            )
+        )
+        with open(raw_crash_json_pathname, "w") as f:
+            json.dump(
+                self.get_raw_crash(crash_id),
+                f
+            )
+        return raw_crash_json_pathname
 
     #--------------------------------------------------------------------------
     def get_raw_dump(self, crash_id, name=None):
