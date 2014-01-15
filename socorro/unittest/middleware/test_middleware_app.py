@@ -402,7 +402,7 @@ class IntegrationTestMiddlewareApp(unittest.TestCase):
         )
         config = config_manager.get_config()
         self.conn = config.database.database_class(
-            config.resource.postgresql
+            config.database
         ).connection()
         assert self.conn.get_transaction_status() == \
             psycopg2.extensions.TRANSACTION_STATUS_IDLE

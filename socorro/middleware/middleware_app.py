@@ -135,9 +135,9 @@ class MiddlewareApp(App):
         'implementation_list',
         doc='list of packages for service implementations',
         default='psql:socorro.external.postgresql, '
-                'hbase:socorro.external.hbase, '
+                'hbase:socorro.external.hb, '
                 'es:socorro.external.elasticsearch, '
-                'fs:socorro.external.filesystem, '
+                'fs:socorro.external.fs, '
                 'http:socorro.external.http, '
                 'rabbitmq:socorro.external.rabbitmq',
         from_string_converter=items_list_decode,
