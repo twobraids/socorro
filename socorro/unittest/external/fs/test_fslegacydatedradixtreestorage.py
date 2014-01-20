@@ -130,3 +130,108 @@ class TestFSLegacyDatedRadixTreeStorage(unittest.TestCase):
         self.fsrts._current_slot = lambda: ['00', '00_02']
         self.assertEqual(list(self.fsrts.new_crashes()),
                          [self.CRASH_ID_1])
+
+
+class TestTemporaryCollectorStorage(TestFSLegacyDatedRadixTreeStorage):
+    
+    def test_save_raw_crash(self):
+        self._make_test_crash()
+        self.assertTrue(
+            os.path.islink(
+                os.path.join(
+                  self.fsrts._get_radixed_parent_directory(self.CRASH_ID_1),
+                  self.fsrts._get_date_root_name(self.CRASH_ID_1)
+                )
+            )
+        )
+        self.assertTrue(
+            os.path.exists(
+                os.path.join(
+                  self.fsrts._get_radixed_parent_directory(self.CRASH_ID_1),
+                  self.fsrts._get_date_root_name(self.CRASH_ID_1),
+                  self.CRASH_ID_1
+                )
+            )
+        )
+        self.assertEqual(
+            self.fsrts._get_radixed_parent_directory(self.CRASH_ID_1),
+            './crashes/10/name/0b/ba/92/9f'            
+        )
+
+    def test_get_raw_crash(self):
+        self._make_test_crash()
+        self.assertEqual(self.fsrts.get_raw_crash(self.CRASH_ID_1)['test'],
+                         "TEST")
+        self.assertRaises(CrashIDNotFound, self.fsrts.get_raw_crash,
+                          self.CRASH_ID_2)
+
+    def test_get_raw_dump(self):
+        self._make_test_crash()
+        self.assertEqual(self.fsrts.get_raw_dump(self.CRASH_ID_1, 'foo'),
+                         "bar")
+        self.assertEqual(self.fsrts.get_raw_dump(self.CRASH_ID_1,
+                                                 self.fsrts.config.dump_field),
+                         "baz")
+        self.assertRaises(CrashIDNotFound, self.fsrts.get_raw_dump,
+                          self.CRASH_ID_2, "foo")
+        self.assertRaises(IOError, self.fsrts.get_raw_dump, self.CRASH_ID_1,
+                          "foor")
+
+    def test_get_raw_dumps(self):
+        self._make_test_crash()
+        self.assertEqual(self.fsrts.get_raw_dumps(self.CRASH_ID_1), {
+            'foo': 'bar',
+            self.fsrts.config.dump_field: 'baz'
+        })
+        self.assertRaises(CrashIDNotFound, self.fsrts.get_raw_dumps,
+                          self.CRASH_ID_2)
+
+    def test_remove(self):
+        self._make_test_crash()
+        self.fsrts.remove(self.CRASH_ID_1)
+
+        parent = os.path.realpath(
+            os.path.join(
+              self.fsrts._get_radixed_parent_directory(self.CRASH_ID_1),
+              self.fsrts._get_date_root_name(self.CRASH_ID_1)))
+
+        p = os.path.join(parent, self.CRASH_ID_1)
+        self.assertTrue(not os.path.exists(p))
+
+        self.assertRaises(CrashIDNotFound, self.fsrts.remove,
+                          self.CRASH_ID_2)
+
+    def test_new_crashes(self):
+        self.fsrts._current_slot = lambda: ['00', '00_00']
+        self._make_test_crash()
+        self.fsrts._current_slot = lambda: ['00', '00_01']
+        self.assertEqual(list(self.fsrts.new_crashes()), [self.CRASH_ID_1])
+        self.assertEqual(list(self.fsrts.new_crashes()), [])
+        self.fsrts.remove(self.CRASH_ID_1)
+        del self.fsrts._current_slot
+
+        self.fsrts._current_slot = lambda: ['00', '00_00']
+        self._make_test_crash()
+
+        date_path = self.fsrts._get_dated_parent_directory(self.CRASH_ID_1,
+                                                           ['00', '00_00'])
+
+        new_date_path = self.fsrts._get_dated_parent_directory(self.CRASH_ID_1,
+                                                               ['00', '00_01'])
+
+        webhead_path = os.sep.join([new_date_path, 'webhead_0'])
+
+        os.mkdir(new_date_path)
+        os.rename(date_path, webhead_path)
+
+        os.unlink(os.sep.join([webhead_path, self.CRASH_ID_1]))
+        os.symlink('../../../../name/' + os.sep.join(self.fsrts._get_radix(
+                       self.CRASH_ID_1)),
+                   os.sep.join([webhead_path, self.CRASH_ID_1]))
+
+        self.fsrts._current_slot = lambda: ['00', '00_02']
+        self.assertEqual(list(self.fsrts.new_crashes()),
+                         [self.CRASH_ID_1])
+
+
+

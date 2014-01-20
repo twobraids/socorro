@@ -615,3 +615,26 @@ class FSLegacyDatedRadixTreeStorage(FSDatedRadixTreeStorage,
                                       exc_info=True)
             else:
                 self.logger.critical("unknown file %s found", namedir)
+
+
+class TemporaryCollectorStorage(FSLegacyDatedRadixTreeStorage):
+    """this storage scheme is especially targeted for collectors that 
+    buffer crashes on disk before they are forwarded on to permanent 
+    storage.  This class in not suitable as permanant storage.  Rather 
+    than formatting a base directory as YYYYMMDD, this class just uses DD.
+    That means that it cannot store anything longer than a month.  
+    When the month rolls over, this class automatically starts recycling 
+    the original 01 directory.
+    
+    This class uses both a radix branch and date branch.  
+    """
+    
+    def _get_base(self, crash_id):
+        date = dateFromOoid(crash_id)
+        if not date:
+            date = utc_now()
+        date_formatted = "%02d" % date.month
+        return [self.config.fs_root, date_formatted]
+
+    
+
