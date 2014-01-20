@@ -18,7 +18,7 @@ class TestFSLegacyDatedRadixTreeStorage(unittest.TestCase):
 
     def tearDown(self):
         shutil.rmtree(self.fsrts.config.fs_root)
-
+        
     def _common_config_setup(self):
         mock_logging = Mock()
         required_config = FSLegacyDatedRadixTreeStorage.get_required_config()
@@ -134,6 +134,10 @@ class TestFSLegacyDatedRadixTreeStorage(unittest.TestCase):
 
 class TestTemporaryCollectorStorage(TestFSLegacyDatedRadixTreeStorage):
     
+    def setUp(self):
+        with self._common_config_setup().context() as config:
+            self.fsrts = TemporaryCollectorStorage(config)
+
     def test_save_raw_crash(self):
         self._make_test_crash()
         self.assertTrue(
