@@ -4,7 +4,10 @@ import shutil
 from mock import Mock
 from configman import ConfigurationManager
 
-from socorro.external.fs.crashstorage import FSLegacyDatedRadixTreeStorage
+from socorro.external.fs.crashstorage import (
+    FSLegacyDatedRadixTreeStorage,
+    TemporaryCollectorStorage
+)
 from socorro.external.crashstorage_base import CrashIDNotFound
 
 
