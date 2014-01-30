@@ -51,10 +51,14 @@ then
   RABBITMQ_VHOST="/"
 fi
 
-
-function cleanup() {
+function cleanup_rabbitmq() {
   echo "INFO: Purging rabbitmq queue"
   python scripts/test_rabbitmq.py --test_rabbitmq.purge='socorro.normal' --test_rabbitmq.rabbitmq_host=$RABBITMQ_HOST --test_rabbitmq.rabbitmq_user=$RABBITMQ_USERNAME --test_rabbitmq.rabbitmq_password=$RABBITMQ_PASSWORD --test_rabbitmq.rabbitmq_vhost=$RABBITMQ_VHOST > /dev/null 2>&1
+
+}
+
+function cleanup() {
+  cleanup_rabbitmq
 
   echo "INFO: cleaning up crash storage directories"
   rm -rf ./primaryCrashStore/ ./processedCrashStore/
@@ -107,7 +111,11 @@ then
   fatal 1 "setupdb_app.py failed, check setupdb.log"
 fi
 popd >> setupdb.log 2>&1
-python socorro/cron/crontabber.py --database.database_hostname=$DB_HOST --database.database_username=$DB_USER --database.database_password=$DB_PASSWORD --job=weekly-reports-partitions --force >> setupdb.log 2>&1
+
+# ensure rabbitmq is really empty and no previous failure left garbage
+cleanup_rabbitmq
+
+python socorro/cron/crontabber.py --resource.postgresql.database_hostname=$DB_HOST --secrets.postgresql.database_username=$DB_USER --secrets.postgresql.database_password=$DB_PASSWORD --job=weekly-reports-partitions --force >> setupdb.log 2>&1
 if [ $? != 0 ]
 then
   fatal 1 "crontabber weekly-reports-partitions failed, check setupdb.log"
@@ -126,6 +134,9 @@ do
   fuser -k ${p}.log > /dev/null 2>&1
 done
 echo " Done."
+
+# ensure rabbitmq is really empty and no previous failure left garbage
+cleanup_rabbitmq
 
 echo -n "INFO: starting up collector, processor and middleware..."
 python socorro/collector/collector_app.py --admin.conf=./config/collector.ini --storage.storage1.host=$RABBITMQ_HOST --storage.storage1.rabbitmq_user=$RABBITMQ_USERNAME --storage.storage1.rabbitmq_password=$RABBITMQ_PASSWORD --storage.storage1.virtual_host=$RABBITMQ_VHOST > collector.log 2>&1 &
