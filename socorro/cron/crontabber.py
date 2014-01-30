@@ -15,6 +15,8 @@ import sys
 import time
 import traceback
 
+from functools import partial
+
 from socorro.database.transaction_executor import TransactionExecutor
 from socorro.external.postgresql.connection_context import ConnectionContext
 from socorro.external.postgresql.dbapi2_util import (
@@ -40,6 +42,19 @@ import raven
 from configman import Namespace, RequiredConfig
 from configman.converters import class_converter, CannotConvertError
 
+# a method decorator that indicates that the method defines a single transacton
+# on a database connection.  It invokes the method using the instance's
+# transaction object, automatically passing in the appropriate database
+# connection.  Any abnormal exit from the method will result in a 'rollback'
+# any normal exit will result in a 'commit'
+def database_transaction(method):
+    def _do_transaction(self, *args, **kwargs):
+        return self.transaction(
+            partial(method, self),
+            *args,
+            **kwargs
+        )
+    return _do_transaction
 
 DEFAULT_JOBS = '''
   socorro.cron.jobs.weekly_reports_partitions.WeeklyReportsPartitionsCronApp|7d
@@ -297,9 +312,8 @@ class StateDatabase(RequiredConfig):
         row['last_error'] = json.loads(row['last_error'])
         return row
 
-    def _do_setitem_transaction(self, connection, key, value):
-
-
+    @database_transaction
+    def __setitem__(self, connection, key, value):
         class LastErrorEncoder(json.JSONEncoder):
             def default(self, obj):
                 if isinstance(obj, type):
@@ -365,18 +379,8 @@ class StateDatabase(RequiredConfig):
             parameters
         )
 
-    def __setitem__(self, key, value):
-        """save the item persistently"""
-        self.transaction(
-            self._do_setitem_transaction,
-            key,
-            value
-        )
-
-    def copy(self):
-        return self.transaction(self._do_copy)
-
-    def _do_copy(self, connection):
+    @database_transaction
+    def copy(self, connection):
         sql = """SELECT
                 app_name,
                 next_run,
@@ -426,10 +430,8 @@ class StateDatabase(RequiredConfig):
                 raise
             return default
 
-    def __delitem__(self, key):
-        self.transaction(self._do_delitem, key)
-
-    def _do_delitem(self, connection, key):
+    @database_transaction
+    def __delitem__(self, connection, key):
         """remove the item by key or raise KeyError"""
         # item existed
         try:
@@ -1078,15 +1080,8 @@ class CronTabber(App):
             self._log_run(job_class, seconds, time_, last_success, now,
                           exc_type, exc_value, exc_tb)
 
-    def _remember_success(self, class_, success_date, duration):
-        self.transaction(
-            self._do_remember_success,
-            class_,
-            success_date,
-            duration
-        )
-
-    def _do_remember_success(self, connection, class_, success_date, duration):
+    @database_transaction
+    def _remember_success(self, connection, class_, success_date, duration):
         app_name = class_.app_name
         execute_no_results(
             connection,
@@ -1102,17 +1097,8 @@ class CronTabber(App):
             (app_name, success_date, '%.5f' % duration)
         )
 
-    def _remember_failure(self, class_, duration, exc_type, exc_value, exc_tb):
-        self.transaction(
-            self._do_remember_failure,
-            class_,
-            duration,
-            exc_type,
-            exc_value,
-            exc_tb
-        )
-
-    def _do_remember_failure(
+    @database_transaction
+    def _remember_failure(
         self,
         connection,
         class_,
