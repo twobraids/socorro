@@ -236,7 +236,7 @@ class StateDatabase(RequiredConfig):
     def __contains__(self, key):
         """return True if we have a job by this key"""
         try:
-            return self.transaction(
+            self.transaction(
                 single_value_sql,
                 """SELECT app_name
                    FROM crontabber
@@ -244,6 +244,7 @@ class StateDatabase(RequiredConfig):
                         app_name = %s""",
                 (key,)
             )
+            return True
         except SQLDidNotReturnSingleValue:
             return False
 
@@ -433,17 +434,24 @@ class StateDatabase(RequiredConfig):
     @database_transaction
     def __delitem__(self, connection, key):
         """remove the item by key or raise KeyError"""
-        # item existed
         try:
-            execute_no_results(
+            result =  single_value_sql(
                 connection,
-                """DELETE FROM crontabber
-                   WHERE app_name = %s""",
+                """SELECT app_name
+                   FROM crontabber
+                   WHERE
+                        app_name = %s""",
                 (key,)
             )
-        except Exception:
+        except SQLDidNotReturnSingleValue:
             raise KeyError(key)
-
+        # item exists
+        execute_no_results(
+            connection,
+            """DELETE FROM crontabber
+               WHERE app_name = %s""",
+            (key,)
+        )
 
 def timesince(d, now):  # pragma: no cover
     """
