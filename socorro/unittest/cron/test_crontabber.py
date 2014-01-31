@@ -2066,7 +2066,7 @@ class _PGJob(base.PostgresCronApp, _Job):
         _Job.run(self)
 
 
-class _PGTransactionManagedJob(base.PostgresTransactionManagedCronApp,
+class _PGTransactionManagedJob(base.PostgresSingleTransactionCronApp,
                                _Job):
 
     def run(self, connection):

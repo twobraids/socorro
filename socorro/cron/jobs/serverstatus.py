@@ -28,7 +28,7 @@ from configman import Namespace
 from configman.converters import class_converter
 
 from socorro.lib.datetimeutil import utc_now
-from socorro.cron.base import PostgresTransactionManagedCronApp
+from socorro.cron.base import PostgresSingleTransactionCronApp
 
 _server_stats_sql = """
   INSERT INTO server_status (
@@ -85,7 +85,7 @@ _server_stats_sql = """
   """
 
 
-class ServerStatusCronApp(PostgresTransactionManagedCronApp):
+class ServerStatusCronApp(PostgresSingleTransactionCronApp):
     app_name = 'server-status'
     app_description = (
         "Connects to the message queue and investigates "

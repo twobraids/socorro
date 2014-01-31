@@ -152,8 +152,14 @@ class DailyURLCronApp(PostgresBackfillCronApp):
                          sql_parameters.yesterday_str)
             sql_query = SQL % sql_parameters
             logger.debug("SQL is: %s", sql_query)
-            cursor.execute(sql_query)
-            for crash_row in cursor.fetchall():
+            try:
+                cursor.execute(sql_query)
+                all_rows = cursor.fetchall()
+                connection.commit()
+            except Exception:
+                connection.rollback()
+                raise
+            for crash_row in all_rows:
                 if headers_not_yet_written:
                     self.write_row(file_handles_tuple,
                               [x[0] for x in cursor.description])

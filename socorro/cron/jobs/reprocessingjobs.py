@@ -7,13 +7,13 @@ import pika
 
 from configman import Namespace
 from configman.converters import class_converter
-from socorro.cron.base import PostgresTransactionManagedCronApp
+from socorro.cron.base import PostgresSingleTransactionCronApp
 from socorro.external.postgresql.dbapi2_util import execute_query_iter
 
 _reprocessing_sql = """ DELETE FROM reprocessing_jobs RETURNING crash_id """
 
 
-class ReprocessingJobsApp(PostgresTransactionManagedCronApp):
+class ReprocessingJobsApp(PostgresSingleTransactionCronApp):
     app_name = 'reprocessing-jobs'
     app_description = (
         "Retrieves crash_ids from reprocessing_jobs and submits"
@@ -35,7 +35,6 @@ class ReprocessingJobsApp(PostgresTransactionManagedCronApp):
         self.queue = self.config.queue_class(self.config)
 
     def run(self, connection):
-
         for crash_id in execute_query_iter(connection, _reprocessing_sql):
             self.queue.save_raw_crash(
                 {'legacy_processing': True},

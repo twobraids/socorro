@@ -214,71 +214,46 @@ class PostgresCronApp(BaseCronApp):
         reference_value_from='resource.postgresql'
     )
 
-    def _run_proxy(self):
-        database = self.config.database_class(self.config.crontabber)
-        with database() as connection:
-            self.run(connection)
-
-    def run(self, connection):  # pragma: no cover
-        raise NotImplementedError("Your fault!")
-
-
-class PostgresBackfillCronApp(BaseBackfillCronApp):
-    """a base class for backfilling cron apps that want to connect with PG, but
-    want to do their own transaction management"""
-    required_config = Namespace()
-    required_config.add_option(
-        'database_class',
-        default=
-            'socorro.external.postgresql.connection_context.ConnectionContext',
-        from_string_converter=class_converter,
-        reference_value_from='resource.postgresql'
-    )
-    required_config.add_option(
-        'transaction_executor_class',
-        default='socorro.database.transaction_executor.TransactionExecutor',
-        doc='a class that will execute transactions',
-        reference_value_from='resource.postgresql'
-    )
-
-    def _run_proxy(self, date):
-        database = self.config.database_class(self.config.crontabber)
-        with database() as connection:
-            self.run(connection, date)
-
-    def run(self, connection, date):  # pragma: no cover
-        raise NotImplementedError("Your fault!")
-
-
-class PostgresTransactionManagedCronApp(BaseCronApp):
-    """a base class for cron apps that want to connect with PG, and don't
-    want to do their own transaction management at all.  The cron job itself,
-    is done in one transaction"""
-    required_config = Namespace()
-    required_config.add_option(
-        'database_class',
-        default=
-            'socorro.external.postgresql.connection_context.ConnectionContext',
-        from_string_converter=class_converter,
-        reference_value_from='resource.postgresql'
-    )
-    required_config.add_option(
-        'transaction_executor_class',
-        default='socorro.database.transaction_executor.TransactionExecutor',
-        doc='a class that will execute transactions',
-        reference_value_from='resource.postgresql'
-    )
-
-    def main(self):
-        database = self.config.crontabber.database_class(
+    def __init__(self, *args, **kwargs):
+        super(PostgresCronApp, self).__init__(*args, **kwargs)
+        self._database = self.config.crontabber.database_class(
             self.config.crontabber
         )
-        executor = self.config.crontabber.transaction_executor_class(
+        self._executor = self.config.crontabber.transaction_executor_class(
             self.config.crontabber,
             database
         )
-        executor(self.run)
-        yield utc_now()
+
+    def _run_proxy(self, *args, **kwargs):
+        self.run(*args, **kwargs)
+
+    def run(self, *args, **kwargs):  # pragma: no cover
+        # this method could only be called if this class itself is the leaf
+        # node on the inheritance tree.  We want derived classes instead.
+        raise NotImplementedError("Your fault!")
+
+
+class PostgresBackfillCronApp(PostgresCronApp, BaseBackfillCronApp):
+    """a base class for backfilling cron apps that want to connect with PG, but
+    want to do their own transaction management"""
+
+    def _run_proxy(self, date):
+        with self._database() as connection:
+            self.run(connection, date)
+
+    def run(self, connection, date):  # pragma: no cover
+        # this method could only be called if this class itself is the leaf
+        # node on the inheritance tree.  We want derived classes instead.
+        raise NotImplementedError("Your fault!")
+
+
+class PostgresSingleTransactionCronApp(BaseCronApp):
+    """a base class for cron apps that want to connect with PG, and don't
+    want to do their own transaction management at all.  The cron job itself
+    is done in one transaction"""
+
+    def _run_proxy(self):
+        self.transaction(self.run)
 
     def run(self, connection):  # pragma: no cover
         raise NotImplementedError("Your fault!")
