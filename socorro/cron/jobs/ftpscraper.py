@@ -562,7 +562,6 @@ class FTPScraperCronAppRunner(FTPScraperCronApp):  # pragma: no cover
 
     def main(self):
         assert self.config.dry_run
-        self.
         self.run(_MockConnection(), self.config.date)
 
 
