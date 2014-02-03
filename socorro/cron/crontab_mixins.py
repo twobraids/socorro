@@ -29,6 +29,7 @@ def as_backfill_cron_app(cls):
                 function=function,
                 once=False,
             )
+    BackfillMixin.__name__ = cls.__name__
     return BackfillMixin
 
 
@@ -103,6 +104,7 @@ def with_transactional_resource(transactional_resource_class, resource_name):
                         getattr(self, "%s_connection" % resource_name)
                     )
                 )
+        ResourceMixin.__name__ = cls.__name__
         return ResourceMixin
     return class_decorator
 
@@ -123,6 +125,7 @@ def with_resource_connection_as_argument(resource_name):
             def _run_proxy(self, *args, **kwargs):
                 with getattr(self, connection_name)() as connection:
                     self.run(connection, *args, **kwargs)
+        ConnectionAsArgumentMixin.__name__ = cls.__name__
         return ConnectionAsArgumentMixin
     return class_decorator
 
@@ -142,6 +145,7 @@ def with_single_transaction(resource_name):
             #------------------------------------------------------------------
             def _run_proxy(self, *args, **kwargs):
                 getattr(self, transaction_name)(self.run, *args, **kwargs)
+        SingleTransactionMixin.__name__ = cls.__name__
         return SingleTransactionMixin
     return class_decorator
 
@@ -177,6 +181,7 @@ def with_subprocess_mixin(cls):
             )
             out, err = proc.communicate(input=input)
             return proc.returncode, out.strip(), err.strip()
+    SubprocessMixin.__name__ = cls.__name__
     return SubprocessMixin
 
 
