@@ -56,7 +56,7 @@ def with_transactional_resource(transactional_resource_class, resource_name):
             resource within the mixin. For example, if the resource is
     """
     def class_decorator(cls):
-        if RequiredConfig not in cls.__mro__:
+        if RequiredConfig not in cls.__mro__:   # TODO:  try is subclass
             #==================================================================
             class RequiredConfigMixIn(RequiredConfig, cls):
                 pass
