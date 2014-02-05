@@ -8,7 +8,7 @@ import csv
 from configman import Namespace
 from socorro.lib.datetimeutil import utc_now
 from socorro.cron.base import BaseCronApp
-from socorro.cron.crontab_mixins import with_postgres_transactions
+from socorro.cron.mixins import with_postgres_transactions
 from socorro.cron.crontabber import database_transaction
 from socorro.external.postgresql.dbapi2_util import (
     single_row_sql,
@@ -33,9 +33,11 @@ _URL = (
     '_signature&ctype=csv'
 )
 
+
 class NothingUsefulHappened(Exception):
     """an exception to be raised when a pass through the inner loop has
     done nothing useful and we wish to induce a transaction rollback"""
+
 
 @with_postgres_transactions()
 class BugzillaCronApp(BaseCronApp):
@@ -57,8 +59,6 @@ class BugzillaCronApp(BaseCronApp):
 
     def run(self):
         # record_associations
-        logger = self.config.logger
-
         try:
             # KeyError if it's never run successfully
             # TypeError if self.job_information is None
@@ -121,8 +121,7 @@ class BugzillaCronApp(BaseCronApp):
             )
             if (status_db != status
                 or resolution_db != resolution
-                or short_desc_db != short_desc
-            ):
+                or short_desc_db != short_desc):
                 execute_no_results(
                     connection,
                     """
@@ -193,16 +192,15 @@ class BugzillaCronApp(BaseCronApp):
                             bug_id, status, resolution, short_desc)
         else:
             if insert_made:
-                self.config.logger.info('rejecting bug (no useful information): '
-                            '%s - %s, %s, "%s"',
-                            bug_id, status, resolution, short_desc)
+                self.config.logger.info(
+                    'rejecting bug (no useful information): '
+                    '%s - %s, %s, "%s"',
+                    bug_id, status, resolution, short_desc)
             else:
                 self.config.logger.info('skipping bug (no new information): '
                             '%s - %s, %s, "%s"',
                             bug_id, status, resolution, short_desc)
             raise NothingUsefulHappened('nothing useful done')
-
-
 
     def _iterator(self, query):
         ##assert query.startswith('file://'), query## DEBUGGGINGG

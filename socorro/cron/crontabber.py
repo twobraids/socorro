@@ -42,6 +42,7 @@ import raven
 from configman import Namespace, RequiredConfig
 from configman.converters import class_converter, CannotConvertError
 
+
 # a method decorator that indicates that the method defines a single transacton
 # on a database connection.  It invokes the method using the instance's
 # transaction object, automatically passing in the appropriate database
@@ -441,7 +442,7 @@ class StateDatabase(RequiredConfig):
     def __delitem__(self, connection, key):
         """remove the item by key or raise KeyError"""
         try:
-            result =  single_value_sql(
+            result = single_value_sql(
                 connection,
                 """SELECT app_name
                    FROM crontabber
@@ -458,6 +459,7 @@ class StateDatabase(RequiredConfig):
                WHERE app_name = %s""",
             (key,)
         )
+
 
 def timesince(d, now):  # pragma: no cover
     """

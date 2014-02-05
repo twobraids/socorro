@@ -109,8 +109,8 @@ def convert_frequency(frequency):
 #==============================================================================
 class BaseCronApp(RequiredConfig):
     """The base class from which Socorro cron apps are based.  Subclasses
-    should use the cron app class decorators below to add mixin features
-    to such as PostgreSQL connections or backfill capability."""
+    should use the cron app class decorators below to add features such as
+    PostgreSQL connections or backfill capability."""
     required_config = Namespace()
 
     #--------------------------------------------------------------------------
@@ -126,15 +126,9 @@ class BaseCronApp(RequiredConfig):
     #                self.app_version))
 
     #--------------------------------------------------------------------------
-    def _determine_what_function_to_run(self, function):
-        if function:
-            return function
-        else:
-            return self._run_proxy
-
-    #--------------------------------------------------------------------------
     def main(self, function=None, once=True):
-        function = self._determine_what_function_to_run(function)
+        if not function:
+            function = self._run_proxy
         now = utc_now()
 
         # handle one of four possible cases
@@ -229,12 +223,12 @@ class BaseCronApp(RequiredConfig):
 # Future CronApps ought to use the decorators directly to embue themselves
 # with the features that they need.
 #==============================================================================
-from socorro.cron.crontab_mixins import (
+from socorro.cron.mixins import (
     as_backfill_cron_app,
     with_postgres_transactions,
     with_postgres_connection_as_argument,
     with_single_postgres_transaction,
-    with_subprocess_mixin,
+    with_subprocess,
 )
 
 
@@ -271,6 +265,6 @@ class PostgresTransactionManagedCronApp(BaseCronApp):
 
 
 #==============================================================================
-@with_subprocess_mixin
+@with_subprocess
 class SubprocessMixin(object):
     """embue an class with a run_process method"""
