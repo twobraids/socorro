@@ -4,7 +4,7 @@
 
 """an app to monitor and report on replication lag in PG databases"""
 
-from socorro.cron.base import PostgresTransactionManagedCronApp
+from socorro.cron.base import BaseCronApp
 from socorro.external.postgresql.dbapi2_util import (
     execute_no_results,
     execute_query_fetchall,
@@ -14,7 +14,7 @@ from socorro.cron.mixins import with_postgres_transactions
 
 #==============================================================================
 @with_postgres_transactions()
-class LagLog(PostgresTransactionManagedCronApp):
+class LagLog(BaseCronApp):
 
     app_name = 'LagLog'
     app_version = '0.1'

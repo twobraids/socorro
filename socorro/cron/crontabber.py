@@ -17,8 +17,6 @@ import traceback
 
 from functools import partial
 
-from socorro.database.transaction_executor import TransactionExecutor
-from socorro.external.postgresql.connection_context import ConnectionContext
 from socorro.external.postgresql.dbapi2_util import (
     single_value_sql,
     SQLDidNotReturnSingleValue,
@@ -34,7 +32,6 @@ from socorro.lib.datetimeutil import utc_now, UTC
 from socorro.cron.base import (
     convert_frequency,
     FrequencyDefinitionError,
-    BaseBackfillCronApp,
     reorder_dag
 )
 
@@ -915,7 +912,7 @@ class CronTabber(App):
                 )
                 if (
                     error_count == 1 and
-                    issubclass(job_class, BaseBackfillCronApp)
+                    hasattr(job_class, "_is_backfill_app")
                 ):
                     # just a warning for now
                     warnings.append(serialized)
