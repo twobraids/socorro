@@ -166,14 +166,31 @@ class TransformRule(object):
 class TransformRuleSystem(object):
     """A collection of TransformRules that can be applied together"""
     #--------------------------------------------------------------------------
-    def __init__(self):
+    def __init__(self, default_apply_function=None):
         self.rules = list()
+        self._default_apply_method = None
 
     #--------------------------------------------------------------------------
     def load_rules(self, an_iterable):
         """cycle through a collection of Transform rule tuples loading them
         into the TransformRuleSystem"""
         self.rules = [TransformRule(*x) for x in an_iterable]
+
+    #--------------------------------------------------------------------------
+    @property
+    def apply(self, *args, **kwargs):
+        try:
+            return self._default_apply_method(*args, **kwargs)
+        except AttributeError:
+            return self.apply_all_rules(*args, **kwargs)
+
+    #--------------------------------------------------------------------------
+    @apply.setter
+    def apply(self, apply_method):
+        if isinstance(apply_method, basestring):
+            self._default_apply_method = getattr(self, apply_method)
+        else:
+            self._default_apply_method = apply_method
 
     #--------------------------------------------------------------------------
     def append_rules(self, an_iterable):

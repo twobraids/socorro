@@ -46,7 +46,7 @@ def create_symbol_path_str(input_str):
 
 
 #==============================================================================
-class HybridCrashProcessor(RequiredConfig):
+class Processor2014(RequiredConfig):
     """this class is a refactoring of the original processor algorithm into
     a single class.  This class is suitable for use in the 'processor_app'
     introducted in 2012."""
@@ -204,7 +204,7 @@ class HybridCrashProcessor(RequiredConfig):
     )
     #--------------------------------------------------------------------------
     def __init__(self, config, quit_check_callback=None):
-        super(HybridCrashProcessor, self).__init__()
+        super(Processor2014, self).__init__()
         self.config = config
         if quit_check_callback:
             self.quit_check = quit_check_callback
@@ -321,21 +321,30 @@ class HybridCrashProcessor(RequiredConfig):
             self.quit_check()
             crash_id = raw_crash.uuid
             started_timestamp = self._log_job_start(crash_id)
-
-            self.rule_system.raw_crash_transform.apply_all_rules(
-                raw_crash,
-                self
-            )
-
-            for a_rule in self.rules_order:
-                action = getattr(a_rule, )
-
             try:
                 submitted_timestamp = datetimeFromISOdateString(
                     raw_crash.submitted_timestamp
                 )
             except (KeyError, AttributeError):
                 submitted_timestamp = dateFromOoid(crash_id)
+
+            processed_crash = self._create_minimal_processed_crash()
+
+
+
+            #self.rule_system.raw_crash_transform.apply_all_rules(
+                #raw_crash,
+                #self
+            #)
+
+            for a_rule_system in self.rules_order:
+                a_rule_system.apply(
+                    raw_crash,
+                    raw_dumps,
+                    processed_crash,
+                    processor_notes,
+                    self.quit_check
+                )
 
             processed_crash = self._create_basic_processed_crash(
                 crash_id,
@@ -348,78 +357,79 @@ class HybridCrashProcessor(RequiredConfig):
 
             processed_crash.additional_minidumps = []
 
-            with self._temp_raw_crash_json_file(
-                raw_crash,
-                crash_id
-            ) as raw_crash_json_pathname:
-                for name, dump_pathname in raw_dumps.iteritems():
-                    if name != self.config.dump_field:
-                        processed_crash.additional_minidumps.append(name)
-                    with self._temp_file_context(dump_pathname):
-                        dump_analysis = self._do_breakpad_stack_dump_analysis(
-                            crash_id,
-                            dump_pathname,
-                            raw_crash_json_pathname,
-                            processed_crash.hang_type,
-                            processed_crash.java_stack_trace,
-                            submitted_timestamp,
-                            processor_notes
-                        )
-                    if name == self.config.dump_field:
-                        processed_crash.update(dump_analysis)
-                    else:
-                        processed_crash[name] = dump_analysis
-            processed_crash.topmost_filenames = "|".join(
-                processed_crash.get('topmost_filenames', [])
-            )
-            processed_crash.Winsock_LSP = raw_crash.get('Winsock_LSP', None)
+            #with self._temp_raw_crash_json_file(
+                #raw_crash,
+                #crash_id
+            #) as raw_crash_json_pathname:
+                #for name, dump_pathname in raw_dumps.iteritems():
+                    #if name != self.config.dump_field:
+                        #processed_crash.additional_minidumps.append(name)
+                    #with self._temp_file_context(dump_pathname):
+                        #dump_analysis = self._do_breakpad_stack_dump_analysis(
+                            #crash_id,
+                            #dump_pathname,
+                            #raw_crash_json_pathname,
+                            #processed_crash.hang_type,
+                            #processed_crash.java_stack_trace,
+                            #submitted_timestamp,
+                            #processor_notes
+                        #)
+                    #if name == self.config.dump_field:
+                        #processed_crash.update(dump_analysis)
+                    #else:
+                        #processed_crash[name] = dump_analysis
+
+            #processed_crash.topmost_filenames = "|".join(
+                #processed_crash.get('topmost_filenames', [])
+            #)
+            #processed_crash.Winsock_LSP = raw_crash.get('Winsock_LSP', None)
 
 
-            try:
-                self.rule_system.build_processed_crash.apply_all_rules(
-                    raw_crash,
-                    processed_crash,
-                    self
-                )
-            except Exception, x:
-                # let's catch any unexpected error here and not let them
-                # derail the rest of the processing.
-                self.config.logger.error(
-                    'build_processed_crash has failed: %s',
-                    str(x),
-                    exc_info=True
-                )
+            #try:
+                #self.rule_system.build_processed_crash.apply_all_rules(
+                    #raw_crash,
+                    #processed_crash,
+                    #self
+                #)
+            #except Exception, x:
+                ## let's catch any unexpected error here and not let them
+                ## derail the rest of the processing.
+                #self.config.logger.error(
+                    #'build_processed_crash has failed: %s',
+                    #str(x),
+                    #exc_info=True
+                #)
 
-            try:
-                self.rule_system.skunk_classifier.apply_until_action_succeeds(
-                    raw_crash,
-                    processed_crash,
-                    self
-                )
-            except Exception, x:
-                # let's catch any unexpected error here and not let them
-                # derail the rest of the processing.
-                self.config.logger.error(
-                    'skunk classifiers have failed: %s',
-                    str(x),
-                    exc_info=True
-                )
+            #try:
+                #self.rule_system.skunk_classifier.apply_until_action_succeeds(
+                    #raw_crash,
+                    #processed_crash,
+                    #self
+                #)
+            #except Exception, x:
+                ## let's catch any unexpected error here and not let them
+                ## derail the rest of the processing.
+                #self.config.logger.error(
+                    #'skunk classifiers have failed: %s',
+                    #str(x),
+                    #exc_info=True
+                #)
 
-            try:
-                self.rule_system.support_classifier \
-                    .apply_until_action_succeeds(
-                        raw_crash,
-                        processed_crash,
-                        self
-                    )
-            except Exception, x:
-                # let's catch any unexpected error here and not let them
-                # derail the rest of the processing.
-                self.config.logger.error(
-                    'support classifiers have failed: %s',
-                    str(x),
-                    exc_info=True
-                )
+            #try:
+                #self.rule_system.support_classifier \
+                    #.apply_until_action_succeeds(
+                        #raw_crash,
+                        #processed_crash,
+                        #self
+                    #)
+            #except Exception, x:
+                ## let's catch any unexpected error here and not let them
+                ## derail the rest of the processing.
+                #self.config.logger.error(
+                    #'support classifiers have failed: %s',
+                    #str(x),
+                    #exc_info=True
+                #)
 
         except Exception, x:
             self.config.logger.warning(
@@ -1334,10 +1344,8 @@ class HybridCrashProcessor(RequiredConfig):
         #]
 
         the_rules = class_converter(default_rule_location)
-
-        rule_system = TransformRuleSystem()
+        rule_system = TransformRuleSystem(rule_executor_method)
         rule_system.load_rules(the_rules)
-
 
         return rule_system
 
