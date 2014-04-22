@@ -10,6 +10,7 @@ from dateutil import tz
 from configman import Namespace
 from crontabber.base import BaseCronApp
 from crontabber.mixins import with_postgres_transactions
+from socorro.cron.mixins import with_postgres_transactions
 from crontabber.app import database_transaction
 from socorro.external.postgresql.dbapi2_util import (
     single_row_sql,
@@ -81,7 +82,9 @@ class BugzillaCronApp(BaseCronApp):
         ) in self._iterator(query):
             try:
                 # each run of this loop is a transaction
-                self.inner_transaction(
+                #self.inner_transaction(
+                self.database_transaction(
+                    self.inner_transaction,
                     bug_id,
                     status,
                     resolution,
@@ -91,7 +94,7 @@ class BugzillaCronApp(BaseCronApp):
             except NothingUsefulHappened:
                 pass
 
-    @database_transaction('database_transaction')
+    # @database_transaction('database_transaction')
     def inner_transaction(
         self,
         connection,
