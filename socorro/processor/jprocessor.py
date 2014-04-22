@@ -339,11 +339,11 @@ class Processor2014(RequiredConfig):
 
             for a_rule_system in self.rules_order:
                 a_rule_system.apply(
-                    raw_crash,
-                    raw_dumps,
-                    processed_crash,
-                    processor_notes,
-                    self.quit_check
+                    raw_crash=raw_crash,
+                    raw_dumps=raw_dumps,
+                    processed_crash=processed_crash,
+                    processor_notes=processor_notes,
+                    processor=self,
                 )
 
             processed_crash = self._create_basic_processed_crash(
