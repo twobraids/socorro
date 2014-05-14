@@ -11,6 +11,7 @@
 # set both socorro and configman in your PYTHONPATH
 
 import cgi
+import copy
 import json
 import re
 import web
@@ -29,13 +30,13 @@ from socorro.webapi.webapiService import (
 )
 
 import raven
-from configman import Namespace
+from configman import Namespace, RequiredConfig
 from configman.converters import class_converter
 
 
 #------------------------------------------------------------------------------
 def classes_in_namespaces_converter(
-    name_of_class_option='cls',
+    attr_name_for_class_option_template='%s_class',
     instantiate_classes=False
 ):
     """take a comma delimited  list of namespaces & class names, convert each
@@ -53,9 +54,9 @@ def classes_in_namespaces_converter(
     configuration:
 
         "alf" - the subordinate Namespace for Alpha
-        "alf.cls" - the option containing the class Alpha itself
+        "alf.alf_class" - the option containing the class Alpha itself
         "bet" - the subordinate Namespace for Beta
-        "bet.cls" - the option containing the class Beta itself
+        "bet.bet_class" - the option containing the class Beta itself
 
     Optionally, the 'class_list_converter' inner function can embue the
     InnerClassList's subordinate namespaces with aggregates that will
@@ -66,10 +67,10 @@ def classes_in_namespaces_converter(
     change the list of classes at run time, so prediction could be difficult.
 
         "alf" - the subordinate Namespace for Alpha
-        "alf.cls" - the option containing the class Alpha itself
+        "alf.alf_class" - the option containing the class Alpha itself
         "alf.cls_instance" - an instance of the class Alpha
         "bet" - the subordinate Namespace for Beta
-        "bet.cls" - the option containing the class Beta itself
+        "bet.bet_class" - the option containing the class Beta itself
         "bet.cls_instance" - an instance of the class Beta
 
     parameters:
@@ -98,10 +99,11 @@ def classes_in_namespaces_converter(
             # now we should have a list of ":" delimited namespace/class pairs
             class_list = []
             for a_pair in temp_list:
-                namespace_name, class_name = a_pair.split(':')
-                namespace_name = namespace_name.strip()
-                class_name = classname.strip()
-                class_list.append((namespace_name, class_name))
+                if a_pair:
+                    namespace_name, class_name = a_pair.split(':')
+                    namespace_name = namespace_name.strip()
+                    class_name = class_name.strip()
+                    class_list.append((namespace_name, class_name))
         else:
             raise TypeError('must be derivative of a basestring')
 
@@ -116,10 +118,8 @@ def classes_in_namespaces_converter(
             required_config = Namespace()  # 1st requirement for configman
             subordinate_namespace_names = []  # to help the programmer know
                                               # what Namespaces we added
-            #namespace_template = template_for_namespace  # save the template
-                                                         # for future reference
-            class_option_name = name_of_class_option  # save the class's option
-                                                      # name for the future
+            # save the class's option name for the future
+            class_option_name = attr_name_for_class_option_template
             original_class_list_str = class_list_str
             # for each class in the class list
             for namespace_name, a_class in (class_list):
@@ -127,9 +127,12 @@ def classes_in_namespaces_converter(
                 subordinate_namespace_names.append(namespace_name)
                 # create the new Namespace
                 required_config[namespace_name] = Namespace()
+                attr_name_for_class_option = (
+                    attr_name_for_class_option_template % namespace_name
+                )
                 # add the option for the class itself
                 required_config[namespace_name].add_option(
-                    name_of_class_option,
+                    attr_name_for_class_option,
                     #doc=a_class.__doc__  # not helpful if too verbose
                     default=a_class,
                     from_string_converter=class_converter
@@ -137,8 +140,8 @@ def classes_in_namespaces_converter(
                 if instantiate_classes:
                     # add an aggregator to instantiate the class
                     required_config[namespace_name].add_aggregation(
-                        "%s_instance" % name_of_class_option,
-                        lambda c, lc, a: lc[name_of_class_option](lc)
+                        "%s_instance" %attr_name_for_class_option,
+                        lambda c, lc, a: lc[attr_name_for_class_option](lc)
                     )
 
             @classmethod
@@ -251,12 +254,12 @@ class MiddlewareApp(App):
     required_config.implementations.add_option(
         'implementation_list',
         doc='list of packages for service implementations',
-        default='psql:socorro.external.postgresql, '
-                'hbase:socorro.external.hb, '
-                'es:socorro.external.elasticsearch, '
-                'fs:socorro.external.fs, '
-                'http:socorro.external.http, '
-                'rabbitmq:socorro.external.rabbitmq',
+        default='database:socorro.external.postgresql, '
+                #'primary_storage:socorro.external.hb, '
+                'webapi:socorro.external.elasticsearch, '  # search in future
+                'primary_storage:socorro.external.fs, '
+                'http:socorro.external.http, '   # analysis in future
+                'queuing:socorro.external.rabbitmq',
         from_string_converter=items_list_decode,
         to_string_converter=items_list_encode
     )
@@ -264,75 +267,26 @@ class MiddlewareApp(App):
     required_config.implementations.add_option(
         'service_overrides',
         doc='comma separated list of class overrides, e.g `Crashes: hbase`',
-        default='CrashData: fs, '
-                'Correlations: http, '
-                'CorrelationsSignatures: http, '
-                'SuperSearch: es, '
-                'Priorityjobs: rabbitmq, '
-                'Query: es',
+        default='CrashData: primary_storage, '
+                'Correlations: analysis, '
+                'CorrelationsSignatures: analysis, '
+                'SuperSearch: search, '
+                'Priorityjobs: queuing, '
+                'Query: search',
         from_string_converter=items_list_decode,
         to_string_converter=items_list_encode
     )
 
     required_config.add_option(
         'service_classes',
-        doc='a list of role to class associtations for the implementation of'
-            'middleware services',
-        default='database: socorro.external.postgresql.connection_context'
-            '.ConnectionContext, '
-            'hbase: socorro.external.hb.crashstorage.HBaseCrashStorage, '
-            'filesystem: socorro.external.fs.crashstorage'
-                '.FSLegacyRadixTreeStorage, '
-            'rabbitmq: socorro.external.rabbitmq.connection_context'
-                '.ConnectionContext, ',
+        doc='a list of namespace:class associations for classes that offer '
+            ' implementations of services',
+        default="""
+database: socorro.external.postgresql.connection_context.ConnectionContext,
+primary_storage: socorro.external.fs.crashstorage.FSLegacyRadixTreeStorage,
+queuing: socorro.external.rabbitmq.connection_context.ConnectionContext""",
         from_string_converter=classes_in_namespaces_converter()
     )
-
-    ##--------------------------------------------------------------------------
-    ## database namespace
-    ##     the namespace is for external implementations of the services
-    ##-------------------------------------------------------------------------
-    #required_config.namespace('database')
-    #required_config.database.add_option(
-        #'database_class',
-        #default='socorro.external.postgresql.connection_context.'
-                #'ConnectionContext',
-        #from_string_converter=class_converter
-    #)
-
-    ##--------------------------------------------------------------------------
-    ## hbase namespace
-    ##     the namespace is for external implementations of the services
-    ##-------------------------------------------------------------------------
-    #required_config.namespace('hbase')
-    #required_config.hbase.add_option(
-        #'hbase_class',
-        #default='socorro.external.hb.crashstorage.HBaseCrashStorage',
-        #from_string_converter=class_converter
-    #)
-
-    ##--------------------------------------------------------------------------
-    ## filesystem namespace
-    ##     the namespace is for external implementations of the services
-    ##-------------------------------------------------------------------------
-    #required_config.namespace('filesystem')
-    #required_config.filesystem.add_option(
-        #'filesystem_class',
-        #default='socorro.external.fs.crashstorage.FSLegacyRadixTreeStorage',
-        #from_string_converter=class_converter
-    #)
-
-    ##--------------------------------------------------------------------------
-    ## rabbitmq namespace
-    ##     the namespace is for external implementations of the services
-    ##-------------------------------------------------------------------------
-    #required_config.namespace('rabbitmq')
-    #required_config.rabbitmq.add_option(
-        #'rabbitmq_class',
-        #default='socorro.external.rabbitmq.connection_context.'
-                #'ConnectionContext',
-        #from_string_converter=class_converter
-    #)
 
     #--------------------------------------------------------------------------
     # webapi namespace
@@ -516,42 +470,56 @@ class MiddlewareApp(App):
     StandAloneServer.required_config.port.set_default(8883, force=True)
 
     #--------------------------------------------------------------------------
+    def lookup(self, file_and_class):
+        #turn these names of classes into real references to classes
+        file_name, class_name = file_and_class.rsplit('.', 1)
+        try:
+            if class_name in overrides:
+                role = overrides[class_name]
+                base_module_path = implementations[role]
+            else:
+                base_module_path = (
+                    self.config.implementations.implementation_list[0][1]
+                )
+                role = (
+                    self.config.implementations.implementation_list[0][0]
+                )
+            try:
+                module = __import__(
+                    '%s.%s' % (base_module_path, file_name),
+                    globals(),
+                    locals(),
+                    [class_name]
+                )
+            except ImportError:
+                raise ImportError(
+                    "Unable to import %s.%s.%s" %
+                    (base_module_path, file_name, class_name)
+                )
+            impl_class = getattr(module, class_name)
+            class RoleImbuedImplClass(impl_class):
+                role = copy(prefix)
+                class_key = "%s_class" % role
+                @classmethod
+                def get_role(kls):
+                    return kls.role
+            return RoleImbuedImplClass
+        except (KeyError, IndexError):
+            raise ImplementationConfigurationError(file_and_class)
+
+
+    #--------------------------------------------------------------------------
     def main(self):
         # Apache modwsgi requireds a module level name 'application'
         global application
 
-        # 1 turn these names of classes into real references to classes
-        def lookup(file_and_class):
-            file_name, class_name = file_and_class.rsplit('.', 1)
-            overrides = dict(self.config.implementations.service_overrides)
-            _list = self.config.implementations.implementation_list
-            for prefix, base_module_path in _list:
-                if class_name in overrides:
-                    if prefix != overrides[class_name]:
-                        continue
-                try:
-                    module = __import__(
-                        '%s.%s' % (base_module_path, file_name),
-                        globals(),
-                        locals(),
-                        [class_name]
-                    )
-                except ImportError:
-                    raise ImportError(
-                        "Unable to import %s.%s.%s" %
-                        (base_module_path, file_name, class_name)
-                    )
-                return getattr(module, class_name)
-            raise ImplementationConfigurationError(file_and_class)
-
-        # This list will hold the collection of url/service-implementations.
-        # It is populated in the for loop a few lines lower in this file.
-        # This list is used in the 'wrap' function so that all services have
-        # place to lookup dependent services.
+        self.overrides = dict(self.config.implementations.service_overrides)
+        self.implementations = dict(
+            self.config.implementations.implementation_list
+        )
 
         all_services_mapping = {}
 
-        # 2 wrap each service class with the ImplementationWrapper class
         def wrap(cls, file_and_class):
             return type(
                 cls.__name__,
@@ -569,6 +537,7 @@ class MiddlewareApp(App):
         # urls and services offered by the middleware.
         for url, impl_class in SERVICES_LIST:
             impl_instance = lookup(impl_class)
+            print "TTTT", impl_instance, type(impl_instance)
             wrapped_impl = wrap(impl_instance, impl_class)
             services_list.append((url, wrapped_impl))
             all_services_mapping[impl_instance.__name__] = wrapped_impl

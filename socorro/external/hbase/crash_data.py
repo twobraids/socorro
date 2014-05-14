@@ -9,5 +9,5 @@ class CrashData(CrashDataBase):
     """
     Implement the /crash_data service with HBase.
     """
-    def get_storage(self):
-        return self.config.hbase.hbase_class(self.config.hbase)
+    role = 'hbase'
+    class_key = 'hbase_class'

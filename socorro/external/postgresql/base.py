@@ -30,6 +30,8 @@ class PostgreSQLBase(object):
     Base class for PostgreSQL based service implementations.
     """
 
+    role
+
     def __init__(self, *args, **kwargs):
         """
         Store the config and create a connection to the database.
@@ -38,20 +40,24 @@ class PostgreSQLBase(object):
         config -- Configuration of the application.
 
         """
+        try:
+            role = self.get_role()
+        except AttributeError:
+            role = 'database'
         self.context = kwargs.get("config")
-        if hasattr(self.context, 'database'):
+        if hasattr(self.context, role):
             # XXX this should be replaced with connection_context instead
-            self.context.database['database_host'] = \
-                self.context.database.database_hostname
-            self.context.database['database_port'] = \
-                self.context.database.database_port
-            self.context.database['database_name'] = \
-                self.context.database.database_name
-            self.context.database['database_username'] = \
-                self.context.database.database_username
-            self.context.database['database_password'] = \
-                self.context.database.database_password
-            self.database = db.Database(self.context.database)
+            self.context[role]['database_host'] = \
+                self.context[role].database_hostname
+            self.context[role]['database_port'] = \
+                self.context[role].database_port
+            self.context[role]['database_name'] = \
+                self.context[role].database_name
+            self.context[role]['database_username'] = \
+                self.context[role].database_username
+            self.context.[role]['database_password'] = \
+                self.context[role].database_password
+            self.database = db.Database(self.context[role])
         else:
             # the old middleware
             self.database = db.Database(self.context)

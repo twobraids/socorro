@@ -11,10 +11,12 @@ from socorro.lib import external_common
 
 class Priorityjobs(object):
     """Implement the /priorityjobs service with RabbitMQ."""
+    role = 'rabbitmq'
+    class_key = 'rabbitmq_class'
 
     def __init__(self, *args, **kwargs):
-        self.config = kwargs.get('config').rabbitmq
-        self.context = self.config.rabbitmq_class(self.config)
+        self.config = kwargs.get('config')[role]
+        self.context = self.config[class_key](self.config)
 
     def get(self, **kwargs):
         raise NotImplementedError(
