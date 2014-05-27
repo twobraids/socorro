@@ -6,7 +6,7 @@ import datetime
 
 import mock
 
-from socorro.cron.jobs.laglog import LagLog
+from socorro.cron.jobs.laglog_service import LagLog
 from socorro.lib.util import SilentFakeLogger
 from socorro.unittest.testbase import TestCase
 

@@ -11,7 +11,11 @@ import time
 
 import requests
 
+
+from configman import RequiredConfig, Namespace
 from socorro.lib import external_common
+
+from socorro.webapi.webapiService import MiddlewareWebServiceBase
 
 
 class DownloadError(Exception):
@@ -30,10 +34,37 @@ COUNT_REGEX = re.compile('\((\d+) crashes\)')
 SIGNATURE_LINE_START_REGEX = re.compile('\s{2}\w')
 
 
-class Correlations(object):
+class Correlations(MiddlewareWebServiceBase):
 
-    def __init__(self, *args, **kwargs):
-        self.config = kwargs.get('config')
+    required_config = Namespace()
+    required_config.add_option(
+        'base_url',
+        doc='Base URL where correlations text files are',
+        default='https://crash-analysis.mozilla.com/crash_analysis/',
+    )
+    required_config.add_option(
+        'save_download',
+        doc='Whether files downloaded for correlations should be '
+            'temporary stored on disk',
+        default=True,
+    )
+    required_config.add_option(
+        'save_seconds',
+        doc='Number of seconds that the downloaded .txt file is stored '
+            'in a temporary place',
+        default=60 * 10,
+    )
+    required_config.add_option(
+        'save_root',
+        doc='Directory where the temporary downloads are stored '
+            '(if left empty will become the systems tmp directory)',
+        default='',
+    )
+
+    uri = r'/correlations/(.*)'
+
+    def __init__(self, config):
+        super(Correlations, self).__init__(config)
 
     def get(self, **kwargs):
         filters = [
@@ -64,18 +95,10 @@ class Correlations(object):
         }
 
     def _get_content(self, params):
-        if 'http' in self.config and 'correlations' in self.config.http:
-            # new middleware!
-            base_url = self.config.http.correlations.base_url
-            save_download = self.config.http.correlations.save_download
-            save_seconds = int(self.config.http.correlations.save_seconds)
-            save_root = self.config.http.correlations.save_root
-        else:
-            # old middleware where nesting (aka namespace) was not possible
-            base_url = self.config.correlations_base_url
-            save_download = self.config.correlations_save_download
-            save_seconds = int(self.config.correlations_save_seconds)
-            save_root = self.config.correlations_save_root
+        base_url = self.config.base_url
+        save_download = self.config.save_download
+        save_seconds = int(self.config.save_seconds)
+        save_root = self.config.save_root
 
         date = datetime.datetime.utcnow() - datetime.timedelta(days=1)
         url_start = base_url + (
@@ -161,8 +184,10 @@ class Correlations(object):
 
 class CorrelationsSignatures(Correlations):
 
-    def __init__(self, *args, **kwargs):
-        self.config = kwargs.get('config')
+    uri = r'/correlations/signatures/(.*)'
+
+    def __init__(self, config):
+        super(CorrelationsSignatures, self).__init__(config)
 
     def get(self, **kwargs):
         filters = [

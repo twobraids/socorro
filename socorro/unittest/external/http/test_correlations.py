@@ -14,6 +14,8 @@ from socorro.external.http import correlations
 from socorro.lib.util import DotDict
 from socorro.unittest.testbase import TestCase
 
+from configman.dotdict import DotDictWithAcquisition
+
 SAMPLE_CORE_COUNTS = open(
     os.path.join(os.path.dirname(__file__),
                  'sample-core-counts.txt')
@@ -48,11 +50,12 @@ class TestCorrelations(TestCase):
         }
         config_values.update(overrides)
         cls = correlations.Correlations
-        config = DotDict()
+        config = DotDictWithAcquisition()
         config.logger = mock.Mock()
-        config.http = DotDict()
-        config.http.correlations = DotDict(config_values)
-        return cls(config=config)
+        config['services.Correlations'] = DotDictWithAcquisition(config_values)
+        self.config = config
+        model = cls(config=config)
+        return model
 
     @mock.patch('requests.get')
     def test_simple_download(self, rget):
@@ -342,22 +345,27 @@ class TestCorrelations(TestCase):
 
 class TestCorrelationsSignatures(TestCase):
 
-    @staticmethod
-    def _get_model(overrides=None):
+    def _get_model(self, overrides=None):
         config_values = {
             'base_url': 'http://crashanalysis.com',
             'save_root': '',
+            # the next parameter was originally true, but that always caused
+            # the last test to fail because it grabbed the file saved by a
+            # previous test rather than downloading.  Setting to False
+            # resolved that issue.
             'save_download': False,
             'save_seconds': 1000,
         }
         if overrides:
             config_values.update(overrides)
         cls = correlations.CorrelationsSignatures
-        config = DotDict()
+        config = DotDictWithAcquisition()
         config.logger = mock.Mock()
-        config.http = DotDict()
-        config.http.correlations = DotDict(config_values)
-        return cls(config=config)
+        config['services.CorrelationsSignatures'] = \
+            DotDictWithAcquisition(config_values)
+        self.config = config
+        model = cls(config=config)
+        return model
 
     @mock.patch('requests.get')
     def test_simple_download(self, rget):

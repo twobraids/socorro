@@ -16,7 +16,7 @@ import sqlalchemy.types as types
 
 try:
     from sqlalchemy.dialects.postgresql import *
-    from sqlalchemy.dialects.postgresql.base import ischema_names
+    from sqlalchemy.dialects.postgresql.webservice_base import ischema_names
 except ImportError:
     from sqlalchemy.databases.postgres import *
 

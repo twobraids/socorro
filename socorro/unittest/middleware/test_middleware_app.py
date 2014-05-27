@@ -3,21 +3,23 @@
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 import json
-import logging
 import mock
 import os
 import psycopg2
 import urllib
-from paste.fixture import TestApp, AppError
+
+from paste.fixture import TestApp
 from nose.plugins.attrib import attr
-from nose.tools import eq_, ok_, assert_raises
+
+from nose.tools import eq_, ok_
 
 from configman import (
+    Namespace,
     ConfigurationManager,
-    environment
+    environment,
+    class_converter
 )
 
-from socorro.lib.util import DotDict
 from socorro.external import (
     MissingArgumentError,
     BadArgumentError,
@@ -26,41 +28,38 @@ from socorro.external import (
 )
 from socorro.lib import datetimeutil
 from socorro.middleware import middleware_app
-from socorro.unittest.config.commonconfig import (
-    databaseHost,
-    databaseName,
-    databaseUserName,
-    databasePassword
-)
 from socorro.unittest.testbase import TestCase
-from socorro.webapi.servers import CherryPy
-from socorro.webapi.servers import WebServerBase
+from socorro.external.postgresql.dbapi2_util import (
+    execute_no_results,
+)
+from socorro.unittest.middleware.setup_configman import (
+    get_config_manager_with_internal_pg,
+    get_config_manager_for_middleware,
+    MyWSGIServer
+)
 
 
 DSN = {
-    "database.database_hostname": databaseHost.default,
-    "database.database_name": databaseName.default,
-    "database.database_username": databaseUserName.default,
-    "database.database_password": databasePassword.default
+    "resource.postgresql.database_hostname": "localhost",
+    "resource.postgresql.database_name": "socorro_integration_test",
+    "secrets.postgresql.database_username": 'breakpad_rw',
+    "secrets.postgresql.database_password": 'aPassword',
 }
 
 
-class MyWSGIServer(WebServerBase):
-
-    def run(self):
-        return self
-
-
+#==============================================================================
 class HttpError(Exception):
     pass
 
 
+#==============================================================================
 class _AuxImplementation(object):
 
     def __init__(self, *args, **kwargs):
         self.context = kwargs.get("config")
 
 
+#==============================================================================
 class AuxImplementation1(_AuxImplementation):
 
     def get(self, **kwargs):
@@ -68,6 +67,7 @@ class AuxImplementation1(_AuxImplementation):
         return {'age': 100}
 
 
+#==============================================================================
 class AuxImplementation2(_AuxImplementation):
 
     def get_age(self, **kwargs):
@@ -79,6 +79,7 @@ class AuxImplementation2(_AuxImplementation):
         return {'gender': 0}
 
 
+#==============================================================================
 class AuxImplementation3(_AuxImplementation):
 
     def create(self, **kwargs):
@@ -86,6 +87,7 @@ class AuxImplementation3(_AuxImplementation):
         return {'age': 100}
 
 
+#==============================================================================
 class AuxImplementation4(_AuxImplementation):
 
     def update(self, **kwargs):
@@ -93,6 +95,7 @@ class AuxImplementation4(_AuxImplementation):
         return {'age': 100 + int(kwargs.get('add', 0))}
 
 
+#==============================================================================
 class AuxImplementation5(_AuxImplementation):
 
     def get(self, **kwargs):
@@ -100,6 +103,7 @@ class AuxImplementation5(_AuxImplementation):
         return kwargs
 
 
+#==============================================================================
 class AuxImplementationErroring(_AuxImplementation):
 
     def get(self, **kwargs):
@@ -107,6 +111,7 @@ class AuxImplementationErroring(_AuxImplementation):
         raise NameError('crap!')
 
 
+#==============================================================================
 class AuxImplementationWithUnavailableError(_AuxImplementation):
 
     def get(self, **kwargs):
@@ -114,6 +119,7 @@ class AuxImplementationWithUnavailableError(_AuxImplementation):
         raise ResourceUnavailable('unavailable')
 
 
+#==============================================================================
 class AuxImplementationWithNotFoundError(_AuxImplementation):
 
     def get(self, **kwargs):
@@ -121,6 +127,7 @@ class AuxImplementationWithNotFoundError(_AuxImplementation):
         raise ResourceNotFound('not here')
 
 
+#==============================================================================
 class AuxImplementationWithMissingArgumentError(_AuxImplementation):
 
     def get(self, **kwargs):
@@ -128,6 +135,7 @@ class AuxImplementationWithMissingArgumentError(_AuxImplementation):
         raise MissingArgumentError('missing arg')
 
 
+#==============================================================================
 class AuxImplementationWithBadArgumentError(_AuxImplementation):
 
     def get(self, **kwargs):
@@ -135,367 +143,50 @@ class AuxImplementationWithBadArgumentError(_AuxImplementation):
         raise BadArgumentError('bad arg')
 
 
-class ImplementationWrapperTestCase(TestCase):
-
-    @mock.patch('logging.info')
-    def test_basic_get(self, logging_info):
-        # what the middleware app does is that it creates a class based on
-        # another and sets an attribute called `cls`
-        class MadeUp(middleware_app.ImplementationWrapper):
-            cls = AuxImplementation1
-            all_services = {}
-
-        config = DotDict(
-            logger=logging,
-            web_server=DotDict(
-                ip_address='127.0.0.1',
-                port='88888'
-            )
-        )
-        server = CherryPy(config, (
-            ('/aux/(.*)', MadeUp),
-        ))
-
-        testapp = TestApp(server._wsgi_func)
-        response = testapp.get('/aux/')
-        eq_(response.status, 200)
-        eq_(json.loads(response.body), {'age': 100})
-
-        logging_info.assert_called_with('Running AuxImplementation1')
-
-        response = testapp.get('/xxxjunkxxx', expect_errors=True)
-        eq_(response.status, 404)
-
-    @mock.patch('logging.info')
-    def test_basic_get_args(self, logging_info):
-        # what the middleware app does is that it creates a class based on
-        # another and sets an attribute called `cls`
-        class MadeUp(middleware_app.ImplementationWrapper):
-            cls = AuxImplementation2
-            all_services = {}
-
-        config = DotDict(
-            logger=logging,
-            web_server=DotDict(
-                ip_address='127.0.0.1',
-                port='88888'
-            )
-        )
-        server = CherryPy(config, (
-            ('/aux/(age|gender|misconfigured)/(.*)', MadeUp),
-        ))
-
-        testapp = TestApp(server._wsgi_func)
-        response = testapp.get('/aux/age/')
-        eq_(response.status, 200)
-        eq_(json.loads(response.body), {'age': 100})
-        eq_(response.header_dict['content-length'],
-                         str(len(response.body)))
-        eq_(response.header_dict['content-type'],
-                         'application/json')
-
-        logging_info.assert_called_with('Running AuxImplementation2')
-
-        response = testapp.get('/aux/gender/', expect_errors=True)
-        eq_(response.status, 200)
-        eq_(json.loads(response.body), {'gender': 0})
-
-        # if the URL allows a certain first argument but the implementation
-        # isn't prepared for it, it barfs a 405 at you
-        response = testapp.get('/aux/misconfigured/', expect_errors=True)
-        eq_(response.status, 405)
-
-    @mock.patch('logging.info')
-    def test_basic_post(self, logging_info):
-        # what the middleware app does is that it creates a class based on
-        # another and sets an attribute called `cls`
-        class MadeUp(middleware_app.ImplementationWrapper):
-            cls = AuxImplementation3
-            all_services = {}
-
-        config = DotDict(
-            logger=logging,
-            web_server=DotDict(
-                ip_address='127.0.0.1',
-                port='88888'
-            )
-        )
-
-        server = CherryPy(config, (
-            ('/aux/(.*)', MadeUp),
-        ))
-
-        testapp = TestApp(server._wsgi_func)
-        response = testapp.post('/aux/')
-        eq_(response.status, 200)
-        eq_(json.loads(response.body), {'age': 100})
-
-        logging_info.assert_called_with('Running AuxImplementation3')
-
-        response = testapp.get('/aux/', expect_errors=True)
-        eq_(response.status, 405)
-
-    @mock.patch('logging.info')
-    def test_put_with_data(self, logging_info):
-        # what the middleware app does is that it creates a class based on
-        # another and sets an attribute called `cls`
-        class MadeUp(middleware_app.ImplementationWrapper):
-            cls = AuxImplementation4
-            all_services = {}
-
-        config = DotDict(
-            logger=logging,
-            web_server=DotDict(
-                ip_address='127.0.0.1',
-                port='88888'
-            )
-        )
-
-        server = CherryPy(config, (
-            ('/aux/(.*)', MadeUp),
-        ))
-
-        testapp = TestApp(server._wsgi_func)
-        response = testapp.put('/aux/', params={'add': 1})
-        eq_(response.status, 200)
-        eq_(json.loads(response.body), {'age': 101})
-
-        logging_info.assert_called_with('Running AuxImplementation4')
-
-    @mock.patch('logging.info')
-    def test_basic_get_with_parsed_query_string(self, logging_info):
-        # what the middleware app does is that it creates a class based on
-        # another and sets an attribute called `cls`
-        class MadeUp(middleware_app.ImplementationWrapper):
-            cls = AuxImplementation5
-            all_services = {}
-
-        config = DotDict(
-            logger=logging,
-            web_server=DotDict(
-                ip_address='127.0.0.1',
-                port='88888'
-            )
-        )
-        server = CherryPy(config, (
-            ('/aux/(.*)', MadeUp),
-        ))
-
-        testapp = TestApp(server._wsgi_func)
-        response = testapp.get(
-            '/aux/',
-            {'foo': 'bar', 'names': ['peter', 'anders']},
-        )
-        eq_(response.status, 200)
-        eq_(json.loads(response.body),
-                         {'foo': 'bar',
-                          'names': ['peter', 'anders']})
-
-        logging_info.assert_called_with('Running AuxImplementation5')
-
-    @mock.patch('logging.info')
-    def test_errors(self, logging_info):
-        # what the middleware app does is that it creates a class based on
-        # another and sets an attribute called `cls`
-        class WithNotFound(middleware_app.ImplementationWrapper):
-            cls = AuxImplementationWithNotFoundError
-            all_services = {}
-
-        class WithUnavailable(middleware_app.ImplementationWrapper):
-            cls = AuxImplementationWithUnavailableError
-            all_services = {}
-
-        class WithMissingArgument(middleware_app.ImplementationWrapper):
-            cls = AuxImplementationWithMissingArgumentError
-            all_services = {}
-
-        class WithBadArgument(middleware_app.ImplementationWrapper):
-            cls = AuxImplementationWithBadArgumentError
-            all_services = {}
-
-        config = DotDict(
-            logger=logging,
-            web_server=DotDict(
-                ip_address='127.0.0.1',
-                port='88888'
-            )
-        )
-
-        server = CherryPy(config, (
-            ('/aux/notfound', WithNotFound),
-            ('/aux/unavailable', WithUnavailable),
-            ('/aux/missing', WithMissingArgument),
-            ('/aux/bad', WithBadArgument),
-        ))
-
-        testapp = TestApp(server._wsgi_func)
-
-        # Test a Not Found error
-        response = testapp.get('/aux/notfound', expect_errors=True)
-        eq_(response.status, 404)
-        eq_(
-            response.header('content-type'),
-            'application/json; charset=UTF-8'
-        )
-        body = json.loads(response.body)
-        eq_(body['error']['message'], 'not here')
-
-        # Test a Timeout error
-        response = testapp.get('/aux/unavailable', expect_errors=True)
-        eq_(response.status, 408)
-        eq_(
-            response.header('content-type'),
-            'application/json; charset=UTF-8'
-        )
-        body = json.loads(response.body)
-        eq_(body['error']['message'], 'unavailable')
-
-        # Test BadRequest errors
-        response = testapp.get('/aux/missing', expect_errors=True)
-        eq_(response.status, 400)
-        eq_(
-            response.header('content-type'),
-            'application/json; charset=UTF-8'
-        )
-        body = json.loads(response.body)
-        eq_(
-            body['error']['message'],
-            "Mandatory parameter(s) 'missing arg' is missing or empty."
-        )
-
-        response = testapp.get('/aux/bad', expect_errors=True)
-        eq_(response.status, 400)
-        eq_(
-            response.header('content-type'),
-            'application/json; charset=UTF-8'
-        )
-        body = json.loads(response.body)
-        eq_(
-            body['error']['message'],
-            "Bad value for parameter(s) 'bad arg'"
-        )
-
-    @mock.patch('raven.Client')
-    @mock.patch('logging.info')
-    def test_errors_to_sentry(self, logging_info, raven_client_mocked):
-        # what the middleware app does is that it creates a class based on
-        # another and sets an attribute called `cls`
-        class MadeUp(middleware_app.ImplementationWrapper):
-            cls = AuxImplementationErroring
-            all_services = {}
-
-        FAKE_DSN = 'https://24131e9070324cdf99d@errormill.mozilla.org/XX'
-
-        mock_logging = mock.MagicMock()
-
-        config = DotDict(
-            logger=mock_logging,
-            web_server=DotDict(
-                ip_address='127.0.0.1',
-                port='88888'
-            ),
-            sentry=DotDict(
-                dsn=FAKE_DSN
-            )
-        )
-        server = CherryPy(config, (
-            ('/aux/(.*)', MadeUp),
-        ))
-
-        def fake_get_ident(exception):
-            return '123456789'
-
-        mocked_client = mock.MagicMock()
-        mocked_client.get_ident.side_effect = fake_get_ident
-
-        def fake_client(dsn):
-            assert dsn == FAKE_DSN
-            return mocked_client
-
-        raven_client_mocked.side_effect = fake_client
-
-        testapp = TestApp(server._wsgi_func)
-        response = testapp.get('/aux/bla', expect_errors=True)
-        eq_(response.status, 500)
-        mock_logging.info.has_call([mock.call(
-            'Error captured in Sentry. Reference: 123456789'
-        )])
-
-
+#==============================================================================
 @attr(integration='postgres')
 class IntegrationTestMiddlewareApp(TestCase):
     # test the middleware_app except that we won't start the daemon
 
+    #--------------------------------------------------------------------------
     def setUp(self):
         super(IntegrationTestMiddlewareApp, self).setUp()
         self.uuid = '06a0c9b5-0381-42ce-855a-ccaaa2120116'
-        mock_logging = mock.Mock()
-        required_config = middleware_app.MiddlewareApp.get_required_config()
-        required_config.add_option('logger', default=mock_logging)
-        config_manager = ConfigurationManager(
-            [required_config],
-            app_name='middleware',
-            app_description=__doc__,
-            values_source_list=[
-                {'logger': mock_logging},
-                environment,
-                DSN,
-            ],
-            argv_source=[]
-        )
-        config = config_manager.get_config()
-        self.conn = config.database.database_class(
-            config.database
-        ).connection()
-        assert self.conn.get_transaction_status() == \
-            psycopg2.extensions.TRANSACTION_STATUS_IDLE
 
+        self.config_manager = get_config_manager_with_internal_pg()
+        self.config = self.config_manager.get_config()
+        self.crash_store = self.config.database.crashstorage_class(
+            self.config.database
+        )
+        self.transaction = self.crash_store.transaction
+
+    #--------------------------------------------------------------------------
     def tearDown(self):
         super(IntegrationTestMiddlewareApp, self).tearDown()
-        self.conn.cursor().execute("""
-        TRUNCATE TABLE bugs CASCADE;
-        TRUNCATE TABLE bug_associations CASCADE;
-        TRUNCATE TABLE extensions CASCADE;
-        TRUNCATE TABLE reports CASCADE;
-        TRUNCATE products CASCADE;
-        TRUNCATE releases_raw CASCADE;
-        TRUNCATE release_channels CASCADE;
-        TRUNCATE product_release_channels CASCADE;
-        TRUNCATE os_names CASCADE;
-        TRUNCATE graphics_device CASCADE;
-        """)
-        self.conn.commit()
-        self.conn.close()
-
-    def _setup_config_manager(self, extra_value_source=None):
-        if extra_value_source is None:
-            extra_value_source = {}
-        extra_value_source['web_server.wsgi_server_class'] = MyWSGIServer
-        mock_logging = mock.Mock()
-        required_config = middleware_app.MiddlewareApp.get_required_config()
-        required_config.add_option('logger', default=mock_logging)
-
-        config_manager = ConfigurationManager(
-            [required_config,
-             ],
-            app_name='middleware',
-            app_description=__doc__,
-            values_source_list=[
-                {'logger': mock_logging},
-                environment,
-                DSN,
-                extra_value_source
-            ],
-            argv_source=[]
+        self.transaction(
+            execute_no_results,
+            """
+            TRUNCATE TABLE bugs CASCADE;
+            TRUNCATE TABLE bug_associations CASCADE;
+            TRUNCATE TABLE extensions CASCADE;
+            TRUNCATE TABLE reports CASCADE;
+            TRUNCATE products CASCADE;
+            TRUNCATE releases_raw CASCADE;
+            TRUNCATE release_channels CASCADE;
+            TRUNCATE product_release_channels CASCADE;
+            TRUNCATE os_names CASCADE;
+            TRUNCATE graphics_device CASCADE;
+            """
         )
-        return config_manager
 
+    #--------------------------------------------------------------------------
     def get(self, server, url, params=None, request_method='GET',
             expect_errors=False):
         a = TestApp(server._wsgi_func)
         response = a.get(url, params=params, expect_errors=expect_errors)
         return self._respond(response, expect_errors)
 
+    #--------------------------------------------------------------------------
     def _respond(self, response, expect_errors):
         if response.status != 200 and not expect_errors:
             raise HttpError('%s - %s' % (response.status, response.body))
@@ -505,6 +196,7 @@ class IntegrationTestMiddlewareApp(TestCase):
             response.data = None
         return response
 
+    #--------------------------------------------------------------------------
     def post(self, server, url, data=None, expect_errors=False):
         a = TestApp(server._wsgi_func)
         data = data or ''
@@ -515,6 +207,7 @@ class IntegrationTestMiddlewareApp(TestCase):
         response = a.post(url, q, expect_errors=expect_errors)
         return self._respond(response, expect_errors)
 
+    #--------------------------------------------------------------------------
     def put(self, server, url, data=None, expect_errors=False):
         a = TestApp(server._wsgi_func)
         data = data or ''
@@ -525,108 +218,9 @@ class IntegrationTestMiddlewareApp(TestCase):
         response = a.put(url, q, expect_errors=expect_errors)
         return self._respond(response, expect_errors)
 
-    def test_overriding_implementation_class(self):
-        config_manager = self._setup_config_manager({
-            'implementations.service_overrides': 'CrashData: fs, Crash: typo'
-        })
-
-        with config_manager.context() as config:
-            app = middleware_app.MiddlewareApp(config)
-            assert_raises(
-                middleware_app.ImplementationConfigurationError,
-                app.main
-            )
-
-        imp_list_option = (
-            middleware_app.MiddlewareApp.required_config
-            .implementations.implementation_list
-        )
-        default = imp_list_option.from_string_converter(
-            imp_list_option.default
-        )
-        prev_impl_list = ', '.join('%s: %s' % (x, y) for (x, y) in default)
-        imp_service_overrides_option = (
-            middleware_app.MiddlewareApp.required_config
-            .implementations.service_overrides
-        )
-        default_overrides = imp_service_overrides_option.from_string_converter(
-            imp_service_overrides_option.default
-        )
-        prev_overrides_list = (
-            ', '.join('%s: %s' % (x, y) for (x, y) in default_overrides)
-        )
-
-        config_manager = self._setup_config_manager({
-            'implementations.service_overrides': (
-                prev_overrides_list + ', Crash: testy'
-            ),
-            'implementations.implementation_list': (
-                prev_impl_list + ', testy: socorro.uTYPO.middleware'
-            )
-        })
-
-        with config_manager.context() as config:
-            app = middleware_app.MiddlewareApp(config)
-            assert_raises(ImportError, app.main)
-
-        config_manager = self._setup_config_manager({
-            'implementations.service_overrides': (
-                prev_overrides_list + ', Crash: testy'
-            ),
-            'implementations.implementation_list': (
-                prev_impl_list + ', testy: socorro.unittest.middleware'
-            )
-        })
-
-        with config_manager.context() as config:
-            app = middleware_app.MiddlewareApp(config)
-            app.main()
-            server = middleware_app.application
-
-            response = self.get(server, '/crash/', {'uuid': self.uuid})
-            eq_(response.data, ['all', 'your', 'base'])
-
-    def test_overriding_implementation_class_at_runtime(self):
-        imp_list_option = (
-            middleware_app.MiddlewareApp.required_config
-            .implementations.implementation_list
-        )
-        default = imp_list_option.from_string_converter(
-            imp_list_option.default
-        )
-        prev_impl_list = ', '.join('%s: %s' % (x, y) for (x, y) in default)
-
-        config_manager = self._setup_config_manager({
-            'implementations.implementation_list': (
-                prev_impl_list + ', testy: socorro.unittest.middleware'
-            )
-        })
-
-        with config_manager.context() as config:
-            app = middleware_app.MiddlewareApp(config)
-            app.main()
-            server = middleware_app.application
-
-            # normal call
-            params = {'uuid': self.uuid}
-            response = self.get(server, '/crash/', params)
-            eq_(response.data, {'hits': [], 'total': 0})
-
-            # forcing implementation at runtime
-            params = {'uuid': self.uuid, '_force_api_impl': 'testy'}
-            response = self.get(server, '/crash/', params)
-            eq_(response.data, ['all', 'your', 'base'])
-
-            # forcing unexisting implementation at runtime
-            params = {'uuid': self.uuid, '_force_api_impl': 'TYPO'}
-            assert_raises(
-                AppError,
-                self.get,
-                server, '/crash/', params
-            )
-
+    #--------------------------------------------------------------------------
     def test_crash(self):
-        config_manager = self._setup_config_manager()
+        config_manager = get_config_manager_for_middleware()
 
         with config_manager.context() as config:
             app = middleware_app.MiddlewareApp(config)
@@ -637,8 +231,9 @@ class IntegrationTestMiddlewareApp(TestCase):
             response = self.get(server, '/crash/', {'uuid': self.uuid})
             eq_(response.data, {'hits': [], 'total': 0})
 
+    #--------------------------------------------------------------------------
     def test_crashes(self):
-        config_manager = self._setup_config_manager()
+        config_manager = get_config_manager_for_middleware()
 
         with config_manager.context() as config:
             app = middleware_app.MiddlewareApp(config)
@@ -695,13 +290,17 @@ class IntegrationTestMiddlewareApp(TestCase):
             )
             eq_(response.data, {'hits': [], 'total': 0})
 
+    #--------------------------------------------------------------------------
     def test_crashes_comments_with_data(self):
-        config_manager = self._setup_config_manager()
+        config_manager = get_config_manager_for_middleware()
+
+        config_manager.dump_conf(config_pathname='/home/lars/temp/fucked.ini')
 
         now = datetimeutil.utc_now()
         uuid = "%%s-%s" % now.strftime("%y%m%d")
-        cursor = self.conn.cursor()
-        cursor.execute("""
+        self.transaction(
+            execute_no_results,
+            """
             INSERT INTO reports
             (id, date_processed, uuid, signature, user_comments)
             VALUES
@@ -719,8 +318,9 @@ class IntegrationTestMiddlewareApp(TestCase):
                 'sig2',
                 'great'
             );
-        """, (now, uuid % "a1", now, uuid % "a2"))
-        self.conn.commit()
+            """,
+            (now, uuid % "a1", now, uuid % "a2")
+        )
 
         with config_manager.context() as config:
             app = middleware_app.MiddlewareApp(config)
@@ -735,8 +335,9 @@ class IntegrationTestMiddlewareApp(TestCase):
             eq_(response.data['total'], 1)
             eq_(response.data['hits'][0]['user_comments'], 'crap')
 
+    #--------------------------------------------------------------------------
     def test_extensions(self):
-        config_manager = self._setup_config_manager()
+        config_manager = get_config_manager_for_middleware()
 
         with config_manager.context() as config:
             app = middleware_app.MiddlewareApp(config)
@@ -752,48 +353,54 @@ class IntegrationTestMiddlewareApp(TestCase):
 
             now = datetimeutil.utc_now()
             uuid = "%%s-%s" % now.strftime("%y%m%d")
-            cursor = self.conn.cursor()
-            cursor.execute("""
-                INSERT INTO reports
-                (id, date_processed, uuid)
-                VALUES
-                (
-                    1,
-                    '%s',
-                    '%s'
-                ),
-                (
-                    2,
-                    '%s',
-                    '%s'
-                );
-            """ % (now, uuid % "a1", now, uuid % "a2"))
+            def do_transaction(connection):
+                execute_no_results(
+                    connection,
+                    """
+                    INSERT INTO reports
+                    (id, date_processed, uuid)
+                    VALUES
+                    (
+                        1,
+                        '%s',
+                        '%s'
+                    ),
+                    (
+                        2,
+                        '%s',
+                        '%s'
+                    );
+                    """ % (now, uuid % "a1", now, uuid % "a2")
+                )
 
-            cursor.execute("""
-                INSERT INTO extensions VALUES
-                (
-                    1,
-                    '%s',
-                    10,
-                    'id1',
-                    'version1'
-                ),
-                (
-                    1,
-                    '%s',
-                    11,
-                    'id2',
-                    'version2'
-                ),
-                (
-                    1,
-                    '%s',
-                    12,
-                    'id3',
-                    'version3'
-                );
-            """ % (now, now, now))
-            self.conn.commit()
+                execute_no_results(
+                    connection,
+                    """
+                    INSERT INTO extensions VALUES
+                    (
+                        1,
+                        '%s',
+                        10,
+                        'id1',
+                        'version1'
+                    ),
+                    (
+                        1,
+                        '%s',
+                        11,
+                        'id2',
+                        'version2'
+                    ),
+                    (
+                        1,
+                        '%s',
+                        12,
+                        'id3',
+                        'version3'
+                    );
+                """ % (now, now, now)
+            )
+            self.transaction(do_transaction)
 
             response = self.get(
                 server,
@@ -802,8 +409,9 @@ class IntegrationTestMiddlewareApp(TestCase):
             )
             eq_(response.data['total'], 3)
 
+    #--------------------------------------------------------------------------
     def test_field(self):
-        config_manager = self._setup_config_manager()
+        config_manager = get_config_manager_for_middleware()
 
         with config_manager.context() as config:
             app = middleware_app.MiddlewareApp(config)
@@ -821,8 +429,9 @@ class IntegrationTestMiddlewareApp(TestCase):
                 'product': None
             })
 
+    #--------------------------------------------------------------------------
     def test_crashtrends(self):
-        config_manager = self._setup_config_manager()
+        config_manager = get_config_manager_for_middleware()
 
         with config_manager.context() as config:
             app = middleware_app.MiddlewareApp(config)
@@ -841,23 +450,9 @@ class IntegrationTestMiddlewareApp(TestCase):
             )
             eq_(response.data, {'crashtrends': []})
 
-    def test_job(self):
-        config_manager = self._setup_config_manager()
-
-        with config_manager.context() as config:
-            app = middleware_app.MiddlewareApp(config)
-            app.main()
-            server = middleware_app.application
-
-            response = self.get(
-                server,
-                '/job/',
-                {'uuid': self.uuid}
-            )
-            eq_(response.data, {'hits': [], 'total': 0})
-
+    #--------------------------------------------------------------------------
     def test_platforms(self):
-        config_manager = self._setup_config_manager()
+        config_manager = get_config_manager_for_middleware()
 
         with config_manager.context() as config:
             app = middleware_app.MiddlewareApp(config)
@@ -867,8 +462,9 @@ class IntegrationTestMiddlewareApp(TestCase):
             response = self.get(server, '/platforms/')
             eq_(response.data, {'hits': [], 'total': 0})
 
+    #--------------------------------------------------------------------------
     def test_priorityjobs(self):
-        config_manager = self._setup_config_manager()
+        config_manager = get_config_manager_for_middleware()
 
         with config_manager.context() as config:
             app = middleware_app.MiddlewareApp(config)
@@ -890,8 +486,9 @@ class IntegrationTestMiddlewareApp(TestCase):
             )
             ok_(response.data)
 
+    #--------------------------------------------------------------------------
     def test_products(self):
-        config_manager = self._setup_config_manager()
+        config_manager = get_config_manager_for_middleware()
 
         with config_manager.context() as config:
             app = middleware_app.MiddlewareApp(config)
@@ -905,8 +502,9 @@ class IntegrationTestMiddlewareApp(TestCase):
             )
             eq_(response.data, {'hits': [], 'total': 0})
 
+    #--------------------------------------------------------------------------
     def test_products_builds(self):
-        config_manager = self._setup_config_manager()
+        config_manager = get_config_manager_for_middleware()
 
         with config_manager.context() as config:
             app = middleware_app.MiddlewareApp(config)
@@ -920,59 +518,69 @@ class IntegrationTestMiddlewareApp(TestCase):
             )
             eq_(response.data, [])
 
+    #--------------------------------------------------------------------------
     def test_products_builds_post(self):
-        config_manager = self._setup_config_manager()
+        config_manager = get_config_manager_for_middleware()
 
-        cursor = self.conn.cursor()
-        cursor.execute("""
-            INSERT INTO products
-            (product_name, sort, release_name)
-            VALUES
-            (
-                'Firefox',
-                1,
-                'firefox'
-            ),
-            (
-                'FennecAndroid',
-                2,
-                'fennecandroid'
-            ),
-            (
-                'Thunderbird',
-                3,
-                'thunderbird'
-            );
-        """)
+        def do_transaction(connection):
+            execute_no_results(
+                connection,
+                """
+                INSERT INTO products
+                (product_name, sort, release_name)
+                VALUES
+                (
+                    'Firefox',
+                    1,
+                    'firefox'
+                ),
+                (
+                    'FennecAndroid',
+                    2,
+                    'fennecandroid'
+                ),
+                (
+                    'Thunderbird',
+                    3,
+                    'thunderbird'
+                );
+                """
+            )
 
-        cursor.execute("""
-            INSERT INTO release_channels
-            (release_channel, sort)
-            VALUES
-            ('Nightly', 1),
-            ('Aurora', 2),
-            ('Beta', 3),
-            ('Release', 4);
-        """)
+            execute_no_results(
+                connection,
+                """
+                INSERT INTO release_channels
+                (release_channel, sort)
+                VALUES
+                ('Nightly', 1),
+                ('Aurora', 2),
+                ('Beta', 3),
+                ('Release', 4);
+                """
+            )
 
-        cursor.execute("""
-            INSERT INTO product_release_channels
-            (product_name, release_channel, throttle)
-            VALUES
-            ('Firefox', 'Nightly', 1),
-            ('Firefox', 'Aurora', 1),
-            ('Firefox', 'Beta', 1),
-            ('Firefox', 'Release', 1),
-            ('Thunderbird', 'Nightly', 1),
-            ('Thunderbird', 'Aurora', 1),
-            ('Thunderbird', 'Beta', 1),
-            ('Thunderbird', 'Release', 1),
-            ('FennecAndroid', 'Nightly', 1),
-            ('FennecAndroid', 'Aurora', 1),
-            ('FennecAndroid', 'Beta', 1),
-            ('FennecAndroid', 'Release', 1);
-        """)
-        self.conn.commit()
+            execute_no_results(
+                connection,
+                """
+                INSERT INTO product_release_channels
+                (product_name, release_channel, throttle)
+                VALUES
+                ('Firefox', 'Nightly', 1),
+                ('Firefox', 'Aurora', 1),
+                ('Firefox', 'Beta', 1),
+                ('Firefox', 'Release', 1),
+                ('Thunderbird', 'Nightly', 1),
+                ('Thunderbird', 'Aurora', 1),
+                ('Thunderbird', 'Beta', 1),
+                ('Thunderbird', 'Release', 1),
+                ('FennecAndroid', 'Nightly', 1),
+                ('FennecAndroid', 'Aurora', 1),
+                ('FennecAndroid', 'Beta', 1),
+                ('FennecAndroid', 'Release', 1);
+                """
+            )
+        self.transaction(do_transaction)
 
         with config_manager.context() as config:
             app = middleware_app.MiddlewareApp(config)
@@ -993,8 +601,9 @@ class IntegrationTestMiddlewareApp(TestCase):
             eq_(response.status, 200)
             eq_(response.body, 'Firefox')
 
+    #--------------------------------------------------------------------------
     def test_releases(self):
-        config_manager = self._setup_config_manager()
+        config_manager = get_config_manager_for_middleware()
 
         with config_manager.context() as config:
             app = middleware_app.MiddlewareApp(config)
@@ -1008,23 +617,25 @@ class IntegrationTestMiddlewareApp(TestCase):
             )
             eq_(response.data, {'hits': {}, 'total': 0})
 
+    #--------------------------------------------------------------------------
     def test_releases_featured_put(self):
-        config_manager = self._setup_config_manager()
+        config_manager = get_config_manager_for_middleware()
 
         with config_manager.context() as config:
             app = middleware_app.MiddlewareApp(config)
             app.main()
             server = middleware_app.application
 
-            response = self.put(
+            response = self.post(
                 server,
                 '/releases/featured/',
                 {'Firefox': '15.0a1,14.0b1'},
             )
             eq_(response.data, False)
 
+    #--------------------------------------------------------------------------
     def test_signatureurls(self):
-        config_manager = self._setup_config_manager()
+        config_manager = get_config_manager_for_middleware()
 
         with config_manager.context() as config:
             app = middleware_app.MiddlewareApp(config)
@@ -1044,8 +655,9 @@ class IntegrationTestMiddlewareApp(TestCase):
             )
             eq_(response.data, {'hits': [], 'total': 0})
 
+    #--------------------------------------------------------------------------
     def test_search(self):
-        config_manager = self._setup_config_manager()
+        config_manager = get_config_manager_for_middleware()
 
         with config_manager.context() as config:
             app = middleware_app.MiddlewareApp(config)
@@ -1067,6 +679,7 @@ class IntegrationTestMiddlewareApp(TestCase):
             )
             eq_(response.data, {'hits': [], 'total': 0})
 
+    #--------------------------------------------------------------------------
     def test_server_status(self):
         breakpad_revision = '1.0'
         socorro_revision = '19.5'
@@ -1082,7 +695,7 @@ class IntegrationTestMiddlewareApp(TestCase):
             self.basedir, 'breakpad_revision.txt'
         ), 'w').write(breakpad_revision)
 
-        config_manager = self._setup_config_manager()
+        config_manager = get_config_manager_for_middleware()
         with config_manager.context() as config:
             app = middleware_app.MiddlewareApp(config)
             app.main()
@@ -1105,8 +718,9 @@ class IntegrationTestMiddlewareApp(TestCase):
         os.remove(os.path.join(self.basedir, 'socorro_revision.txt'))
         os.remove(os.path.join(self.basedir, 'breakpad_revision.txt'))
 
+    #--------------------------------------------------------------------------
     def test_report_list(self):
-        config_manager = self._setup_config_manager()
+        config_manager = get_config_manager_for_middleware()
 
         with config_manager.context() as config:
             app = middleware_app.MiddlewareApp(config)
@@ -1124,8 +738,9 @@ class IntegrationTestMiddlewareApp(TestCase):
             )
             eq_(response.data, {'hits': [], 'total': 0})
 
+    #--------------------------------------------------------------------------
     def test_util_versions_info(self):
-        config_manager = self._setup_config_manager()
+        config_manager = get_config_manager_for_middleware()
 
         with config_manager.context() as config:
             app = middleware_app.MiddlewareApp(config)
@@ -1139,8 +754,9 @@ class IntegrationTestMiddlewareApp(TestCase):
             )
             eq_(response.data, {})
 
+    #--------------------------------------------------------------------------
     def test_bugs(self):
-        config_manager = self._setup_config_manager()
+        config_manager = get_config_manager_for_middleware()
 
         with config_manager.context() as config:
             app = middleware_app.MiddlewareApp(config)
@@ -1157,20 +773,22 @@ class IntegrationTestMiddlewareApp(TestCase):
             # because the bugs API is using POST and potentially multiple
             # signatures, it's a good idea to write a full integration test
 
-            cursor = self.conn.cursor()
-            cursor.execute("""
-            INSERT INTO bugs VALUES
-            (1),
-            (2),
-            (3);
-            INSERT INTO bug_associations
-            (signature, bug_id)
-            VALUES
-            (%s, 1),
-            (%s, 3),
-            (%s, 2);
-            """, ('othersig', 'si/gn1', 'sign2+'))
-            self.conn.commit()
+            self.transaction(
+                execute_no_results,
+                """
+                INSERT INTO bugs VALUES
+                (1),
+                (2),
+                (3);
+                INSERT INTO bug_associations
+                (signature, bug_id)
+                VALUES
+                (%s, 1),
+                (%s, 3),
+                (%s, 2);
+                """,
+                ('othersig', 'si/gn1', 'sign2+')
+            )
 
             response = self.post(
                 server,
@@ -1180,8 +798,8 @@ class IntegrationTestMiddlewareApp(TestCase):
             hits = sorted(response.data['hits'], key=lambda k: k['id'])
             eq_(response.data['total'], 2)
             eq_(hits,
-                             [{u'id': 2, u'signature': u'sign2+'},
-                              {u'id': 3, u'signature': u'si/gn1'}])
+                [{u'id': 2, u'signature': u'sign2+'},
+                 {u'id': 3, u'signature': u'si/gn1'}])
 
             response = self.post(
                 server,
@@ -1199,8 +817,9 @@ class IntegrationTestMiddlewareApp(TestCase):
             )
             eq_(response.data, {'hits': [], u'total': 0})
 
+    #--------------------------------------------------------------------------
     def test_signaturesummary(self):
-        config_manager = self._setup_config_manager()
+        config_manager = get_config_manager_for_middleware()
 
         with config_manager.context() as config:
             app = middleware_app.MiddlewareApp(config)
@@ -1220,21 +839,23 @@ class IntegrationTestMiddlewareApp(TestCase):
             )
             eq_(response.data, [])
 
+    #--------------------------------------------------------------------------
     def test_backfill(self):
-        config_manager = self._setup_config_manager()
+        config_manager = get_config_manager_for_middleware()
 
-        cursor = self.conn.cursor()
-        cursor.execute("""
-        INSERT INTO raw_adu
-        (adu_count, date, product_name, product_os_platform,
-        product_os_version, product_version, build, build_channel,
-        product_guid, received_at)
-        VALUES
-        (10, '2013-08-22', 'NightTrain', 'Linux', 'Linux', '3.0a2',
-        '20130821000016', 'aurora', '{nighttrain@example.com}',
-        '2013-08-21')
-        """)
-        self.conn.commit()
+        self.transaction(
+            execute_no_results,
+            """
+            INSERT INTO raw_adu
+            (adu_count, date, product_name, product_os_platform,
+            product_os_version, product_version, build, build_channel,
+            product_guid, received_at)
+            VALUES
+            (10, '2013-08-22', 'NightTrain', 'Linux', 'Linux', '3.0a2',
+            '20130821000016', 'aurora', '{nighttrain@example.com}',
+            '2013-08-21')
+            """
+        )
 
         with config_manager.context() as config:
             app = middleware_app.MiddlewareApp(config)
@@ -1248,8 +869,9 @@ class IntegrationTestMiddlewareApp(TestCase):
             )
             eq_(response.status, 200)
 
+    #--------------------------------------------------------------------------
     def test_missing_argument_yield_bad_request(self):
-        config_manager = self._setup_config_manager()
+        config_manager = get_config_manager_for_middleware()
 
         with config_manager.context() as config:
             app = middleware_app.MiddlewareApp(config)
@@ -1298,14 +920,6 @@ class IntegrationTestMiddlewareApp(TestCase):
             eq_(response.status, 400)
             ok_('uuid' in response.body)
 
-            response = self.get(
-                server,
-                '/job/',
-                expect_errors=True
-            )
-            eq_(response.status, 400)
-            ok_('uuid' in response.body)
-
             response = self.post(
                 server,
                 '/bugs/',
@@ -1336,7 +950,7 @@ class IntegrationTestMiddlewareApp(TestCase):
             )
             eq_(response.status, 200)
 
-            response = self.post(
+            response = self.get(
                 server,
                 '/products/builds/',
                 {'xxx': ''},
@@ -1360,6 +974,7 @@ class IntegrationTestMiddlewareApp(TestCase):
             eq_(response.status, 400)
             ok_('signature' in response.body)
 
+    #--------------------------------------------------------------------------
     def test_setting_up_with_lists_overridden(self):
 
         platforms = [
@@ -1368,8 +983,8 @@ class IntegrationTestMiddlewareApp(TestCase):
         ]
         platforms_json_dump = json.dumps(platforms)
 
-        config_manager = self._setup_config_manager(
-            extra_value_source={
+        config_manager = get_config_manager_for_middleware(
+            overrides={
                 'webapi.non_release_channels': 'Foo, Bar',
                 'webapi.restricted_channels': 'foo , bar',
                 'webapi.platforms': platforms_json_dump
@@ -1391,8 +1006,9 @@ class IntegrationTestMiddlewareApp(TestCase):
                 platforms
             )
 
+    #--------------------------------------------------------------------------
     def test_laglog(self):
-        config_manager = self._setup_config_manager()
+        config_manager = get_config_manager_for_middleware()
 
         with config_manager.context() as config:
             app = middleware_app.MiddlewareApp(config)
@@ -1406,8 +1022,9 @@ class IntegrationTestMiddlewareApp(TestCase):
             eq_(response.status, 200)
             eq_(json.loads(response.body), {'replicas': []})
 
+    #--------------------------------------------------------------------------
     def test_graphics_devices(self):
-        config_manager = self._setup_config_manager()
+        config_manager = get_config_manager_for_middleware()
 
         with config_manager.context() as config:
             app = middleware_app.MiddlewareApp(config)
@@ -1432,8 +1049,9 @@ class IntegrationTestMiddlewareApp(TestCase):
                 {'hits': [], 'total': 0}
             )
 
+    #--------------------------------------------------------------------------
     def test_graphics_devices_post_payload(self):
-        config_manager = self._setup_config_manager()
+        config_manager = get_config_manager_for_middleware()
 
         with config_manager.context() as config:
             app = middleware_app.MiddlewareApp(config)
@@ -1471,8 +1089,9 @@ class IntegrationTestMiddlewareApp(TestCase):
                 False
             )
 
+    #--------------------------------------------------------------------------
     def test_adu_by_signature(self):
-        config_manager = self._setup_config_manager()
+        config_manager = get_config_manager_for_middleware()
 
         with config_manager.context() as config:
             app = middleware_app.MiddlewareApp(config)
@@ -1489,4 +1108,4 @@ class IntegrationTestMiddlewareApp(TestCase):
                     'channel': 'aurora',
                 }
             )
-            eq_(response.data, {'hits': [], 'total':0})
+            eq_(response.data, {'hits': [], 'total': 0})

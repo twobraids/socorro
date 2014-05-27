@@ -145,6 +145,7 @@ class ElasticSearchCrashStorage(CrashStorageBase):
         Lastly index the crash report.
         """
         if not self.config.elasticsearch_urls:
+            print "**************NO URLS*****************"
             return
 
         crash_date = datetimeutil.string_to_datetime(
@@ -161,7 +162,6 @@ class ElasticSearchCrashStorage(CrashStorageBase):
 
                 # Cache the list of existing indices to avoid HTTP requests
                 self.indices_cache.add(es_index)
-
             self.es.index(
                 es_index,
                 es_doctype,

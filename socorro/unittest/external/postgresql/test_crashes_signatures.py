@@ -7,7 +7,10 @@ from nose.plugins.attrib import attr
 from nose.tools import eq_, ok_, assert_raises
 
 from socorro.external import MissingArgumentError
-from socorro.external.postgresql.crashes import Crashes
+from socorro.external.postgresql.crashes_service import Crashes
+from socorro.external.postgresql.dbapi2_util import (
+    execute_no_results,
+)
 from socorro.lib import datetimeutil
 
 from .unittestbase import PostgreSQLTestCase
@@ -22,13 +25,10 @@ class IntegrationTestCrashesSignatures(PostgreSQLTestCase):
     better on its own here.
     """
 
-    def setUp(self):
-        """Set up this test class by populating the reports table with fake
-        data. """
-        super(IntegrationTestCrashesSignatures, self).setUp()
-
-        cursor = self.connection.cursor()
-
+    #--------------------------------------------------------------------------
+    def _insert_test_data(self, connection):
+        # clear old data, just in case
+        self._delete_test_data(connection)
         # Insert data
         self.now = datetimeutil.utc_now()
         today = datetime.datetime(
@@ -37,7 +37,9 @@ class IntegrationTestCrashesSignatures(PostgreSQLTestCase):
             self.now.day
         )
 
-        cursor.execute("""
+        execute_no_results(
+            connection,
+            """
             INSERT INTO signatures
             (signature_id, signature, first_report)
             VALUES
@@ -47,7 +49,9 @@ class IntegrationTestCrashesSignatures(PostgreSQLTestCase):
             (4, 'signature4', '%(first_date)s');
         """ % {'first_date': today - datetime.timedelta(days=7)})
 
-        cursor.execute("""
+        execute_no_results(
+            connection,
+            """
             INSERT INTO products
             (product_name, sort, rapid_release_version, release_name)
             VALUES
@@ -65,7 +69,9 @@ class IntegrationTestCrashesSignatures(PostgreSQLTestCase):
             );
         """)
 
-        cursor.execute("""
+        execute_no_results(
+            connection,
+            """
             INSERT INTO release_channels
             (release_channel, sort)
             VALUES
@@ -74,7 +80,9 @@ class IntegrationTestCrashesSignatures(PostgreSQLTestCase):
             );
         """)
 
-        cursor.execute("""
+        execute_no_results(
+            connection,
+            """
             INSERT INTO product_versions
             (product_version_id, product_name, major_version, release_version,
              version_string, build_date, sunset_date, featured_version,
@@ -105,7 +113,9 @@ class IntegrationTestCrashesSignatures(PostgreSQLTestCase):
         """ % {'start_date': self.now - datetime.timedelta(weeks=4),
                'end_date': self.now + datetime.timedelta(weeks=4)})
 
-        cursor.execute("""
+        execute_no_results(
+            connection,
+            """
             INSERT INTO signature_products_rollup
             (signature_id, product_name, ver_count, version_list)
             VALUES
@@ -129,7 +139,9 @@ class IntegrationTestCrashesSignatures(PostgreSQLTestCase):
             );
         """)
 
-        cursor.execute("""
+        execute_no_results(
+            connection,
+            """
             INSERT INTO tcbs
             (
                 signature_id,
@@ -215,7 +227,9 @@ class IntegrationTestCrashesSignatures(PostgreSQLTestCase):
             'lastweek': self.now - datetime.timedelta(days=8)
         })
 
-        cursor.execute("""
+        execute_no_results(
+            connection,
+            """
             INSERT INTO tcbs_build
             (
                 signature_id,
@@ -308,19 +322,31 @@ class IntegrationTestCrashesSignatures(PostgreSQLTestCase):
             'yesterday': self.now - datetime.timedelta(days=1)
         })
 
-        self.connection.commit()
 
-    def tearDown(self):
-        """Clean up the database, delete tables and functions. """
-        cursor = self.connection.cursor()
-        cursor.execute("""
+    #--------------------------------------------------------------------------
+    def setUp(self):
+        """Set up this test class by populating the reports table with fake
+        data. """
+        super(IntegrationTestCrashesSignatures, self).setUp(Crashes)
+        self.transaction(self._insert_test_data)
+
+    #--------------------------------------------------------------------------
+    def _delete_test_data(self, connection):
+        execute_no_results(
+            connection,
+            """
             TRUNCATE tcbs, tcbs_build, product_versions, products,
                      release_channels, signatures
-            CASCADE;
-        """)
-        self.connection.commit()
+            CASCADE"""
+        )
+
+    #--------------------------------------------------------------------------
+    def tearDown(self):
+        """Clean up the database, delete tables and functions. """
+        self.transaction(self._delete_test_data)
         super(IntegrationTestCrashesSignatures, self).tearDown()
 
+    #--------------------------------------------------------------------------
     def test_get_signatures(self):
         tcbs = Crashes(config=self.config)
         now = self.now
@@ -546,6 +572,7 @@ class IntegrationTestCrashesSignatures(PostgreSQLTestCase):
 
         eq_(res, res_expected)
 
+    #--------------------------------------------------------------------------
     def test_get_signature_history(self):
         api = Crashes(config=self.config)
         now = self.now
