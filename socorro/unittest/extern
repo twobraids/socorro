@@ -19,6 +19,7 @@ from socorro.lib import datetimeutil
 from unittestbase import PostgreSQLTestCase
 
 
+
 #==============================================================================
 @attr(integration='postgres')  # for nosetests
 class IntegrationTestSuspicious(PostgreSQLTestCase):

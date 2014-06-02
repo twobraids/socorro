@@ -15,6 +15,7 @@ from socorro.external.postgresql.dbapi2_util import (
 from unittestbase import PostgreSQLTestCase
 
 
+
 #==============================================================================
 @attr(integration='postgres')  # for nosetests
 class IntegrationTestCrontabberStatus(PostgreSQLTestCase):

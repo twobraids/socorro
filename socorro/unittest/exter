@@ -21,6 +21,7 @@ from unittestbase import PostgreSQLTestCase
 from decimal import Decimal
 
 
+
 #==============================================================================
 @attr(integration='postgres')  # for nosetests
 class IntegrationTestProductsBuilds(PostgreSQLTestCase):
