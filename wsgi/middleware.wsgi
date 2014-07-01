@@ -1,6 +1,6 @@
 import os
 
-from configman improt (
+from configman import (
     ConfigFileFutureProxy,
     environment
 )
