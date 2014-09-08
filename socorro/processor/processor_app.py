@@ -25,16 +25,16 @@ class ProcessorApp(FetchTransformSaveApp):
 
     # set the Option defaults in the parent class to values that make sense
     # for the context of this app
-    FetchTransformSaveApp.required_config.source.crashstorage_class \
-      .set_default(
-      FileSystemRawCrashStorage,
-      force=True,
-    )
-    FetchTransformSaveApp.required_config.destination.crashstorage_class \
-      .set_default(
-      PolyCrashStorage,
-      force=True,
-    )
+    #FetchTransformSaveApp.required_config.source.crashstorage_class \
+      #.set_default(
+      #FileSystemRawCrashStorage,
+      #force=True,
+    #)
+    #FetchTransformSaveApp.required_config.destination.crashstorage_class \
+      #.set_default(
+      #PolyCrashStorage,
+      #force=True,
+    #)
 
     required_config = Namespace()
     # configuration is broken into three namespaces: processor,
@@ -86,6 +86,15 @@ class ProcessorApp(FetchTransformSaveApp):
     ### interval.  the first periodic thing is the rereading of the
     ### signature generation stuff from the database.
     ###########################################################################
+
+    #--------------------------------------------------------------------------
+    @staticmethod
+    def get_application_defaults():
+        return {
+            #"application": "socorro.processor.processor_app.ProcessorApp",
+            "source.crashstorage_class": FileSystemRawCrashStorage,
+            "destination.crashstorage_class": PolyCrashStorage,
+        }
 
     #--------------------------------------------------------------------------
     def source_iterator(self):

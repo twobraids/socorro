@@ -108,4 +108,4 @@ class CollectorApp(App):
 
 
 if __name__ == '__main__':
-    main(CollectorApp)
+    CollectorApp.run()

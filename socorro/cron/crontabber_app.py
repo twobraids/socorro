@@ -3,7 +3,7 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-from crontabber.app import CronTabber, main
+from crontabber.app import main, CronTabber
 
 
 DEFAULT_JOBS = '''
@@ -65,6 +65,8 @@ CronTabber.required_config.crontabber.job_state_db_class.default.required_config
     'socorro.external.postgresql.connection_context.ConnectionContext'
 )
 
+# for consistency with other Socorro apps
+CronTabberApp = CronTabber
 
 if __name__ == '__main__':  # pragma: no cover
     import sys
