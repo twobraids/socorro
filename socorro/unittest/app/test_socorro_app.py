@@ -107,6 +107,6 @@ class TestSocorroWelcomApp(TestCase):
         config.application = MyProcessor
 
         sa = SocorroWelcomeApp(config)
-        sa.main()
+        sa.run()
         eq_(tag, 'lars was here')
 
