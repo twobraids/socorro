@@ -4,7 +4,7 @@
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 from crontabber.app import CronTabberBase
-from socorro.app.socorro_app import App
+from socorro.app.socorro_app import App, main
 
 DEFAULT_JOBS = '''
   socorro.cron.jobs.laglog.LagLog|5m
