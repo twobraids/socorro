@@ -397,12 +397,12 @@ class SocorroWelcomeApp(SocorroApp):
         ):
             # specifically targeted at CronTabber a foreign app that doesn't
             # derive from the SocorroApp hierarchy.
-            if not issubclass(self.config.application, SocorroApp):
-                class_path = py_obj_to_str(self.config.application)
-                module_path = '.'.join(class_path.split('.')[:-1])
-                main_path = module_path + ".main"
-                foreign_main = str_to_python_object(main_path)
-                return foreign_main(self.config.application)
+            #if not issubclass(self.config.application, SocorroApp):
+                #class_path = py_obj_to_str(self.config.application)
+                #module_path = '.'.join(class_path.split('.')[:-1])
+                #main_path = module_path + ".main"
+                #foreign_main = str_to_python_object(main_path)
+                #return foreign_main(self.config.application)
 
             requested_app = self.config.application(self.config)
             # this is where an app that was requested through the use of the
