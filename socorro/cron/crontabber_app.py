@@ -66,7 +66,7 @@ CronTabberBase.required_config.crontabber.job_state_db_class.default.required_co
 )
 
 # for consistency with other Socorro apps
-class CronTabberApp(App, CronTabberBase):
+class CronTabberApp(CronTabberBase, App):
     pass
 
 if __name__ == '__main__':  # pragma: no cover
