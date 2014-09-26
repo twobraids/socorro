@@ -250,16 +250,30 @@ class AddonsRule(Rule):
             if addons_checked_txt == 'true':
                 processed_crash.addons_checked = True
         except KeyError, e:
-            if e != 'EMCheckCompatibility':
+            if 'EMCheckCompatibility' not in str(e):
                 raise
             # it's okay to not have EMCheckCompatibility, other missing things
             # are bad
 
+        if self.config.chatty:
+            self.config.logger.debug(
+                'AddonsRule: collect_addon: %s',
+                self.config.collect_addon
+            )
+
         if self.config.collect_addon:
             original_addon_str = raw_crash.get('Add-ons', '')
             if not original_addon_str:
+                if self.config.chatty:
+                    self.config.logger.debug(
+                        'AddonsRule: no addons'
+                    )
                 processed_crash.addons = []
             else:
+                if self.config.chatty:
+                    self.config.logger.debug(
+                        'AddonsRule: trying to split addons'
+                    )
                 processed_crash.addons = [
                     self._addon_split_or_warn(
                         x,
@@ -267,6 +281,11 @@ class AddonsRule(Rule):
                     )
                     for x in original_addon_str.split(',')
                 ]
+            if self.config.chatty:
+                self.config.logger.debug(
+                    'AddonsRule: done: %s',
+                    processed_crash.addons
+                )
 
         return True
 
@@ -712,6 +731,7 @@ class FlashVersionRule(Rule):
 
     #--------------------------------------------------------------------------
     def _action(self, raw_crash, raw_dumps, processed_crash, processor_meta):
+        processed_crash.flash_version = ''
         flash_version = None
         for index, a_module in enumerate(
             processed_crash['json_dump']['modules']
@@ -747,6 +767,7 @@ class TopMostFilesRule(Rule):
 
     #--------------------------------------------------------------------------
     def _action(self, raw_crash, raw_dumps, processed_crash, processor_meta):
+        processed_crash.topmost_filenames = None
         try:
             stack_frames = (
                 processed_crash.json_dump['crashing_thread']['frames']
@@ -755,6 +776,8 @@ class TopMostFilesRule(Rule):
             # guess we don't have frames or crashing_thread or json_dump
             # we have to give up
             processed_crash.topmost_filenames = None
+            return True
+
         for a_frame in stack_frames:
             source = a_frame.get('source', None)
             if source:

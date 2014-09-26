@@ -125,8 +125,6 @@ def rule_sets_from_string(rule_sets_as_string):
         def to_str(klass):
             return "'%s'" % rule_sets_as_string
 
-    print "rule_sets_from_string as run, returning", ProcessorRuleSets, ProcessorRuleSets.names
-
     return ProcessorRuleSets
 
 

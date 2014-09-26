@@ -657,7 +657,6 @@ class SignatureGenerationRule(Rule):
             crashing_thread_mapping.get('frames', {}),
             self.config.c_signature.maximum_frames_to_consider
         ):
-            print a_frame['frame']
             normalized_signature = self.c_signature_tool.normalize_signature(
                 **a_frame
             )
@@ -668,7 +667,7 @@ class SignatureGenerationRule(Rule):
 
     #--------------------------------------------------------------------------
     def _action(self, raw_crash, raw_dumps, processed_crash, processor_meta):
-        if 'JavaStackTrace' in raw_crash:
+        if 'JavaStackTrace' in raw_crash and raw_crash.JavaStackTrace:
             # generate a Java signature
             signature, signature_notes = self.java_signature_tool.generate(
                 raw_crash.JavaStackTrace,
@@ -681,7 +680,7 @@ class SignatureGenerationRule(Rule):
 
         try:
             signature_list = self._create_frame_list(
-                processed_crash.json_dump.crashing_thread,
+                processed_crash.json_dump["crashing_thread"],
             )
         except Exception, x:
             processor_meta.processor_notes.append(
@@ -689,7 +688,8 @@ class SignatureGenerationRule(Rule):
             )
             signature_list = []
         try:
-            crashed_thread = processed_crash.crashing_thread.threads_index
+            crashed_thread = processed_crash["crashing_thread"] \
+                ["threads_index"]
         except KeyError:
             crashed_thread = None
         signature, signature_notes = self.c_signature_tool.generate(

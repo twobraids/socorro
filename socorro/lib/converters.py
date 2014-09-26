@@ -95,14 +95,6 @@ def str_to_classes_in_namespaces_converter(
                     likely_to_be_changed=True,
                 )
 
-                # add options for the classes required config
-                #try:
-                    #for k, v in a_class.get_required_config().iteritems():
-                        #a_class_namespace[k] = v
-                #except AttributeError:  # a_class has no get_required_config
-                    #pass
-                #print dict(required_config[namespace_name])
-
             @classmethod
             def to_str(cls):
                 """this method takes this inner class object and turns it back
@@ -110,10 +102,6 @@ def str_to_classes_in_namespaces_converter(
                 primarily as for the output of the 'help' option"""
                 return "'%s'" % cls.original_input
 
-        print "class_list_converter has run returning:", InnerClassList, InnerClassList.to_str()
-
         return InnerClassList  # result of class_list_converter
-
-    print "str_to_classes_in_namespaces_converter has run, returning", class_list_converter
 
     return class_list_converter  # result of classes_in_namespaces_converter

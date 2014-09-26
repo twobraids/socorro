@@ -339,7 +339,6 @@ class TransformRuleSystem(RequiredConfig):
 
         returns:
              True - since success or failure is ignored"""
-        # print 'args:', args, 'kwargs:', kwargs
         for x in self.rules:
             if self.config.chatty_rules:
                 self.config.logger.debug(

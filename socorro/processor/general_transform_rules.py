@@ -29,6 +29,8 @@ class CPUInfoRule(Rule):
     #--------------------------------------------------------------------------
     def _action(self, raw_crash, raw_dumps, processed_crash, processor_meta):
 
+        processed_crash.cpu_info = ''
+        processed_crash.cpu_name = ''
         try:
             processed_crash.cpu_info = (
                 '%s | %s' % (
@@ -36,7 +38,7 @@ class CPUInfoRule(Rule):
                     processed_crash.json_dump['system_info']['cpu_count']
                 )
             )
-        except KeyError:
+        except KeyError, x:
             # cpu_count is likely missing
             processed_crash.cpu_info = (
                 processed_crash.json_dump['system_info']['cpu_info']
@@ -56,7 +58,8 @@ class OSInfoRule(Rule):
 
     #--------------------------------------------------------------------------
     def _action(self, raw_crash, raw_dumps, processed_crash, processor_meta):
-
+        processed_crash.os_name = ''
+        processed_crash.os_version = ''
         processed_crash.os_name = (
             processed_crash.json_dump['system_info']['os']
         )
