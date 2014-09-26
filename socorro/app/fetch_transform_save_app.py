@@ -59,7 +59,8 @@ class FetchTransformSaveApp(App):
       'crashstorage_class',
       doc='the source storage class',
       default=None,
-      from_string_converter=class_converter
+      from_string_converter=class_converter,
+      likely_to_be_changed=True,
     )
     required_config.destination = Namespace()
     # For destination, the storage class should implement the 'save_raw_crash'
@@ -70,7 +71,8 @@ class FetchTransformSaveApp(App):
       'crashstorage_class',
       doc='the destination storage class',
       default=None,
-      from_string_converter=class_converter
+      from_string_converter=class_converter,
+      likely_to_be_changed=True,
     )
     required_config.producer_consumer = Namespace()
     required_config.producer_consumer.add_option(

@@ -380,7 +380,7 @@ class HBaseCrashStorage(CrashStorageBase):
             except KeyError:
                 self.logger.debug(
                   'key error trying to get "%s" for %s',
-                  (column_family_and_qualifier, crash_id)
+                  column_family_and_qualifier, crash_id
                 )
                 raise
         return transaction(name)

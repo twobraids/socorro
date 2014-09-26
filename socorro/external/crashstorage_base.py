@@ -10,10 +10,11 @@ import sys
 import collections
 import datetime
 
-from configman import Namespace,  RequiredConfig
-from configman.converters import classes_in_namespaces_converter, \
-                                 class_converter
+from configman import Namespace, RequiredConfig
+from configman.converters import class_converter
 from configman.dotdict import DotDict
+
+from socorro.lib.converters import str_to_classes_in_namespaces_converter
 
 #==============================================================================
 class Redactor(RequiredConfig):
@@ -358,12 +359,13 @@ class PolyCrashStorage(CrashStorageBase):
       'storage_classes',
       doc='a comma delimited list of storage classes',
       default='',
-      from_string_converter=classes_in_namespaces_converter(
-          template_for_namespace='storage%d',
+      from_string_converter=str_to_classes_in_namespaces_converter(
+          template_for_namespace='storage%(index)d',
           name_of_class_option='crashstorage_class',
           instantiate_classes=False,  # we instantiate manually for thread
                                       # safety
-      )
+      ),
+      likely_to_be_changed=True,
     )
 
     #--------------------------------------------------------------------------

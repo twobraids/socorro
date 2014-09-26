@@ -62,6 +62,16 @@ class BreakpadStackwalkerRule(Rule):
         '/mnt/socorro/symbols/symbols_os',
         from_string_converter=_create_symbol_path_str
     )
+    required_config.add_option(
+        'temporary_file_system_storage_path',
+        doc='a path where temporary files may be written',
+        default='/tmp',
+    )
+    required_config.add_option(
+        'temporary_file_system_storage_path',
+        doc='a path where temporary files may be written',
+        default='/tmp',
+    )
 
     #--------------------------------------------------------------------------
     def __init__(self, config):
@@ -152,6 +162,12 @@ class BreakpadStackwalkerRule(Rule):
                 "RAWFILEPATHNAME",
                 raw_crash_pathname
             )
+
+            if self.config.chatty:
+                self.config.logger.debug(
+                    "BreakpadStackwalkerRule: %s",
+                    command_line
+                )
             subprocess_handle = subprocess.Popen(
                 command_line,
                 shell=True,
@@ -172,6 +188,7 @@ class BreakpadStackwalkerRule(Rule):
             stackwalker_output = {}
 
         stackwalker_data = DotDict()
+
         stackwalker_data.json_dump = stackwalker_output
         stackwalker_data.mdsw_return_code = return_code
 
@@ -201,6 +218,13 @@ class BreakpadStackwalkerRule(Rule):
             raw_crash.uuid
         ) as raw_crash_pathname:
             for dump_name, dump_pathname in raw_dumps.iteritems():
+
+                if self.config.chatty:
+                    self.config.logger.debug(
+                        "BreakpadStackwalkerRule: %s, %s",
+                        dump_name,
+                        dump_pathname
+                    )
 
                 if processor_meta.quit_check:
                     processor_meta.quit_check()

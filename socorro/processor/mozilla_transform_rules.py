@@ -49,6 +49,7 @@ mozilla_processor_rule_sets = [
         "apply_all_rules",
         "socorro.processor.general_transform_rules.IdentifierRule, "
         "socorro.processor.breakpad_transform_rules.BreakpadStackwalkerRule, "
+        "socorro.processor.breakpad_transform_rules.CrashingThreadRule, "
         "socorro.processor.mozilla_transform_rules.ProductRule, "
         "socorro.processor.mozilla_transform_rules.UserDataRule, "
         "socorro.processor.mozilla_transform_rules.EnvironmentRule, "
@@ -234,7 +235,6 @@ class AddonsRule(Rule):
                 addon_pair
             )
             addon_splits.append('')
-        print addon_splits
         return tuple(unquote_plus(x) for x in addon_splits)
 
     #--------------------------------------------------------------------------
@@ -436,6 +436,28 @@ class OutOfMemoryBinaryRule(Rule):
             )
         return True
 
+#--------------------------------------------------------------------------
+def setup_product_id_map(config, local_config, args_unused):
+    database_connection = local_config.database_class(local_config)
+    transaction = local_config.transaction_executor_class(
+        local_config,
+        database_connection
+    )
+    sql = (
+        "SELECT product_name, productid, rewrite FROM "
+        "product_productid_map WHERE rewrite IS TRUE"
+    )
+    product_mappings = transaction(
+        execute_query_fetchall,
+        sql
+    )
+    product_id_map = {}
+    for product_name, productid, rewrite in product_mappings:
+        product_id_map[productid] = {
+            'product_name': product_name,
+            'rewrite': rewrite
+        }
+    return product_id_map
 
 #==============================================================================
 class ProductRewrite(Rule):
@@ -456,30 +478,6 @@ class ProductRewrite(Rule):
         from_string_converter=str_to_python_object,
         reference_value_from='resource.postgresql',
     )
-
-    #--------------------------------------------------------------------------
-    @staticmethod
-    def setup_product_id_map(app_name, config, local_config, args_unused):
-        database_connection = local_config.database_class(local_config)
-        transaction = local_config.transaction_executor_class(
-            local_config,
-            database_connection
-        )
-        sql = (
-            "SELECT product_name, productid, rewrite FROM "
-            "product_productid_map WHERE rewrite IS TRUE"
-        )
-        product_mappings = transaction(
-            execute_query_fetchall,
-            sql
-        )
-        product_id_map = {}
-        for product_name, productid, rewrite in product_mappings:
-            product_id_map[productid] = {
-                'product_name': product_name,
-                'rewrite': rewrite
-            }
-        return product_id_map
 
     required_config.add_aggregation(
         'product_id_map',
@@ -746,15 +744,12 @@ class TopMostFilesRule(Rule):
             stack_frames = (
                 processed_crash.json_dump['crashing_thread']['frames']
             )
-            print stack_frames
         except KeyError:
             # guess we don't have frames or crashing_thread or json_dump
             # we have to give up
             processed_crash.topmost_filenames = None
         for a_frame in stack_frames:
-            print a_frame
             source = a_frame.get('source', None)
-            print source
             if source:
                 processed_crash.topmost_filenames = [source]
                 return True
