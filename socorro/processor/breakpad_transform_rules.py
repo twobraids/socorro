@@ -265,6 +265,7 @@ class CrashingThreadRule(Rule):
             processor_meta.processor_notes.append(
                 'MDSW did not identify the crashing thread'
             )
+
         try:
             processed_crash.truncated = (
                 processed_crash['json_dump']
@@ -272,4 +273,24 @@ class CrashingThreadRule(Rule):
             )
         except KeyError:
             processed_crash.truncated = False
+
+        try:
+            processed_crash.address = (
+                processed_crash['json_dump']
+                ['crash_info']['address']
+            )
+        except KeyError:
+            processed_crash.address = None
+
+        try:
+            processed_crash.reason = (
+                processed_crash['json_dump']
+                ['crash_info']['type']
+            )
+        except KeyError:
+            processed_crash.reason = None
+
+        return True
+
+
 

@@ -49,7 +49,6 @@ mozilla_processor_rule_sets = [
         "apply_all_rules",
         "socorro.processor.general_transform_rules.IdentifierRule, "
         "socorro.processor.breakpad_transform_rules.BreakpadStackwalkerRule, "
-        "socorro.processor.breakpad_transform_rules.CrashingThreadRule, "
         "socorro.processor.mozilla_transform_rules.ProductRule, "
         "socorro.processor.mozilla_transform_rules.UserDataRule, "
         "socorro.processor.mozilla_transform_rules.EnvironmentRule, "
@@ -65,8 +64,12 @@ mozilla_processor_rule_sets = [
         "processer.processed",
         "socorro.lib.transform_rules.TransformRuleSystem",
         "apply_all_rules",
+        "socorro.processor.breakpad_transform_rules.CrashingThreadRule, "
+        "socorro.processor.general_transform_rules.CPUInfoRule, "
+        "socorro.processor.general_transform_rules.OSInfoRule, "
         "socorro.processor.mozilla_transform_rules.ExploitablityRule, "
         "socorro.processor.mozilla_transform_rules.FlashVersionRule, "
+        "socorro.processor.mozilla_transform_rules.TopMostFilesRule, "
         "socorro.processor.signature_utilities.SignatureGenerationRule,"
         "socorro.processor.signature_utilities.OOMSignature, "
         "socorro.processor.signature_utilities.SigTrunc, "
@@ -490,7 +493,11 @@ class ProductRewrite(Rule):
 
     #--------------------------------------------------------------------------
     def _predicate(self, raw_crash, raw_dumps, processed_crash, proc_meta):
-        return raw_crash['ProductID'] in self.config.product_id_map
+        try:
+            return raw_crash['ProductID'] in self.config.product_id_map
+        except KeyError:
+            # no ProductID
+            return False
 
     #--------------------------------------------------------------------------
     def _action(self, raw_crash, raw_dumps, processed_crash, processor_meta):
