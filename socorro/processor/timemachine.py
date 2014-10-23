@@ -28,7 +28,7 @@ class DateProcessedTimeMachine(Rule):
 
     #--------------------------------------------------------------------------
     def _action(self, raw_crash, raw_dumps, processed_crash, processor_meta):
-        crash_id = raw_crash.crash_id
+        crash_id = raw_crash.uuid
         old_processed_crash = self.crashstore.get_unredacted_processed(crash_id)
         for key, value in old_processed_crash.iteritems():
             if 'date_processed' in key:
