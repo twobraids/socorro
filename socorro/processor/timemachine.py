@@ -84,7 +84,7 @@ class PGQueryNewCrashSource(RequiredConfig):
 
         for a_crash_id in crash_ids:
             yield (a_crash_id,)
-            )
+            
 
     #--------------------------------------------------------------------------
     def __call__(self):
