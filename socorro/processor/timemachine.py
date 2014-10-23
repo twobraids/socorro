@@ -1,7 +1,8 @@
-from datetime import timedelta
+from datetime import timedelta, datetime
 
 from socorro.lib.transform_rules import Rule
 from socorro.external.postgresql.dbapi2_util import execute_query_fetchall
+from socorro.lib.datetimeutil import string_to_datetime, date_to_string
 
 from configman import Namespace, RequiredConfig, class_converter
 from configman.converters import str_to_timedelta
@@ -17,13 +18,14 @@ class DateProcessedTimeMachine(Rule):
     )
     required_config.add_option(
         'time_delta',
-        'how much to change the date_processed into the past',
-        default='0 08:00:00',  # 8 hours
+        doc='how much to change the date_processed into the past',
+        default='0 00:00:08',  # 8 hours
         from_string_converter=str_to_timedelta
     )
 
     #--------------------------------------------------------------------------
     def __init__(self, config):
+        super(DateProcessedTimeMachine, self).__init__(config)
         self.crashstore = config.crashstorage_class(config)
 
     #--------------------------------------------------------------------------
@@ -32,8 +34,12 @@ class DateProcessedTimeMachine(Rule):
         old_processed_crash = self.crashstore.get_unredacted_processed(crash_id)
         for key, value in old_processed_crash.iteritems():
             if 'date_processed' in key:
-                processed_crash[key] = value - self.config.time_delta
+                processed_crash[key] = date_to_string(
+                    string_to_datetime(value) - self.config.time_delta
+                )
             else:
+                if 'atetime' in key or "ateTime" in key or 'timestamp' in key:
+                    value = date_to_string(string_to_datetime(value))
                 processed_crash[key] = value
         return True
 
@@ -51,7 +57,6 @@ class PGQueryNewCrashSource(RequiredConfig):
         'crash_id_query',
         doc='sql to get a list of crash_ids',
         default="select uuid from reports where uuid like '%142022' and date_processed > '2014-10-23'",
-        from_string_converter=class_converter
     )
 
     #--------------------------------------------------------------------------
@@ -60,6 +65,7 @@ class PGQueryNewCrashSource(RequiredConfig):
             config,
             quit_check_callback
         )
+        self.config = config
 
 
     #--------------------------------------------------------------------------
@@ -83,9 +89,39 @@ class PGQueryNewCrashSource(RequiredConfig):
         )
 
         for a_crash_id in crash_ids:
-            yield (a_crash_id,)
-            
+            yield a_crash_id
+
+        while True:
+            yield None
+
 
     #--------------------------------------------------------------------------
     def __call__(self):
         return self.__iter__()
+
+
+from ujson import dumps
+
+from socorro.processor.processor_2015 import Processor2015
+
+#------------------------------------------------------------------------------
+time_machine_rule_set = [
+    [   # rules to transform a raw crash into a processed crash
+        "raw_to_processed_transform",
+        "processer.raw_to_processed",
+        "socorro.lib.transform_rules.TransformRuleSystem",
+        "apply_all_rules",
+        "socorro.processor.timemachine.DateProcessedTimeMachine"
+    ],
+]
+
+
+#==============================================================================
+class TimeMachineAlgorithm(Processor2015):
+    """this is the class that processor uses to transform """
+
+    Processor2015.required_config.rule_sets.set_default(
+        dumps(time_machine_rule_set),
+        force=True
+    )
+
