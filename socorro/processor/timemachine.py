@@ -19,8 +19,14 @@ class DateProcessedTimeMachine(Rule):
     required_config.add_option(
         'time_delta',
         doc='how much to change the date_processed into the past',
-        default='0 00:00:08',  # 8 hours
+        default='0 08:00:00',  # 8 hours
         from_string_converter=str_to_timedelta
+    )
+    required_config.add_option(
+        'dry_run',
+        doc="don't really do it",
+        short_form='D',
+        default=False
     )
 
     #--------------------------------------------------------------------------
@@ -32,6 +38,12 @@ class DateProcessedTimeMachine(Rule):
     def _action(self, raw_crash, raw_dumps, processed_crash, processor_meta):
         crash_id = raw_crash.uuid
         old_processed_crash = self.crashstore.get_unredacted_processed(crash_id)
+        if self.config.dry_run:
+            value = string_to_datetime(old_processed_crash['date_processed'])
+            print old_processed_crash['uuid'], \
+                  value, \
+                  value - self.config.time_delta
+
         for key, value in old_processed_crash.iteritems():
             if 'date_processed' in key:
                 processed_crash[key] = date_to_string(
