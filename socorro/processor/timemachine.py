@@ -3,7 +3,7 @@ from datetime import timedelta
 from socorro.lib.transform_rules import Rule
 from socorro.external.postgresql.dbapi2_util import execute_query_fetchall
 
-from configman import Namespace, RequiredConfig
+from configman import Namespace, RequiredConfig, class_converter
 from configman.converters import str_to_timedelta
 
 #==============================================================================
