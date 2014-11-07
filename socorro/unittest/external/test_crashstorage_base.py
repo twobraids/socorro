@@ -730,7 +730,7 @@ class TestCrypto(TestCase):
         mock_logging = Mock()
         required_config.add_option('logger', default=mock_logging)
         required_config.update(CryptoCrashStorage.get_required_config())
-        fake_crash_store = Mock()
+        fake_crash_store_class = Mock()
 
         config_manager = ConfigurationManager(
           [required_config],
@@ -739,7 +739,7 @@ class TestCrypto(TestCase):
           app_description='app description',
           values_source_list=[{
             'logger': mock_logging,
-            'wrapped_crashstore': fake_crash_store,
+            'wrapped_crashstore': fake_crash_store_class,
             'password': 'password',
           }],
           argv_source=[]
@@ -750,9 +750,9 @@ class TestCrypto(TestCase):
               config,
               quit_check_callback=fake_quit_check
             )
-            crashstorage.start_timer = lambda: 0
-            crashstorage.end_timer = lambda: 1
-            fake_crash_store.assert_called_with(config, fake_quit_check)
+            fake_crash_store_class.assert_called_with(config, fake_quit_check)
+            fake_crash_store = crashstorage.wrapped_crashstore
+
 
             crashstorage.save_raw_crash({}, 'payload', 'ooid')
             args = crashstorage.wrapped_crashstore.save_raw_crash.call_args[0]
