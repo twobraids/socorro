@@ -1881,11 +1881,10 @@ class TestMissingSymbols(TestCase):
 
         rule = MissingSymbolsRule(config)
 
-        with patch(
-            'socorro.processor.mozilla_transform_rules.execute_no_results'
-        ) as execute_no_results_mock:
-            rule.act(raw_crash, raw_dumps, processed_crash, processor_meta)
-            args = str(execute_no_results_mock.call_args)
-            ok_('now' in args)
-            ok_('ABCDEFG' in args)
-            ok_('some-file.pdb' in args)
+        # the call to be tested
+        rule.act(raw_crash, raw_dumps, processed_crash, processor_meta)
+
+        from socorro.external.postgresql.dbapi2_util import execute_no_results
+        config.transaction_executor_class.return_value.assert_called_with(
+            execute_no_results, rule.sql, ('now', 'some-file.pdb', 'ABCDEFG')
+        )

@@ -763,6 +763,10 @@ class MissingSymbolsRule(Rule):
             config,
             self.database,
         )
+        self.sql = (
+            "INSERT INTO missing_symbols(date, debug_file, debug_id) "
+            "VALUES (%s, %s)"
+        )
 
     #--------------------------------------------------------------------------
     def version(self):
@@ -776,8 +780,6 @@ class MissingSymbolsRule(Rule):
         else:
             return False
 
-        sql = """INSERT INTO missing_symbols(date, debug_file, debug_id)
-                 VALUES (%s, %s)"""
         if 'modules' in processed_crash['json_dump'] and \
             'date_processed' in processed_crash:
             date_processed = processed_crash['date_processed']
@@ -785,7 +787,7 @@ class MissingSymbolsRule(Rule):
                 if 'missing_symbols' in module and module['missing_symbols']:
                     debug_file = module['debug_file']
                     debug_id = module['debug_id']
-                    self.transaction(execute_no_results, sql,
+                    self.transaction(execute_no_results, self.sql,
                                      (date, debug_file, debug_id))
                 else:
                     return False
