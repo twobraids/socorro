@@ -33,6 +33,7 @@ from socorro.processor.mozilla_transform_rules import (
     Winsock_LSPRule,
     TopMostFilesRule,
     MissingSymbolsRule,
+    MD5Rule,
 )
 
 canonical_standard_raw_crash = DotDict({
@@ -1905,3 +1906,55 @@ class TestMissingSymbols(TestCase):
         config.transaction_executor_class.return_value.assert_has_calls(
                 expected_execute_args
         )
+
+
+#==============================================================================
+class TestMD5Rule(TestCase):
+
+    #--------------------------------------------------------------------------
+    def get_basic_config(self):
+        config = CDotDict()
+        config.logger = Mock()
+        config.chatty = False
+        return config
+
+    #--------------------------------------------------------------------------
+    def get_basic_processor_meta(self):
+        processor_meta = DotDict()
+        processor_meta.processor_notes = []
+
+        return processor_meta
+
+    #--------------------------------------------------------------------------
+    def test_everything_we_hoped_for(self):
+        config = self.get_basic_config()
+
+        raw_crash = copy.copy(canonical_standard_raw_crash)
+        expected_raw_crash = copy.copy(raw_crash)
+        expected_raw_crash['dump_hash'] = {
+            'alpha': '5bbc58fa61648e2ce057234ad6ddfaf7',
+            'beta':  '4db7bb21baaf16420b65e70650bf3777',
+            'gamma': 'c108c378768027a73ea19d1137743e94',
+
+        }
+        raw_dumps = {
+            'alpha': 'now is the time',
+            'beta':  'for all the dump',
+            'gamma': 'to be hashed',
+        }
+        expected_unchanged_raw_dumps = copy.copy(raw_dumps)
+        processed_crash = {}
+        processor_meta = {}
+
+        rule = MD5Rule(config)
+
+        # the call to be tested
+        rule.act(raw_crash, raw_dumps, processed_crash, processor_meta)
+
+        eq_(raw_crash, expected_raw_crash)
+
+        # processed_crash and raw dumps should be unchanged
+        eq_(processed_crash, {})
+        eq_(raw_dumps, expected_unchanged_raw_dumps)
+        eq_(processor_meta, {})
+

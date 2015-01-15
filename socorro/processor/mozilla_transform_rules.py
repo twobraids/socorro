@@ -6,6 +6,7 @@ import datetime
 import time
 import ujson
 import re
+import hashlib
 
 from sys import maxint
 
@@ -798,3 +799,21 @@ class MissingSymbolsRule(Rule):
         except KeyError:
             return False
         return True
+
+
+#==============================================================================
+class MD5Rule(Rule):
+
+    #--------------------------------------------------------------------------
+    def version(self):
+        return '1.0'
+
+    #--------------------------------------------------------------------------
+    def _action(self, raw_crash, raw_dumps, processed_crash, processor_meta):
+
+        raw_crash['dump_hash'] = hash_dict = {}
+        for dump_name, dump in raw_dumps.iteritems():
+            hash_dict[dump_name] = hashlib.md5(dump).hexdigest()
+
+        return True
+
