@@ -46,7 +46,25 @@ from configman import (
     environment,
     command_line,
 )
+from configman.dotdict import DotDict, iteritems_breadth_first
 from configman.converters import py_obj_to_str
+
+#------------------------------------------------------------------------------
+def make_lower_environment(a_mapping):
+    """return a DotDict that is a copy of the provided mapping with keys
+    transformed into a configman compatible form:
+        all doubled underscores will be replaced  with the '.' character.
+        all uppercase letters replaced with lowercase
+    """
+    configmanized_keys_dict = DotDict()
+    for k, v in iteritems_breadth_first(a_mapping):
+        if '__' in k:
+            k = k.replace('__', '.')
+        configmanized_keys_dict[k.lower()] = v
+    return configmanized_keys_dict
+
+
+lower_environment = make_lower_environment(os.environ)
 
 #------------------------------------------------------------------------------
 # every socorro app has a class method called 'get_application_defaults' from
@@ -203,7 +221,7 @@ class SocorroApp(RequiredConfig):
                 # pull in any configuration file
                 ConfigFileFutureProxy,
                 # get values from the environment
-                environment,
+                lower_environment,
                 # use the command line to get the final overriding values
                 command_line
             ]
