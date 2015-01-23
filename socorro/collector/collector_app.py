@@ -10,8 +10,7 @@
 # replace the ".../" with something that makes sense for your environment
 # set both socorro and configman in your PYTHONPATH
 
-from socorro.app.generic_app import App, main
-
+from socorro.app.socorro_app import App, main, lower_environment
 
 from configman import Namespace
 from configman.converters import class_converter

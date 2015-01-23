@@ -2,6 +2,10 @@ import os
 from socorro.app.generic_app import main
 from socorro.collector.collector_app import CollectorApp
 from socorro.webapi.servers import ApacheModWSGI
+from socorro.collector.collector_app import (
+    application,
+    lower_environment
+)
 import socorro.collector.collector_app
 
 from configman import (
@@ -21,8 +25,6 @@ main(
     config_path=config_path,
     values_source_list=[
         ConfigFileFutureProxy,
-        environment
+        lower_environment
     ]
 )
-
-application = socorro.collector.collector_app.application

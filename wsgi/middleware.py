@@ -2,6 +2,10 @@ import os
 from socorro.app.generic_app import main
 from socorro.middleware.middleware_app import MiddlewareApp
 from socorro.webapi.servers import ApacheModWSGI
+from socorro.middleware.middleware_app import (
+    application,
+    lower_environment
+)
 import socorro.middleware.middleware_app
 
 from configman import (
@@ -21,8 +25,6 @@ main(
     config_path=config_path,
     values_source_list=[
         ConfigFileFutureProxy,
-        environment
+        lower_environment
     ]
 )
-
-application = socorro.middleware.middleware_app.application
