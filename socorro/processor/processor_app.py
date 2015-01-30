@@ -200,10 +200,11 @@ class ProcessorApp(FetchTransformSaveApp):
         new_crash_source, and the processor algorithm implementation."""
         super(ProcessorApp, self)._setup_source_and_destination()
 
-        self.companion_process = self.config.companion_process.companion_class(
-          self.config.companion_process,
-          self.quit_check
-        )
+        self.companion_process = \
+            self.config.companion_process.companion_classname(
+                self.config.companion_process,
+                self.quit_check
+            )
 
         self.processor_name = "%s.%d:2015" % (
             os.uname()[1].replace('.', '_'),

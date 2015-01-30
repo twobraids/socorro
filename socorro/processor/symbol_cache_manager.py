@@ -7,6 +7,7 @@ import sys
 import threading
 from datetime import datetime
 from collections import defaultdict
+from ordereddict import OrderedDict
 
 from configman import Namespace, RequiredConfig
 from configman.converters import class_converter, timedelta_converter
@@ -137,8 +138,8 @@ class SymbolLRUCacheManager(RequiredConfig):
        cleaner"""
         self.config = config
 
-        self.directory = os.path.abspath(config.directory)
-        self.max_size = config.symbols_cache_size
+        self.directory = os.path.abspath(config.symbol_cache_path)
+        self.max_size = config.symbol_cache_size
         self.verbosity = config.verbosity
         # Cache state
         self.total_size = 0
