@@ -9,8 +9,6 @@ from datetime import datetime, timedelta
 from configman import ConfigurationManager
 from nose.tools import eq_, ok_, assert_raises
 
-from socorro.processor.registration_client import (
-
 from socorro.unittest.testbase import TestCase
 
 

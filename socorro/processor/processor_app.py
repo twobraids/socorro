@@ -61,7 +61,7 @@ class ProcessorApp(FetchTransformSaveApp):
     #     the processor so that the monitor is aware of it.
     #--------------------------------------------------------------------------
     required_config.namespace('companion_process')
-    required_config.registrar.add_option(
+    required_config.companion_process.add_option(
       'companion_classname',
       doc='a classname that runs a process in parallel with the processor',
       default='socorro.processor.symbol_cache_manager.'
