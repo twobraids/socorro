@@ -37,8 +37,11 @@ class BreakpadStackwalkerRule(Rule):
         doc='the template for the command to invoke stackwalker',
         default=(
             'timeout -s KILL 30 $minidump_stackwalk_pathname '
-            '--raw-json $rawfilePathname $dumpfilePathname '
-            '$processor_symbols_pathname_list 2>/dev/null'
+            '--raw-json $rawfilePathname '
+            '--symbols-url $symbols_url '
+            '$dumpfilePathname '
+            #'$processor_symbols_pathname_list 2>/dev/null '
+            '2>/dev/null'
         ),
     )
     required_config.add_option(
@@ -53,23 +56,27 @@ class BreakpadStackwalkerRule(Rule):
         'embedded spaces)',
         default='/mnt/socorro/symbols',
     )
-    required_config.add_option(
-        'processor_symbols_pathname_list',
-        doc='comma or space separated list of symbol files for '
-        'minidump_stackwalk (quote paths with embedded spaces)',
-        default='/mnt/socorro/symbols/symbols_ffx,'
-        '/mnt/socorro/symbols/symbols_sea,'
-        '/mnt/socorro/symbols/symbols_tbrd,'
-        '/mnt/socorro/symbols/symbols_sbrd,'
-        '/mnt/socorro/symbols/symbols_os',
-        from_string_converter=_create_symbol_path_str
-    )
+    #required_config.add_option(
+        #'processor_symbols_pathname_list',
+        #doc='comma or space separated list of symbol files for '
+        #'minidump_stackwalk (quote paths with embedded spaces)',
+        #default='/mnt/socorro/symbols/symbols_ffx,'
+        #'/mnt/socorro/symbols/symbols_sea,'
+        #'/mnt/socorro/symbols/symbols_tbrd,'
+        #'/mnt/socorro/symbols/symbols_sbrd,'
+        #'/mnt/socorro/symbols/symbols_os',
+        #from_string_converter=_create_symbol_path_str
+    #)
     required_config.add_option(
         'temporary_file_system_storage_path',
         doc='a path where temporary files may be written',
         default='/tmp',
     )
-
+    required_config.add_option(
+        'symbols_url',
+        doc="an external location from which to download symbols",
+        default="",
+    )
 
     #--------------------------------------------------------------------------
     def __init__(self, config):

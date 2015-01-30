@@ -430,7 +430,7 @@ class TestExternalProcessRule(TestCase):
             '$dumpfilePathname '
             '$processor_symbols_pathname_list 2>/dev/null'
         )
-        config.command_pathname = 'bogus_command'
+        config.minidump_stackwalk_pathname = 'bogus_command'
         config.symbol_cache_path = '/mnt/socorro/symbols'
         config.symbols_url = 'https://localhost'
         config.result_key = 'bogus_command_result'
