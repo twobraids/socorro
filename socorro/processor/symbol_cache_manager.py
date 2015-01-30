@@ -7,7 +7,6 @@ import sys
 import threading
 from datetime import datetime
 from collections import defaultdict
-from ordereddict import OrderedDict
 
 from configman import Namespace, RequiredConfig
 from configman.converters import class_converter, timedelta_converter
