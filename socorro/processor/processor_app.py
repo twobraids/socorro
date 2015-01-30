@@ -62,7 +62,7 @@ class ProcessorApp(FetchTransformSaveApp):
     #--------------------------------------------------------------------------
     required_config.namespace('companion_process')
     required_config.companion_process.add_option(
-      'companion_classname',
+      'companion_class',
       doc='a classname that runs a process in parallel with the processor',
       default='socorro.processor.symbol_cache_manager.'
               'SymbolLRUCacheManager',
@@ -201,7 +201,7 @@ class ProcessorApp(FetchTransformSaveApp):
         super(ProcessorApp, self)._setup_source_and_destination()
 
         self.companion_process = \
-            self.config.companion_process.companion_classname(
+            self.config.companion_process.companion_class(
                 self.config.companion_process,
                 self.quit_check
             )
