@@ -58,7 +58,7 @@ class TestProcessorApp(TestCase):
 
         config.companion_process = DotDict()
         mocked_companion_process = mock.Mock()
-        config.companion_process.companion_process_class = mock.Mock(
+        config.companion_process.companion_class = mock.Mock(
           return_value=mocked_companion_process
         )
 
