@@ -128,7 +128,7 @@ class SymbolLRUCacheManager(RequiredConfig):
         'verbosity',
         doc="how chatty should this be? 1 - writes to stdout,"
             " 2 - uses the logger",
-        default=1,
+        default=0,
         from_string_converter=int
     )
 
