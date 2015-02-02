@@ -124,6 +124,8 @@ pyflakes==0.8.1
 pyhs2==0.6.0
 # sha256: TzJCJuHuhaxBUgV5up3nAylAEmAuU2IX_Q50VuFH2IY
 sasl==0.1.3
+# sha256: 58UqnzbO4nxdCTHs-SlZzQIjF7AJAb007wXs5KKlyxs
+pyinotify==0.9.5
 
 # things needed specifically for the webapp
 
