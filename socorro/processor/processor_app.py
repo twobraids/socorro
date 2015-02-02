@@ -56,9 +56,9 @@ class ProcessorApp(FetchTransformSaveApp):
       from_string_converter=class_converter
     )
     #--------------------------------------------------------------------------
-    # registrar namespace
-    #     this namespace is for config parameters having to do with registering
-    #     the processor so that the monitor is aware of it.
+    # companion namespace
+    #     this namespace is for config parameters having to do with setup or
+    #     parallel tasks 
     #--------------------------------------------------------------------------
     required_config.namespace('companion_process')
     required_config.companion_process.add_option(

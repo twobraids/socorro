@@ -424,6 +424,30 @@ class TestExternalProcessRule(TestCase):
         config.chatty = True
         config.dump_field = 'upload_file_minidump'
         config.command_line = (
+            'timeout -s KILL 30 %(command_pathname)s '
+            '%%(dump_file_pathname)s '
+            '%(processor_symbols_pathname_list)s 2>/dev/null'
+        )
+        config.command_pathname = 'bogus_command'
+        config.processor_symbols_pathname_list = (
+            '/mnt/socorro/symbols/symbols_ffx,'
+            '/mnt/socorro/symbols/symbols_sea,'
+            '/mnt/socorro/symbols/symbols_tbrd,'
+            '/mnt/socorro/symbols/symbols_sbrd,'
+            '/mnt/socorro/symbols/symbols_os'
+        )
+        config.symbol_cache_path = '/mnt/socorro/symbols'
+        config.result_key = 'bogus_command_result'
+        config.return_code_key = 'bogus_command_return_code'
+        return config
+
+    #--------------------------------------------------------------------------
+    def get_basic_config_2(self):
+        config = CDotDict()
+        config.logger = Mock()
+        config.chatty = True
+        config.dump_field = 'upload_file_minidump'
+        config.command_line = (
             'timeout -s KILL 30 $minidump_stackwalk_pathname '
             '--raw-json $rawfilePathname '
             '--symbols-url $symbols_url '
@@ -469,10 +493,10 @@ class TestExternalProcessRule(TestCase):
         # the call to be tested
         rule.act(raw_crash, raw_dumps, processed_crash, processor_meta)
         mocked_subprocess_module.Popen.assert_called_with(
-            'timeout -s KILL 30 bogus_command '
-            '--raw-json inadvertantCamelCase '
-            '--symbols-url https://localhost'
-            'a_fake_dump.dump '
+            'timeout -s KILL 30 bogus_command a_fake_dump.dump '
+            '/mnt/socorro/symbols/symbols_ffx,/mnt/socorro/symbols/'
+            'symbols_sea,/mnt/socorro/symbols/symbols_tbrd,/mnt/socorro/'
+            'symbols/symbols_sbrd,/mnt/socorro/symbols/symbols_os'
             ' 2>/dev/null',
             shell=True,
             stdout=mocked_subprocess_module.PIPE
