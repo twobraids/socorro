@@ -15,7 +15,10 @@ from socorro.dataservice.util import (
     classes_in_namespaces_converter,
 )
 
-SERVICES_LIST = ('socorro.external.postgresql.bugs_service.Bugs',)
+SERVICES_LIST = (
+    'socorro.external.postgresql.bugs_service.Bugs',
+    'socorro.dataservice.services.tagging_service.TaggingService',
+)
 
 # Allow configman to dynamically load the configuration and classes
 # for our API dataservice objects
