@@ -161,6 +161,7 @@ for key in settings.DATASERVICE_CONFIG.keys_breadth_first(include_dicts=True):
             expect_json = local_config.output_is_json
             cache_seconds = local_config.cache_seconds
             uri = local_config.uri
+            is_documented = True
 
             API_BINARY_RESPONSE = local_config.api_binary_response
             API_BINARY_FILENAME = local_config.api_binary_filename
@@ -169,6 +170,9 @@ for key in settings.DATASERVICE_CONFIG.keys_breadth_first(include_dicts=True):
             API_REQUIRED_PERMISSIONS = \
                 local_config.api_required_permissions
 
+            #-------------------------------------------------------------------
+            def __init__(self, config=local_config):
+                self.config = config
             #-------------------------------------------------------------------
             @memoize
             def get(self, **kwargs):
