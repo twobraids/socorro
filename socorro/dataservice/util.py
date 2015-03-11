@@ -2,8 +2,12 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
+import contextlib
+
 from configman import Namespace, RequiredConfig
 from configman.converters import class_converter, py_obj_to_str
+
+from socorro.webapi.webapiService import DataserviceWebServiceBase
 
 
 #------------------------------------------------------------------------------
@@ -116,3 +120,135 @@ def classes_in_namespaces_converter(
 
         return InnerClassList  # result of class_list_converter
     return class_list_converter  # result of classes_in_namespaces_converter
+
+
+#==============================================================================
+class ServiceBase(DataserviceWebServiceBase):
+
+    """
+    Base class for PostgreSQL based service implementations.
+    """
+
+    required_config = Namespace()
+    required_config.add_option(
+        'impl',
+        doc='the qualified name of a class that implements the service',
+        default=None,
+        from_string_converter=class_converter
+    )
+
+    required_config.add_option(
+        'output_is_json',
+        doc='Does this service provide json output?',
+        default=True,
+    )
+    required_config.add_option(
+        'cache_seconds',
+        doc='number of seconds to store results in filesystem cache',
+        default=3600,
+    )
+    required_config = Namespace()
+    required_config.add_option(
+        'api_whitelist',
+        doc='whitelist',
+        default={
+            'hits': (
+                'id',
+                'signature',
+            )
+        },
+    )
+    required_config.add_option(
+        'required_params',
+        default=('signatures',),
+    )
+    required_config.add_option(
+        'method',
+        default='post',
+        doc='what is the default method for doing what needs to be done',
+    )
+    required_config.add_option(
+        'uri',
+        default=r'/bugs/(.*)',
+        doc='Regular expression for matching URLs in Django urls.py'
+    )
+    required_config.add_option(
+        'api_binary_response',
+        doc='api binary response',
+        default={}
+    )
+    required_config.add_option(
+        'api_binary_filename',
+        doc='api binary filename',
+        default=None
+    )
+    required_config.add_option(
+        'api_binary_permissions',
+        doc='api binary permissions',
+        default=()
+    )
+    required_config.add_option(
+        'api_required_permissions',
+        doc='api required permissions',
+        default=None
+    )
+
+    #--------------------------------------------------------------------------
+    def __init__(self, config):
+        """
+        Store the config and create a connection to the database.
+
+        Keyword arguments:
+        config -- Configuration of the application.
+
+        """
+        super(ServiceBase, self).__init__(config)
+        self.crash_store = self.config.crashstorage_class(self.config)
+
+    #--------------------------------------------------------------------------
+    @staticmethod
+    def parse_versions(versions_list, products):
+        """
+        Parses the versions, separating by ":" and returning versions
+        and products.
+        """
+        versions = []
+
+        for v in versions_list:
+            if v.find(":") > -1:
+                pv = v.split(":")
+                versions.append(pv[0])
+                versions.append(pv[1])
+            else:
+                products.append(v)
+
+        return (versions, products)
+
+    #--------------------------------------------------------------------------
+    @staticmethod
+    def prepare_terms(terms, search_mode):
+        """
+        Prepare terms for search, adding '%' where needed,
+        given the search mode.
+        """
+        if search_mode in ("contains", "starts_with"):
+            terms = terms.replace("_", "\_").replace("%", "\%")
+
+        if search_mode == "contains":
+            terms = "%" + terms + "%"
+        elif search_mode == "starts_with":
+            terms = terms + "%"
+        return terms
+
+    #--------------------------------------------------------------------------
+    @staticmethod
+    def dispatch_params(sql_params, key, value):
+        """
+        Dispatch a parameter or a list of parameters into the params array.
+        """
+        if not isinstance(value, list):
+            sql_params[key] = value
+        else:
+            for i, elem in enumerate(value):
+                sql_params[key + str(i)] = elem
+        return sql_params
