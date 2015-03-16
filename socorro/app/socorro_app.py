@@ -331,6 +331,7 @@ def setup_logger(config, local_unused, args_unused):
     to Configman, that library will setup and initialize the logging system
     automatically and then offer the logger as an object within the
     configuration object."""
+    print "********************setup_logger"
     try:
         app_name = config.application.app_name
     except KeyError:

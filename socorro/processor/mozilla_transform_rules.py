@@ -392,6 +392,7 @@ class OutOfMemoryBinaryRule(Rule):
 
 #--------------------------------------------------------------------------
 def setup_product_id_map(config, local_config, args_unused):
+    print "!!!!!!!!!!!!!!setup_product_id_map"
     database_connection = local_config.database_class(local_config)
     transaction = local_config.transaction_executor_class(
         local_config,
