@@ -392,7 +392,6 @@ class OutOfMemoryBinaryRule(Rule):
 
 #--------------------------------------------------------------------------
 def setup_product_id_map(config, local_config, args_unused):
-    print "!!!!!!!!!!!!!!setup_product_id_map"
     database_connection = local_config.database_class(local_config)
     transaction = local_config.transaction_executor_class(
         local_config,
@@ -440,13 +439,22 @@ class ProductRewrite(Rule):
     )
 
     #--------------------------------------------------------------------------
+    def __init__(self, config):
+        super(ProductRewrite, self).__init__(config)
+        self.product_id_map = setup_product_id_map(
+            config,
+            config,
+            None
+        )
+
+    #--------------------------------------------------------------------------
     def version(self):
         return '1.0'
 
     #--------------------------------------------------------------------------
     def _predicate(self, raw_crash, raw_dumps, processed_crash, proc_meta):
         try:
-            return raw_crash['ProductID'] in self.config.product_id_map
+            return raw_crash['ProductID'] in self.product_id_map
         except KeyError:
             # no ProductID
             return False

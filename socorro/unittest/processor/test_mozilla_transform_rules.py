@@ -1175,11 +1175,11 @@ class TestProductRewrite(TestCase):
             ('Chrome', '{ec8030f7-c20a-464f-9b0e-13b3a9e97384}', True),
             ('Safari', '{ec8030f7-c20a-464f-9b0e-13c3a9e97384}', True),
         )
-        config.product_id_map = setup_product_id_map(
-            config,
-            config,
-            []
-        )
+        #product_id_map = setup_product_id_map(
+            #config,
+            #config,
+            #[]
+        #)
 
         raw_crash = copy.copy(canonical_standard_raw_crash)
         raw_dumps = {}
@@ -1206,11 +1206,11 @@ class TestProductRewrite(TestCase):
             ('Chrome', '{ec8030f7-c20a-464f-9b0e-13b3a9e97384}', True),
             ('Safari', '{ec8030f7-c20a-464f-9b0e-13c3a9e97384}', True),
         )
-        config.product_id_map = setup_product_id_map(
-            config,
-            config,
-            []
-        )
+        #config.product_id_map = setup_product_id_map(
+            #config,
+            #config,
+            #[]
+        #)
 
         raw_crash = copy.copy(canonical_standard_raw_crash)
         raw_dumps = {}
