@@ -8,12 +8,25 @@ from socorro.external import MissingArgumentError, BadArgumentError
 from socorro.dataservice.util import (
     ServiceBase
 )
+from socorro.lib.converters import change_default
 from socorro.lib import external_common
 
 
 #==============================================================================
 class BugsService(ServiceBase):
-    """Implement the /bugs service with PostgreSQL. """
+    """this is a wrapper class that gives a Web Sevice API to a implementation
+    of the bugs service.  The implementation is loaded by configman and can be
+    any class that implements 'signature' and 'bug_ids' methods.  Currently,
+    the only implementation is in PostgreSQL, but having the separation of
+    interface from implementation allows other users in the future to easily
+    replace it."""
+
+    required_config = Namespace()
+    required_config.uri = change_default(
+        ServiceBase,
+        'uri',
+        r'/bugs/(.*)'
+    )
 
     # This enables creating a bug_ids key whether or not kwargs passes one in
     # needed by post(). Revisit need for this in future API revision.
@@ -25,6 +38,7 @@ class BugsService(ServiceBase):
     #--------------------------------------------------------------------------
     def __init__(self, config):
         self._impl = config.impl(config)
+        #
         self._dispatch = {
             "signatures": self._impl.signatures,
             "bug_ids": self._impl.bug_ids

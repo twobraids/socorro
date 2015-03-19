@@ -1018,9 +1018,9 @@ class TestViews(BaseTestViews):
         ok_('https://url.com/path?thing=bob' in hit['user_comments'])
         eq_(hit['email'], 'some@emailaddress.com')
 
-    @mock.patch('crashstats.crashstats.models.Bugs.get')
+    @mock.patch('crashstats.crashstats.models.BugsService.get')
     def test_Bugs(self, rpost):
-        url = reverse('api:model_wrapper', args=('Bugs',))
+        url = reverse('api:model_wrapper', args=('BugsService',))
         response = self.client.get(url)
         eq_(response.status_code, 400)
         dump = json.loads(response.content)

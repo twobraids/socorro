@@ -124,10 +124,9 @@ def classes_in_namespaces_converter(
 
 #==============================================================================
 class ServiceBase(DataserviceWebServiceBase):
-
-    """
-    Base class for PostgreSQL based service implementations.
-    """
+    """This class is a base class for the wrappers of dataservices.  It
+    provides all the common configman parameters and methods that make up
+    a dataservice"""
 
     required_config = Namespace()
     required_config.add_option(
@@ -136,7 +135,6 @@ class ServiceBase(DataserviceWebServiceBase):
         default=None,
         from_string_converter=class_converter
     )
-
     required_config.add_option(
         'output_is_json',
         doc='Does this service provide json output?',
@@ -147,20 +145,22 @@ class ServiceBase(DataserviceWebServiceBase):
         doc='number of seconds to store results in filesystem cache',
         default=3600,
     )
-    required_config = Namespace()
     required_config.add_option(
         'api_whitelist',
         doc='whitelist',
         default={
             'hits': (
                 'id',
-                'signature',
             )
         },
     )
     required_config.add_option(
         'required_params',
-        default=('signatures',),
+        default=('',),
+    )
+    required_config.add_option(
+        'possible_params',
+        default=('',),
     )
     required_config.add_option(
         'method',
@@ -169,7 +169,7 @@ class ServiceBase(DataserviceWebServiceBase):
     )
     required_config.add_option(
         'uri',
-        default=r'/bugs/(.*)',
+        default='',
         doc='Regular expression for matching URLs in Django urls.py'
     )
     required_config.add_option(
@@ -252,3 +252,34 @@ class ServiceBase(DataserviceWebServiceBase):
             for i, elem in enumerate(value):
                 sql_params[key + str(i)] = elem
         return sql_params
+
+    #--------------------------------------------------------------------------
+    def get_annotated_params(self):
+        """return an iterator. One dict for each parameter that the
+        class takes.
+        Each dict must have the following keys:
+            * name
+            * type
+            * required
+        """
+        for required, items in (
+            (True, getattr(self, 'required_params', [])),
+            (False, getattr(self, 'possible_params', []))
+        ):
+            for item in items:
+                if isinstance(item, basestring):
+                    type_ = basestring
+                    name = item
+                elif isinstance(item, dict):
+                    type_ = item['type']
+                    name = item['name']
+                else:
+                    assert isinstance(item, tuple)
+                    name = item[0]
+                    type_ = item[1]
+
+                yield {
+                    'name': name,
+                    'required': required,
+                    'type': type_,
+                }

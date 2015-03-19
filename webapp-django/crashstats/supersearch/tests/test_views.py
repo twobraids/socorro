@@ -322,7 +322,7 @@ class TestViews(BaseTestViews):
 
         ok_('exploitability' in content)
 
-    @mock.patch('crashstats.crashstats.models.Bugs.get')
+    @mock.patch('crashstats.crashstats.models.BugsService.get')
     @mock.patch('requests.get')
     def test_search_results(self, rget, cpost):
         def mocked_post(**options):

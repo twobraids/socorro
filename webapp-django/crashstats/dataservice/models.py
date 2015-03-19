@@ -21,178 +21,18 @@ from configman import (
 from configman.dotdict import DotDict
 from socorro.app.socorro_app import App
 from socorro.dataservice.util import (
+    ServiceBase,
     classes_in_namespaces_converter,
 )
 
+# this logger is a problem.  While it uses the Pythonic standard for how
+# loggers are setup, Socorro uses a different model.  Rather than relying
+# on globals, Socorro uses configman to pass loggers between components.
+# Since this logger was not created in that manner, it is never set up
+# correctly to function properly.
 logger = logging.getLogger('dataservice_models')
 
-#==============================================================================
-class PostgreSQLWebServiceBase(DataserviceWebServiceBase):
 
-    """
-    Base class for PostgreSQL based service implementations.
-    """
-
-    required_config = Namespace()
-    required_config.add_option(
-        'crashstorage_class',
-        doc='the source storage class',
-        default='socorro'
-            '.external.postgresql.crashstorage.PostgreSQLCrashStorage',
-        from_string_converter=class_converter
-    )
-    required_config.add_option(
-        'output_is_json',
-        doc='Does this service provide json output?',
-        default=True,
-    )
-    required_config.add_option(
-        'cache_seconds',
-        doc='number of seconds to store results in filesystem cache',
-        default=3600,
-    )
-
-    #--------------------------------------------------------------------------
-    def __init__(self, config):
-        """
-        Store the config and create a connection to the database.
-
-        Keyword arguments:
-        config -- Configuration of the application.
-
-        """
-        super(PostgreSQLWebServiceBase, self).__init__(config)
-        self.crash_store = self.config.crashstorage_class(self.config)
-        self.database = self.crash_store.database
-        self.transaction = self.crash_store.transaction
-
-    #--------------------------------------------------------------------------
-    @contextlib.contextmanager
-    def get_connection(self):
-        with self.database() as connection:
-            yield connection
-
-    #--------------------------------------------------------------------------
-    def query(
-        self,
-        sql,
-        params=None,
-        error_message=None,
-        action=execute_query_fetchall
-    ):
-        """Return the result of a query executed against PostgreSQL.
-
-        Create a connection, open a cursor, execute the query and return the
-        results. If an error occures, log it and raise a DatabaseError.
-
-        Keyword arguments:
-        sql -- SQL query to execute.
-        params -- Parameters to merge into the SQL query when executed.
-        error_message -- Eventual error message to log.
-
-        """
-        try:
-            result = self.transaction(
-                action,
-                sql,
-                params
-            )
-            return result
-        except psycopg2.Error, x:
-            raise
-            self.config.logger.error(
-                error_message if error_message else str(x),
-                exc_info=True
-            )
-            raise DatabaseError(error_message)
-
-    #--------------------------------------------------------------------------
-    def execute_no_results(self, sql, params=None, error_message=None):
-        """Return the result of a delete or update SQL query
-
-        Keyword arguments:
-        sql -- SQL query to execute.
-        params -- Parameters to merge into the SQL query when executed.
-        error_message -- Eventual error message to log.
-
-        """
-        return self.query(
-            sql,
-            params=params,
-            error_message=error_message,
-            action=execute_no_results
-        )
-
-    #--------------------------------------------------------------------------
-    def count(self, sql, params=None, error_message=None):
-        """Return the result of a count SQL query executed against PostgreSQL.
-
-        Create a connection, open a cursor, execute the query and return the
-        result. If an error occures, log it and raise a DatabaseError.
-
-        Keyword arguments:
-        sql -- SQL query to execute.
-        params -- Parameters to merge into the SQL query when executed.
-        error_message -- Eventual error message to log.
-
-        """
-        return self.query(
-            sql,
-            params=params,
-            error_message=error_message,
-            action=single_value_sql
-        )
-
-    #--------------------------------------------------------------------------
-    @staticmethod
-    def parse_versions(versions_list, products):
-        """
-        Parses the versions, separating by ":" and returning versions
-        and products.
-        """
-        versions = []
-
-        for v in versions_list:
-            if v.find(":") > -1:
-                pv = v.split(":")
-                versions.append(pv[0])
-                versions.append(pv[1])
-            else:
-                products.append(v)
-
-        return (versions, products)
-
-    #--------------------------------------------------------------------------
-    @staticmethod
-    def prepare_terms(terms, search_mode):
-        """
-        Prepare terms for search, adding '%' where needed,
-        given the search mode.
-        """
-        if search_mode in ("contains", "starts_with"):
-            terms = terms.replace("_", "\_").replace("%", "\%")
-
-        if search_mode == "contains":
-            terms = "%" + terms + "%"
-        elif search_mode == "starts_with":
-            terms = terms + "%"
-        return terms
-
-    #--------------------------------------------------------------------------
-    @staticmethod
-    def dispatch_params(sql_params, key, value):
-        """
-        Dispatch a parameter or a list of parameters into the params array.
-        """
-        if not isinstance(value, list):
-            sql_params[key] = value
-        else:
-            for i, elem in enumerate(value):
-                sql_params[key + str(i)] = elem
-        return sql_params
-
-
-#-------------------------------------------------------------------------------
 def memoize(function):
     """Decorator for model methods to cache in memory or the filesystem
     using CACHE_MIDDLEWARE and/or CACHE_MIDDLEWARE_FILES Django config"""
@@ -250,7 +90,8 @@ def memoize(function):
                     else:
                         f.write(result)
 
-        # Check if item is in the cache and call the decorated method if needed
+        # Check if item is in the cache and call the decorated method if
+        # needed
         do_cache = settings.CACHE_MIDDLEWARE and instance.cache_seconds
         if do_cache:
             classname = instance.__class__.__name__
@@ -260,7 +101,8 @@ def memoize(function):
             if result is not None:
                 return result
 
-        # Didn't find it in the cache or not using a cache, so run our function
+        # Didn't find it in the cache or not using a cache, so run our
+        # function
         result = function(instance, *args, **kwargs)
 
         if do_cache:
@@ -270,8 +112,7 @@ def memoize(function):
     return memoizer
 
 
-#-------------------------------------------------------------------------------
-SERVICES_LIST = ('socorro.external.postgresql.bugs_service.Bugs',)
+SERVICES_LIST = ('socorro.dataservice.services.bugs_service.BugsService',)
 
 # Allow configman to dynamically load the configuration and classes
 # for our API dataservice objects
@@ -285,8 +126,8 @@ def_source.services.add_option(
 )
 
 # setup configman to create all the configuration information for the
-# dataservices classes.  Save that confguration in the key "DATASERVICE_CONFIG"
-# within the settings imported from django.conf
+# dataservices classes.  Save that confguration in the key
+# "DATASERVICE_CONFIG" within the settings imported from django.conf
 settings.DATASERVICE_CONFIG = configuration(
     definition_source=[
         def_source,
@@ -304,10 +145,14 @@ settings.DATASERVICE_CONFIG = configuration(
 # initialization process.  So we iterate over the settings to create a model
 # each of the services that configman has given in configuration.
 
-# this mapping is keyed by the service class name, with values being the models
-# representing those classes for Django.
+# this mapping is keyed by the service class name, with values being the
+# models representing those classes for Django.
 service_class_name_to_model_class_mapping = {}
 
+# settings.DATASERVICE_CONFIG came from confgiman. It defines a set of nested
+# namespaces that define a dataservice.  Here, we loop over the configuration
+# looking for namespaces - for each one found, we create a ModelForDataSrevice
+# class for that service and save it.
 for key in settings.DATASERVICE_CONFIG.keys_breadth_first(include_dicts=True):
     if (
         key.startswith('services')
@@ -320,10 +165,17 @@ for key in settings.DATASERVICE_CONFIG.keys_breadth_first(include_dicts=True):
         # This class is the template for all the model classes that represent
         # the dataservice classes.  We populate it with class level attributes
         # and the appropriate methods.
-        #=======================================================================
-        class ModelForDataService(object):
+        class ModelForDataService(ServiceBase):
+            # implemetation_class will be a class from the
+            # socorro/dataservice/services package. Classes from this location
+            # are
             implementation_class = impl_class
+
+            # in this section, we define the class attributes for a
+            # dataservice by pulling values out of the configuration provided
+            # by configman.
             required_params = local_config.required_params
+            possible_params = local_config.possible_params
             expect_json = local_config.output_is_json
             cache_seconds = local_config.cache_seconds
             uri = local_config.uri
@@ -333,56 +185,38 @@ for key in settings.DATASERVICE_CONFIG.keys_breadth_first(include_dicts=True):
             API_BINARY_FILENAME = local_config.api_binary_filename
             API_BINARY_PERMISSIONS = local_config.api_binary_permissions
             API_WHITELIST = local_config.api_whitelist
-            API_REQUIRED_PERMISSIONS = \
-                local_config.api_required_permissions
+            API_REQUIRED_PERMISSIONS = local_config.api_required_permissions
 
-            #-------------------------------------------------------------------
             def __init__(self, config=local_config):
                 self.config = config
-            #-------------------------------------------------------------------
-            @memoize
+
+            # @memoize
             def get(self, **kwargs):
                 impl = self.implementation_class(local_config)
-                result = getattr(impl, local_config.method)(**kwargs)
+                try:
+                    result = getattr(impl, local_config.method)(**kwargs)
+                except Exception, x:
+                    print 'get ^^^^^', x
+                    raise
+                print 'get *****', result
                 return result
 
-            #-------------------------------------------------------------------
-            def get_annotated_params(self):
-                """return an iterator. One dict for each parameter that the
-                class takes.
-                Each dict must have the following keys:
-                    * name
-                    * type
-                    * required
-                """
-                for required, items in (
-                    (True, getattr(self, 'required_params', [])),
-                    (False, getattr(self, 'possible_params', []))
-                ):
-                    for item in items:
-                        if isinstance(item, basestring):
-                            type_ = basestring
-                            name = item
-                        elif isinstance(item, dict):
-                            type_ = item['type']
-                            name = item['name']
-                        else:
-                            assert isinstance(item, tuple)
-                            name = item[0]
-                            type_ = item[1]
-
-                        yield {
-                            'name': name,
-                            'required': required,
-                            'type': type_,
-                        }
+            # @memoize
+            def post(self, **kwargs):
+                impl = self.implementation_class(local_config)
+                try:
+                    result = getattr(impl, local_config.method)(**kwargs)
+                except Exception, x:
+                    print 'put ^^^^^', x
+                    raise
+                print 'put *****', result
+                return result
 
         # rename the template class with the same name as the dataservice
         # class
-        ModelForDataService.__name__ = (
-            impl_class.__name__
-        )
-        # save the newly created class to a mapping to preserve it.  This allows
-        # the newly created class to survive outside of the loop.
+        ModelForDataService.__name__ = impl_class.__name__
+
+        # save the newly created class to a mapping to preserve it.  This
+        # allows the newly created class to survive outside of the loop.
         service_class_name_to_model_class_mapping[impl_class.__name__] = \
             ModelForDataService

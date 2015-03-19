@@ -22,6 +22,23 @@ class Bugs(RequiredConfig):
         self.config = config
         crashstore = config.crashstorage_class(config)
         self.transaction = crashstore.transaction
+        self.signatures_sql = """
+        /* socorro.external.postgresql.bugs.Bugs.get */
+            SELECT ba.signature, bugs.id
+            FROM bugs
+                JOIN bug_associations AS ba ON bugs.id = ba.bug_id
+            WHERE bugs.id IN %s
+        """
+        self.bug_ids_sql = """/* socorro.external.postgresql.bugs.Bugs.get */
+            SELECT ba.signature, bugs.id
+            FROM bugs
+                JOIN bug_associations AS ba ON bugs.id = ba.bug_id
+            WHERE EXISTS(
+                SELECT 1 FROM bug_associations
+                WHERE bug_associations.bug_id = bugs.id
+                AND signature IN %s
+            )
+        """
 
     #--------------------------------------------------------------------------
     def action(self, action_name, additional_parameters):
@@ -35,32 +52,16 @@ class Bugs(RequiredConfig):
 
     #--------------------------------------------------------------------------
     def signatures(self, bug_id):
-        sql = """/* socorro.external.postgresql.bugs.Bugs.get */
-            SELECT ba.signature, bugs.id
-            FROM bugs
-                JOIN bug_associations AS ba ON bugs.id = ba.bug_id
-            WHERE bugs.id IN %s
-        """
         return self.transaction(
             execute_query_fetchall,
-            sql,
+            self.signatures_sql,
             (bug_id, ),
         )
 
     #--------------------------------------------------------------------------
     def bug_ids(self, signature):
-        sql = """/* socorro.external.postgresql.bugs.Bugs.get */
-            SELECT ba.signature, bugs.id
-            FROM bugs
-                JOIN bug_associations AS ba ON bugs.id = ba.bug_id
-            WHERE EXISTS(
-                SELECT 1 FROM bug_associations
-                WHERE bug_associations.bug_id = bugs.id
-                AND signature IN %s
-            )
-        """
         return self.transaction(
             execute_query_fetchall,
-            sql,
+            self.bug_ids_sql,
             (signature, ),
         )

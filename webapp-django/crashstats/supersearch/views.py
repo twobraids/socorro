@@ -195,7 +195,7 @@ def search_results(request):
 
         if signatures:
             bugs = defaultdict(list)
-            bugs_api = models.Bugs()
+            bugs_api = models.BugsService()
             for b in bugs_api.get(signatures=signatures)['hits']:
                 bugs[b['signature']].append(b['id'])
 

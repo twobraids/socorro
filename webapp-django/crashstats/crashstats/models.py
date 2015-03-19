@@ -27,7 +27,8 @@ from crashstats.api.cleaner import Cleaner
 # settings.INSTALLED_APPS list.
 # This can happen if you use django-nose on a specific file.
 # See https://bugzilla.mozilla.org/show_bug.cgi?id=1121749
-from crashstats.dataservice.models import service_class_name_to_model_class_mapping
+from crashstats.dataservice.models import \
+    service_class_name_to_model_class_mapping
 # This is a temporary measure to make dataservice models
 # visible to the api
 globals().update(service_class_name_to_model_class_mapping)
@@ -1184,18 +1185,21 @@ class CrashesByExploitability(SocorroMiddleware):
 
 class SignaturesByBugs(SocorroMiddleware):
 
-    settings.DATASERVICE_CONFIG.services.Bugs.required_params = (
+    settings.DATASERVICE_CONFIG.services.BugsService.required_params = (
         'bug_ids',
     )
     required_params = settings.\
-        DATASERVICE_CONFIG.services.Bugs.required_params
-    expect_json = settings.DATASERVICE_CONFIG.services.Bugs.output_is_json
+        DATASERVICE_CONFIG.services.BugsService.required_params
+    expect_json = \
+        settings.DATASERVICE_CONFIG.services.BugsService.output_is_json
 
-    API_WHITELIST = settings.DATASERVICE_CONFIG.services.Bugs.api_whitelist
+    API_WHITELIST = \
+        settings.DATASERVICE_CONFIG.services.BugsService.api_whitelist
 
     def get(self, **kwargs):
-        bugs_cls = settings.DATASERVICE_CONFIG.services.Bugs.service_class
-        bugs = bugs_cls(settings.DATASERVICE_CONFIG.services.Bugs)
+        bugs_cls = \
+            settings.DATASERVICE_CONFIG.services.BugsService.service_class
+        bugs = bugs_cls(settings.DATASERVICE_CONFIG.services.BugsService)
 
         if not kwargs.get('bug_ids'):
             raise ValueError("'bug_ids' can not be empty")

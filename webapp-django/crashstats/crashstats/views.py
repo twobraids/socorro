@@ -502,7 +502,7 @@ def topcrasher(request, product=None, versions=None, date_range_type=None,
         context['numberOfCrashes'] += crash['count']
 
     bugs = defaultdict(list)
-    api = models.Bugs()
+    api = models.BugsService()
     if signatures:
         for b in api.get(signatures=signatures)['hits']:
             bugs[b['signature']].append(b['id'])
@@ -980,7 +980,7 @@ def exploitable_crashes(
     bugs = defaultdict(list)
     signatures = [x['signature'] for x in exploitable['hits']]
     if signatures:
-        api = models.Bugs()
+        api = models.BugsService()
         for b in api.get(signatures=signatures)['hits']:
             bugs[b['signature']].append(b['id'])
     for crash in exploitable['hits']:
@@ -1084,7 +1084,7 @@ def report_index(request, crash_id, default_context=None):
         process_type = 'content'
     context['process_type'] = process_type
 
-    bugs_api = models.Bugs()
+    bugs_api = models.BugsService()
     hits = bugs_api.get(signatures=[context['report']['signature']])['hits']
     # bugs_api.get(signatures=...) will return all signatures associated
     # with the bugs found, but we only want those with matching signature
@@ -1575,7 +1575,7 @@ def report_list(request, partial=None, default_context=None):
         context['comments']['total_count'] = context['comments']['total']
 
     if partial == 'bugzilla':
-        bugs_api = models.Bugs()
+        bugs_api = models.BugsService()
         context['bug_associations'] = bugs_api.get(
             signatures=[context['signature']]
         )['hits']
