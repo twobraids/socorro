@@ -192,6 +192,10 @@ for key in settings.DATASERVICE_CONFIG.keys_breadth_first(include_dicts=True):
 
             # @memoize
             def get(self, **kwargs):
+                params = external_common.parse_arguments(
+                    self.filters,
+                    kwargs
+                )
                 impl = self.implementation_class(local_config)
                 try:
                     result = getattr(impl, local_config.method)(**kwargs)
@@ -203,6 +207,10 @@ for key in settings.DATASERVICE_CONFIG.keys_breadth_first(include_dicts=True):
 
             # @memoize
             def post(self, **kwargs):
+                params = external_common.parse_arguments(
+                    self.filters,
+                    kwargs
+                )
                 impl = self.implementation_class(local_config)
                 try:
                     result = getattr(impl, local_config.method)(**kwargs)
