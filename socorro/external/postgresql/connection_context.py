@@ -71,11 +71,14 @@ class ConnectionContext(RequiredConfig):
         self.config = config
         if local_config is None:
             local_config = config
-        self.dsn = ("host=%(database_hostname)s "
-                    "dbname=%(database_name)s "
-                    "port=%(database_port)s "
-                    "user=%(database_username)s "
-                    "password=%(database_password)s") % local_config
+        if local_config['database_port'] is None:
+            local_config['database_port'] = 5432
+        self.dsn = (
+            "host=%(database_hostname)s "
+            "dbname=%(database_name)s "
+            "port=%(database_port)s "
+            "user=%(database_username)s "
+            "password=%(database_password)s") % local_config
         self.operational_exceptions = (
           psycopg2.OperationalError,
           psycopg2.InterfaceError,
@@ -84,6 +87,9 @@ class ConnectionContext(RequiredConfig):
         self.conditional_exceptions = (
           psycopg2.ProgrammingError,
         )
+
+        import sys
+        print >> sys.stderr, "DDDDDD", self.dsn
 
     #--------------------------------------------------------------------------
     def connection(self, name_unused=None):
