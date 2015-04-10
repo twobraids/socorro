@@ -98,7 +98,10 @@ class TestTransactionExecutor(TestCase):
           argv_source=[]
         )
         with config_manager.context() as config:
+            print "FFFFFF", config.database_class
+
             mocked_context = config.database_class(config)
+
             executor = config.transaction_executor_class(config,
                                                          mocked_context)
             _function_calls = []  # some mutable
