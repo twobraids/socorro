@@ -270,6 +270,11 @@ class SocorroDBApp(App):
                               m.group(1), text)
                 return text
 
+        self.config.logger.debug('PostgreSQLAlchemyManager with: %s', sa_url)
+        self.config.logger.debug(
+            'superuser appropriately in URL: %s',
+            self.config.database_superusername in sa_url
+        )
         with PostgreSQLAlchemyManager(sa_url, self.config.logger,
                                       autocommit=False) as db:
             if not db.min_ver_check(90200):
@@ -319,15 +324,35 @@ class SocorroDBApp(App):
             connection.close()
 
         # Reconnect to set up schema, types and procs
+        alembic_cfg = Config(self.config.alembic_config)
+        alembic_cfg.set_main_option("sqlalchemy.url", sa_url)
+        self.config.logger.debug('PostgreSQLAlchemyManager with: %s', sa_url)
+        self.config.logger.debug(
+            'superuser appropriately not in URL: %s',
+            self.config.database_superusername not in sa_url
+        )
+        with PostgreSQLAlchemyManager(sa_url, self.config.logger) as db:
+            db.setup_admin()
+            if self.no_schema:
+                db.commit()
+                return 0
+
+        # Reconnect to set up schema, types and procs
         sa_url = self.construct_db_url(self.database_name, False)
         alembic_cfg = Config(self.config.alembic_config)
         alembic_cfg.set_main_option("sqlalchemy.url", sa_url)
+        self.config.logger.debug('PostgreSQLAlchemyManager with: %s', sa_url)
+        self.config.logger.debug(
+            'superuser appropriately not in URL: %s',
+            self.config.database_superusername not in sa_url
+        )
         with PostgreSQLAlchemyManager(sa_url, self.config.logger) as db:
             connection = db.engine.connect()
             db.setup_admin()
             if self.no_schema:
                 db.commit()
                 return 0
+
             # Order matters with what follows
             db.create_types()
 
