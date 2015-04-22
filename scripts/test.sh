@@ -88,11 +88,11 @@ for file in *.py.dist; do
 done
 popd
 
-PYTHONPATH=$PYTHONPATH $SETUPDB --database_name=socorro_integration_test --dropdb --logging.stderr_error_logging_level=10 --unlogged --no_staticdata --createdb
+PYTHONPATH=$PYTHONPATH $SETUPDB --database_name=socorro_integration_test --dropdb --logging.stderr_error_logging_level=40 --unlogged --no_staticdata --createdb
 
-PYTHONPATH=$PYTHONPATH $SETUPDB --database_name=socorro_test --dropdb --no_schema --logging.stderr_error_logging_level=10 --unlogged --no_staticdata --createdb
+PYTHONPATH=$PYTHONPATH $SETUPDB --database_name=socorro_test --dropdb --no_schema --logging.stderr_error_logging_level=40 --unlogged --no_staticdata --createdb
 
-PYTHONPATH=$PYTHONPATH $SETUPDB --database_name=socorro_migration_test --dropdb --logging.stderr_error_logging_level=10 --unlogged --createdb
+PYTHONPATH=$PYTHONPATH $SETUPDB --database_name=socorro_migration_test --dropdb --logging.stderr_error_logging_level=40 --unlogged --createdb
 
 grep "sqlalchemy.url" config/alembic.ini
 PYTHONPATH=$PYTHONPATH ${VIRTUAL_ENV}/bin/alembic -c config/alembic.ini downgrade -1
