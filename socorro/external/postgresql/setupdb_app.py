@@ -328,8 +328,8 @@ class SocorroDBApp(App):
         alembic_cfg.set_main_option("sqlalchemy.url", sa_url)
         self.config.logger.debug('PostgreSQLAlchemyManager with: %s', sa_url)
         self.config.logger.debug(
-            'superuser appropriately not in URL: %s',
-            self.config.database_superusername not in sa_url
+            'superuser appropriately in URL: %s',
+            self.config.database_superusername in sa_url
         )
         with PostgreSQLAlchemyManager(sa_url, self.config.logger) as db:
             db.setup_admin()
@@ -347,11 +347,6 @@ class SocorroDBApp(App):
             self.config.database_superusername not in sa_url
         )
         with PostgreSQLAlchemyManager(sa_url, self.config.logger) as db:
-            connection = db.engine.connect()
-            db.setup_admin()
-            if self.no_schema:
-                db.commit()
-                return 0
 
             # Order matters with what follows
             db.create_types()
