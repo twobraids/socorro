@@ -332,7 +332,7 @@ class SocorroDBApp(App):
             self.config.database_superusername in sa_url
         )
         with PostgreSQLAlchemyManager(sa_url, self.config.logger) as db:
-            db.a()
+            db.setup_admin()
             db.commit()
             if self.no_schema:
                 return 0
