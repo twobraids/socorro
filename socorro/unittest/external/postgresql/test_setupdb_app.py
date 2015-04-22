@@ -23,7 +23,7 @@ class NoInheritanceCheatSocorroDBApp(SocorroDBApp):
 
 class TestConnectionContext(TestCase):
 
-    def test_construct_db_url_no_super(self):
+    def test_create_connection_url_no_super(self):
         """from PG Docs:
         postgresql://[user[:password]@][netloc][:port][/dbname]"""
         test_cases_no_super = (
@@ -77,9 +77,9 @@ class TestConnectionContext(TestCase):
         )
         for a_config, expected_result in test_cases_no_super:
             setup_app = NoInheritanceCheatSocorroDBApp(a_config)
-            eq_(setup_app.construct_db_url(), expected_result)
+            eq_(setup_app.create_connection_url(), expected_result)
 
-    def test_construct_db_url_with_super(self):
+    def test_create_connection_url_with_super(self):
         """from PG Docs:
         postgresql://[user[:password]@][netloc][:port][/dbname]"""
         test_cases_no_super = (
@@ -140,10 +140,10 @@ class TestConnectionContext(TestCase):
         )
         for a_config, expected_result in test_cases_no_super:
             setup_app = NoInheritanceCheatSocorroDBApp(a_config)
-            eq_(setup_app.construct_db_url(None, True), expected_result)
+            eq_(setup_app.create_connection_url(None, True), expected_result)
 
 
-    def test_construct_db_url_overriding_dbname(self):
+    def test_create_connection_url_overriding_dbname(self):
         """from PG Docs:
         postgresql://[user[:password]@][netloc][:port][/dbname]"""
         test_cases_no_super = (
@@ -197,7 +197,7 @@ class TestConnectionContext(TestCase):
         )
         for a_config, expected_result in test_cases_no_super:
             setup_app = NoInheritanceCheatSocorroDBApp(a_config)
-            eq_(setup_app.construct_db_url("mydb"), expected_result)
+            eq_(setup_app.create_connection_url("mydb"), expected_result)
 
 
 @attr(integration='postgres')

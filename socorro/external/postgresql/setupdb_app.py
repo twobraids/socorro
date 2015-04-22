@@ -249,9 +249,9 @@ class SocorroDBApp(App):
             if password:
                 url += ':%s' % password
             url += '@'
-        if database_hostname:
+        if hostname:
             url += '%s' % hostname
-        if database_port:
+        if port:
             url += ':%s' % port
         if database_name:
             url += '/%s' % database_name
@@ -305,6 +305,10 @@ class SocorroDBApp(App):
         # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
         # Postgres version check section
         # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+        self.config.logger.info(
+            'Postgres version check section with %s',
+            superuser_pg_url
+        )
         with PostgreSQLAlchemyManager(
             superuser_pg_url,
             self.config.logger,
@@ -324,6 +328,10 @@ class SocorroDBApp(App):
         # We can only do the following if the DB is not Heroku
         # XXX Might add the heroku commands for resetting a DB here
         if self.config.dropdb and not self.config.on_heroku:
+            self.config.logger.info(
+                'drop database section with %s',
+                superuser_pg_url
+            )
             with PostgreSQLAlchemyManager(
                 superuser_pg_url,
                 self.config.logger,
@@ -341,6 +349,10 @@ class SocorroDBApp(App):
         # create database section
         # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
         if self.config.createdb:
+            self.config.logger.info(
+                'create database section with %s',
+                superuser_pg_url
+            )
             with PostgreSQLAlchemyManager(
                 superuser_pg_url,
                 self.config.logger,
@@ -355,6 +367,10 @@ class SocorroDBApp(App):
         # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
         # database extensions section
         # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+        self.config.logger.info(
+            'database extensions section with %s',
+            superuser_pg_url
+        )
         with PostgreSQLAlchemyManager(
             superuser_pg_url,
             self.config.logger,
@@ -362,7 +378,7 @@ class SocorroDBApp(App):
             on_heroku=self.config.on_heroku
         ) as db:
             db.setup_extensions()
-            db.grant_public_schema_ownership(normal_username)
+            db.grant_public_schema_ownership(self.config.database_username)
             db.commit()
 
         # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -375,6 +391,10 @@ class SocorroDBApp(App):
         alembic_cfg = Config(self.config.alembic_config)
         alembic_cfg.set_main_option('sqlalchemy.url', superuser_pg_url)
 
+        self.config.logger.info(
+            'database schema section with %s',
+            normal_user_pg_url
+        )
         with PostgreSQLAlchemyManager(
             normal_user_pg_url,
             self.config.logger,
@@ -401,8 +421,12 @@ class SocorroDBApp(App):
             db.session.close()
 
         # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-        # database schema section
+        # database owner section
         # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+        self.config.logger.info(
+            'database extensions section with %s',
+            superuser_pg_url
+        )
         with PostgreSQLAlchemyManager(
             superuser_pg_url,
             self.config.logger,
