@@ -11,7 +11,7 @@ PYTHONPATH=.
 
 PG_RESOURCES=""
 if [ -n "$database_url" ]; then
-    echo database_url is present, specifying parameters on the command line is not necessary ( $database_url )
+    echo database_url is present, specifying parameters on the command line is not necessary \( $database_url \)
 else
     # This clause is all legacy and can be removed once we switch to use database_url in config
     if [ -n "$database_hostname" ]; then
