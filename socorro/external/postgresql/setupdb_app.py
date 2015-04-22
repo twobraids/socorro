@@ -399,7 +399,7 @@ class SocorroDBApp(App):
             return 0
 
         alembic_cfg = Config(self.config.alembic_config)
-        alembic_cfg.set_main_option('sqlalchemy.url', superuser_pg_url)
+        alembic_cfg.set_main_option('sqlalchemy.url', normal_user_pg_url)
 
         self.config.logger.info(
             'database schema section with %s',
