@@ -1,4 +1,6 @@
 #! /bin/bash -ex
+echo start $database_url
+grep "sqlalchemy.url" config/alembic.ini
 
 source scripts/defaults
 
@@ -12,7 +14,7 @@ PYTHONPATH=.
 
 PG_RESOURCES=""
 if [ -n "$database_url" ]; then
-    echo database_url is present, specifying parameters on the command line is not necessary
+    echo database_url is present, specifying parameters on the command line is not necessary  xxx $database_url xxx
 else
     # This clause is all legacy and can be removed once we switch to use database_url in config
     if [ -n "$database_hostname" ]; then
@@ -57,6 +59,10 @@ if [ -n "$elasticsearch_index" ]; then
     ES_RESOURCES="$ES_RESOURCES resource.elasticsearch.elasticsearch_index=$elasticsearch_index"
 fi
 
+echo m1
+grep "sqlalchemy.url" config/alembic.ini
+
+
 errors=0
 while read d
 do
@@ -89,12 +95,19 @@ for file in *.py.dist; do
 done
 popd
 
+echo m2
+grep "sqlalchemy.url" config/alembic.ini
+
+
+
 PYTHONPATH=$PYTHONPATH $SETUPDB --database_name=socorro_integration_test --dropdb --logging.stderr_error_logging_level=10 --unlogged --no_staticdata --createdb
 
 PYTHONPATH=$PYTHONPATH $SETUPDB --database_name=socorro_test --dropdb --no_schema --logging.stderr_error_logging_level=10 --unlogged --no_staticdata --createdb
 
 PYTHONPATH=$PYTHONPATH $SETUPDB --database_name=socorro_migration_test --dropdb --logging.stderr_error_logging_level=10 --unlogged --createdb
 
+echo before
+grep "sqlalchemy.url" config/alembic.ini
 PYTHONPATH=$PYTHONPATH ${VIRTUAL_ENV}/bin/alembic -c config/alembic.ini downgrade -1
 PYTHONPATH=$PYTHONPATH ${VIRTUAL_ENV}/bin/alembic -c config/alembic.ini upgrade heads
 

@@ -54,3 +54,6 @@ popd
 pushd webapp-django
 ./bin/bootstrap.sh
 popd
+
+echo "fucked?"
+cat config/alembic.ini-dist

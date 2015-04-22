@@ -267,12 +267,20 @@ class SocorroDBApp(App):
             )
             return 1
 
-        # superuser credentials
+        # superuser credentials for overall database
         superuser_pg_url = self.create_connection_url(
             'postgres',
             self.config.database_superusername,
             self.config.database_superuserpassword
         )
+
+        # superuser credentials for working database
+        superuser_normaldb_pg_url = self.create_connection_url(
+            database_name,
+            self.config.database_superusername,
+            self.config.database_superuserpassword
+        )
+
 
         # normal user credentials
         normal_user_pg_url = self.create_connection_url(
@@ -344,6 +352,7 @@ class SocorroDBApp(App):
                         self.config.logger.warn('NOT dropping table')
                         return 2
                 db.drop_database(database_name)
+                db.commit()
 
         # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
         # create database section
@@ -363,16 +372,17 @@ class SocorroDBApp(App):
                     self.config.logger.info("Skipping role creation")
                 else:
                     db.create_roles(self.config)
+                db.commit()
 
         # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
         # database extensions section
         # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
         self.config.logger.info(
             'database extensions section with %s',
-            superuser_pg_url
+            superuser_normaldb_pg_url
         )
         with PostgreSQLAlchemyManager(
-            superuser_pg_url,
+            superuser_normaldb_pg_url,
             self.config.logger,
             autocommit=False,
             on_heroku=self.config.on_heroku
@@ -425,16 +435,16 @@ class SocorroDBApp(App):
         # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
         self.config.logger.info(
             'database extensions section with %s',
-            superuser_pg_url
+            superuser_normaldb_pg_url
         )
         with PostgreSQLAlchemyManager(
-            superuser_pg_url,
+            superuser_normaldb_pg_url,
             self.config.logger,
             autocommit=False,
             on_heroku=self.config.on_heroku
         ) as db:
-            db.set_table_owner(normal_username)
-            db.set_default_owner(database_name, normal_username)
+            db.set_table_owner(self.config.database_username)
+            db.set_default_owner(database_name, self.config.database_username)
             db.set_grants(self.config)  # config has user lists
 
         return 0
