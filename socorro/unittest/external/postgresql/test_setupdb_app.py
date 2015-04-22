@@ -79,8 +79,8 @@ class TestConnectionContext(TestCase):
             setup_app = NoInheritanceCheatSocorroDBApp(a_config)
             eq_(
                 setup_app.create_connection_url(
-                    database_name=a_config.database_name,
-                    username=a_config.database_username,
+                    database_name=a_config.get('database_name', ''),
+                    username=a_config.get('database_username', ''),
                     password=a_config.get('database_password', '')
                 ),
                 expected_result
