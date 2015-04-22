@@ -333,8 +333,8 @@ class SocorroDBApp(App):
         )
         with PostgreSQLAlchemyManager(sa_url, self.config.logger) as db:
             db.setup_admin()
+            db.commit()
             if self.no_schema:
-                db.commit()
                 return 0
 
         # Reconnect to set up schema, types and procs
