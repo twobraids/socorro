@@ -332,7 +332,7 @@ class SocorroDBApp(App):
             self.config.database_superusername in sa_url
         )
         with PostgreSQLAlchemyManager(sa_url, self.config.logger) as db:
-            db.setup_admin()
+            db.a()
             db.commit()
             if self.no_schema:
                 return 0
@@ -350,6 +350,7 @@ class SocorroDBApp(App):
 
             # Order matters with what follows
             db.create_types()
+            db.turn_function_body_checks_off()
 
             db.create_procs()
             db.set_sequence_owner('breakpad_rw')
