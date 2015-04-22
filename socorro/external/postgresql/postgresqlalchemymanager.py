@@ -71,6 +71,10 @@ class PostgreSQLAlchemyManager(object):
                 raise
         return True
 
+    def turn_function_body_checks_off(self):
+        self.logger.debug('setting body checks off')
+        self.session.execute('SET check_function_bodies = false')
+
     def create_tables(self):
         status = self.metadata.create_all()
         return status
