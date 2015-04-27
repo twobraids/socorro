@@ -23,7 +23,7 @@ SQL = """
 select
   r.signature,  -- 0
   r.url,        -- 1
-  'http://crash-stats.mozilla.com/report/index/' || r.uuid as uuid_url, -- 2
+  'https://crash-stats.mozilla.com/report/index/' || r.uuid as uuid_url, -- 2
   to_char(r.client_crash_date,'YYYYMMDDHH24MI') as client_crash_date,   -- 3
   to_char(r.date_processed,'YYYYMMDDHH24MI') as date_processed,         -- 4
   r.last_crash, -- 5
@@ -176,9 +176,8 @@ class DailyURLCronApp(BaseCronApp):
         self.scp_file(private_out_pathname, day)
         if public_out_pathname:
             self.scp_file(public_out_pathname, day, public=True)
-
-    def scp_file(self, file_path, day, public=False):
-
+            
+    def _create_command(self, file_path, day, public):
         if public:
             user = self.config.public_user
             server = self.config.public_server
@@ -193,13 +192,26 @@ class DailyURLCronApp(BaseCronApp):
         if '%' in location:
             location = day.strftime(location)
 
-        if not server:
-            return
-
         if user:
             user += '@'
+            command = 'scp "%s" "%s%s:%s"' % (
+                file_path, 
+                user, 
+                server, 
+                location
+            )
+        else:
+            command = 'cp "%s" "%s"' % (
+                file_path, 
+                location, 
+            )   
+        
+        return command
 
-        command = 'scp "%s" "%s%s:%s"' % (file_path, user, server, location)
+    def scp_file(self, file_path, day, public=False):
+        
+        command = self._create_command(file_path, day, public)
+
         proc = subprocess.Popen(
             command,
             shell=True,

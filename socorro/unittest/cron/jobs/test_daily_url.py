@@ -14,6 +14,76 @@ from socorro.unittest.cron.setup_configman import (
     get_config_manager_for_crontabber,
 )
 from socorro.unittest.cron.jobs.base import IntegrationTestBase
+from crontabber.tests.base import TestCaseBase
+
+from socorro.cron.jobs.daily_url import DailyURLCronApp
+
+from configman.dotdict import DotDict
+
+#==============================================================================
+class TestDailyURL(TestCaseBase):
+    
+    @mock.patch('socorro.cron.jobs.daily_url.subprocess.Popen')
+    def test_create_command(self, mocked_popen):
+        cases = [
+            (
+                DotDict({
+                    "public_user": "me",
+                    "private_user": "wilma",
+                    "public_server": "some_host",
+                    "private_server": "dwight",
+                    "public_location": "overthere_%Y%m%d",
+                    "private_location": "missoula",
+                    "public_ssh_command": "",
+                    "private_ssh_command": "",
+                    "public": True,
+                }),
+                'scp "here" "me@some_host:overthere_20151031"'
+            ),
+            (
+                DotDict({
+                    "public_user": "me",
+                    "private_user": "wilma",
+                    "public_server": "some_host",
+                    "private_server": "dwight",
+                    "public_location": "overthere_%Y%m%d",
+                    "private_location": "missoula",
+                    "public_ssh_command": "",
+                    "private_ssh_command": "",
+                    "public": False,
+                }),
+                'scp "here" "wilma@dwight:missoula"'
+            ),
+            (
+                DotDict({
+                    "public_user": "me",
+                    "private_user": "",
+                    "public_server": "some_host",
+                    "private_server": "",
+                    "public_location": "overthere_%Y%m%d",
+                    "private_location": "missoula",
+                    "public_ssh_command": "",
+                    "private_ssh_command": "",
+                    "public": False,
+                }),
+                'cp "here" "missoula"'
+            ),
+        ]
+        
+        class MyDailyURLCronApp(DailyURLCronApp):
+            def __init__(self, config):
+                self.config = config 
+                
+        day = datetime.datetime(2015, 10, 31)
+        
+        # truth
+        for test_data, expected_data in cases:
+            daily_url_app = MyDailyURLCronApp(test_data)
+            eq_(
+                daily_url_app._create_command('here', day, test_data.public), 
+                expected_data
+            )
+                
 
 
 #==============================================================================
