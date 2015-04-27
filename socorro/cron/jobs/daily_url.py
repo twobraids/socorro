@@ -191,6 +191,9 @@ class DailyURLCronApp(BaseCronApp):
 
         if '%' in location:
             location = day.strftime(location)
+            
+        if not server:
+            return None
 
         if user:
             user += '@'
@@ -210,7 +213,10 @@ class DailyURLCronApp(BaseCronApp):
 
     def scp_file(self, file_path, day, public=False):
         
+        
         command = self._create_command(file_path, day, public)
+        if not command:
+            return
 
         proc = subprocess.Popen(
             command,
