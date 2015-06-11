@@ -93,13 +93,12 @@ class PGQueryNewCrashSource(RequiredConfig):
 
     #--------------------------------------------------------------------------
     def __iter__(self):
-        crash_ids = self.crash_store.transaction(
-            execute_query_fetchall,
-            self.config.crash_id_query
-        )
-
-        for a_crash_id in crash_ids:
-            yield a_crash_id
+        with self.crash_store.database.connection() as connection:
+            for a_crash_id, in execute_query_iter(
+                connection,
+                self.config.crash_id_query
+            ):
+                yield a_crash_id
 
         while True:
             yield None
