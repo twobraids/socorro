@@ -6,7 +6,7 @@ import web
 import time
 import zlib
 import cgi
-import StringIO
+import cStringIO
 
 from socorro.lib.ooid import createNewOoid
 from socorro.lib.util import DotDict
@@ -91,7 +91,7 @@ class BreakpadCollector(RequiredConfig):
         if web.ctx.env.get('HTTP_CONTENT_ENCODING') == 'gzip':
             gzip_header = 16 + zlib.MAX_WBITS
             data = zlib.decompress(web.webapi.data(), gzip_header)
-            fp = StringIO.StringIO(data)
+            fp = cStringIO.StringIO(data)
             e = web.ctx.env.copy()
 
             # this is how web.webapi.rawinput() handles
