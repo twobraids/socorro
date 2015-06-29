@@ -100,6 +100,7 @@ class CSignatureToolBase(SignatureTool):
     #--------------------------------------------------------------------------
     def _is_exception(self, exception_list, remaining_original_line):
         for an_exception in exception_list:
+            print an_exception, remaining_original_line, remaining_original_line.startswith(an_exception)
             if remaining_original_line.startswith(an_exception):
                 return True
         return False
