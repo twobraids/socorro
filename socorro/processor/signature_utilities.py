@@ -75,6 +75,11 @@ class CSignatureToolBase(SignatureTool):
         default=False,
         doc="remove function arguments during normalization",
     )
+    required_config.add_option(
+        'ellipsis_arguments',
+        default=False,
+        doc="if collapsing arguments, replace with (...) instead of deletion",
+    )
 
     hang_prefixes = {
         -1: "hang",
@@ -91,6 +96,35 @@ class CSignatureToolBase(SignatureTool):
 
         self.fixup_space = re.compile(r' (?=[\*&,])')
         self.fixup_comma = re.compile(r',(?! )')
+
+    #--------------------------------------------------------------------------
+    def _collapse(
+        self,
+        function,
+        open_string,
+        replacement_open_string,
+        close_string,
+        replacement_close_string
+    ):
+        target_counter = 0
+        collapsed_list = []
+
+        def append_if_not_in_collapse_mode(a_character):
+            if not target_counter:
+                collapsed_list.append(a_character)
+
+        for a_character in function:
+            if a_character == open_string:
+                append_if_not_in_collapse_mode(replacement_open_string)
+                target_counter += 1
+            elif a_character == close_string:
+                target_counter -= 1
+                append_if_not_in_collapse_mode(replacement_close_string)
+            else:
+                append_if_not_in_collapse_mode(a_character)
+
+        edited_function = ''.join(collapsed_list)
+        return edited_function
 
     #--------------------------------------------------------------------------
     def normalize_signature(
@@ -115,35 +149,16 @@ class CSignatureToolBase(SignatureTool):
         if normalized is not None:
             return normalized
         if function:
-            target_counter = 0
-
-            collapsed_list = []
-            def append_if_not_in_collapse_mode(a_character):
-                if not target_counter:
-                    collapsed_list.append(a_character)
-
-            for a_character in function:
-                if a_character == '<':
-                    append_if_not_in_collapse_mode('<')
-                    target_counter += 1
-                elif a_character == '>':
-                    target_counter -= 1
-                    append_if_not_in_collapse_mode('T>')
-                else:
-                    append_if_not_in_collapse_mode(a_character)
-            function = ''.join(collapsed_list)
+            function = self._collapse(function, '<', '<', '>', 'T>')
 
             if self.config.collapse_arguments:
-                collapsed_list = []
-                target_counter = 0
-                for a_character in function:
-                    if a_character == '(':
-                        target_counter += 1
-                    elif a_character == ')':
-                        target_counter -= 1
-                    else:
-                        append_if_not_in_collapse_mode(a_character)
-                function = ''.join(collapsed_list)
+                function = self._collapse(
+                    function,
+                    '(',
+                    '(' if self.config.ellipsis_arguments else '',
+                    ')',
+                    '...)' if self.config.ellipsis_arguments else '',
+                )
 
             if self.signatures_with_line_numbers_re.match(function):
                 function = "%s:%s" % (function, line)

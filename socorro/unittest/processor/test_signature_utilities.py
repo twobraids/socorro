@@ -50,6 +50,7 @@ class TestCSignatureTool(BaseTestClass):
         pr='pre1|pre2',
         si='fnNeedNumber',
         ss=('sentinel', ('sentinel2', lambda x: 'ff' in x)),
+        ellipsis_arguments=False
     ):
         config = sutil.DotDict()
         config.logger = sutil.FakeLogger()
@@ -58,6 +59,7 @@ class TestCSignatureTool(BaseTestClass):
         config.signatures_with_line_numbers_re = si
         config.signature_sentinels = ss
         config.collapse_arguments = True
+        config.ellipsis_arguments = ellipsis_arguments
         s = CSignatureTool(config)
         return s, config
 
@@ -154,7 +156,7 @@ class TestCSignatureTool(BaseTestClass):
         self.assert_equal_with_nicer_output(fixupComma, s.fixup_comma)
 
     #--------------------------------------------------------------------------
-    def test_normalize(self):
+    def test_normalize_with_collapse_args(self):
         """test_normalize: bunch of variations"""
         s, c = self.setup_config_C_sig_tool()
         a = [
@@ -183,6 +185,40 @@ class TestCSignatureTool(BaseTestClass):
         for args, e in a:
             r = s.normalize_signature(*args)
             self.assert_equal_with_nicer_output(e, r)
+
+    #--------------------------------------------------------------------------
+    def test_normalize_with_collapse_args_and_ellipsis_arguments(self):
+        """test_normalize: bunch of variations"""
+        s, c = self.setup_config_C_sig_tool(
+            ellipsis_arguments=True
+        )
+        a = [
+            (('module', 'fn', 'source', '23', '0xFFF'), 'fn'),
+            (('module', 'fnNeedNumber', 's', '23', '0xFFF'),
+             'fnNeedNumber:23'),
+            (('module', 'f( *s)', 's', '23', '0xFFF'), 'f(...)'),
+            (('module', 'f( &s)', 's', '23', '0xFFF'), 'f(...)'),
+            (('module', 'f( *s , &n)', 's', '23', '0xFFF'), 'f(...)'),
+            # this next one looks like a bug to me, but perhaps the situation
+            # never comes up
+            #(('module', 'f(  *s , &n)', 's', '23', '0xFFF'), 'f(*s, &n)'),
+            (('module', 'f3(s,t,u)', 's', '23', '0xFFF'), 'f3(...)'),
+            (('module', 'Alpha<Bravo<Charlie>, Delta>::Echo<Foxtrot>', 's', '23', '0xFFF'), 'Alpha<T>::Echo<T>'),
+            (('module', 'f<3>(s,t,u)', 's', '23', '0xFFF'), 'f<T>(...)'),
+            (('module', '', 'source/', '23', '0xFFF'), 'source#23'),
+            (('module', '', 'source\\', '23', '0xFFF'), 'source#23'),
+            (('module', '', '/a/b/c/source', '23', '0xFFF'), 'source#23'),
+            (('module', '', '\\a\\b\\c\\source', '23', '0xFFF'), 'source#23'),
+            (('module', '', '\\a\\b\\c\\source', '23', '0xFFF'), 'source#23'),
+            (('module', '', '\\a\\b\\c\\source', '', '0xFFF'), 'module@0xFFF'),
+            (('module', '', '', '23', '0xFFF'), 'module@0xFFF'),
+            (('module', '', '', '', '0xFFF'), 'module@0xFFF'),
+            ((None, '', '', '', '0xFFF'), '@0xFFF'),
+        ]
+        for args, e in a:
+            r = s.normalize_signature(*args)
+            self.assert_equal_with_nicer_output(e, r)
+
 
     #--------------------------------------------------------------------------
     def test_generate_1(self):
@@ -1034,6 +1070,7 @@ class TestSignatureGeneration(TestCase):
                     .signatures_with_line_numbers_re.default
                 ),
                 'collapse_arguments':  True,
+                'ellipsis_arguments':  False,
             },
             'java_signature': {
                 'java_signature_tool_class': JavaSignatureTool,

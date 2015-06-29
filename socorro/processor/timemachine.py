@@ -108,3 +108,7 @@ class PGQueryNewCrashSource(RequiredConfig):
     #--------------------------------------------------------------------------
     def __call__(self):
         return self.__iter__()
+
+    #--------------------------------------------------------------------------
+    def __getattr__(self, name):
+        return getattr(self.crash_store, name)
