@@ -170,6 +170,7 @@ class TestCSignatureTool(BaseTestClass):
             # never comes up
             #(('module', 'f(  *s , &n)', 's', '23', '0xFFF'), 'f(*s, &n)'),
             (('module', 'f3(s,t,u)', 's', '23', '0xFFF'), 'f3'),
+            (('module', '::(anonymous namespace)::f3(s,t,u)', 's', '23', '0xFFF'), '::(anonymous namespace)::f3'),
             (('module', 'Alpha<Bravo<Charlie>, Delta>::Echo<Foxtrot>', 's', '23', '0xFFF'), 'Alpha<T>::Echo<T>'),
             (('module', 'f<3>(s,t,u)', 's', '23', '0xFFF'), 'f<T>'),
             (('module', '', 'source/', '23', '0xFFF'), 'source#23'),

@@ -98,27 +98,44 @@ class CSignatureToolBase(SignatureTool):
         self.fixup_comma = re.compile(r',(?! )')
 
     #--------------------------------------------------------------------------
+    def _is_exception(self, exception_list, remaining_original_line):
+        for an_exception in exception_list:
+            if remaining_original_line.startswith(an_exception):
+                return True
+        return False
+        
+    #--------------------------------------------------------------------------
     def _collapse(
         self,
         function,
         open_string,
         replacement_open_string,
         close_string,
-        replacement_close_string
+        replacement_close_string,
+        exception_substring_list=(),  # list of exceptions that shouldn't collapse
     ):
         target_counter = 0
         collapsed_list = []
+        exception_mode = False
 
         def append_if_not_in_collapse_mode(a_character):
             if not target_counter:
                 collapsed_list.append(a_character)
 
-        for a_character in function:
+        for index, a_character in enumerate(function):
             if a_character == open_string:
+                if self._is_exception(
+                    exception_substring_list,
+                    function[index + 1], 
+                ):
+                    exception_mode = True
+                    append_if_not_in_collapse_mode(a_character)
+                    continue
                 append_if_not_in_collapse_mode(replacement_open_string)
                 target_counter += 1
             elif a_character == close_string:
                 target_counter -= 1
+                exception_mode = False
                 append_if_not_in_collapse_mode(replacement_close_string)
             else:
                 append_if_not_in_collapse_mode(a_character)
@@ -152,12 +169,14 @@ class CSignatureToolBase(SignatureTool):
             function = self._collapse(function, '<', '<', '>', 'T>')
 
             if self.config.collapse_arguments:
+                
                 function = self._collapse(
                     function,
                     '(',
                     '(' if self.config.ellipsis_arguments else '',
                     ')',
                     '...)' if self.config.ellipsis_arguments else '',
+                    ('anonymous namespace',)
                 )
 
             if self.signatures_with_line_numbers_re.match(function):
