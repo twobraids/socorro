@@ -289,7 +289,7 @@ class QueuingApp(SubmitterApp):
     app_description = 'submit crash_ids directly to a queue'
     
     required_config = Namespace()
-    requierd_config.destination.add_option(
+    required_config.destination.add_option(
         'queue_name',
         doc='the name of the queue to insert into',
         default='socorro.normal',
