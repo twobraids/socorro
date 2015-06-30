@@ -277,6 +277,39 @@ class SubmitterApp(FetchTransformSaveApp):
                 yield crash_id
             if i == int(self.config.submitter.number_of_submissions):
                 break
+            
+            
+from socorro.lib.converters import change_default
+
+            
+#==============================================================================
+class QueuingApp(SubmitterApp):
+    app_name = 'reprocessor_app'
+    app_version = '0.1'
+    app_description = 'submit crash_ids directly to a queue'
+    
+    required_config = Namespace()
+    requierd_config.destination.add_option(
+        'queue_name',
+        doc='the name of the queue to insert into',
+        default='socorro.normal',
+    )
+
+    #--------------------------------------------------------------------------
+    @staticmethod
+    def get_application_defaults():
+        return {
+            'source.crashstorage_class':
+                'socorro.collector.submitter_app.DBSamplingCrashSource',
+            'destination.crashstorage_class':
+                'socorro.external.rabbitmq.crashstorage.RabbitMQCrashStorage',
+        }
+    
+    #--------------------------------------------------------------------------
+    def __init__(self, config):
+        config.destination.standard_queue_name = config.destination.queue_name
+        super(QueuingApp, self).__init__(config)
+    
 
 
 if __name__ == '__main__':
