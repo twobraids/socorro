@@ -176,6 +176,17 @@ class BotoS3CrashStorage(CrashStorageBase):
 
     #--------------------------------------------------------------------------
     @staticmethod
+    def create_name_from(prefix, name_of_thing, crash_id):
+        """
+        Use S3 pseudo-directories to make it easier to list/expire later
+        {{prefix}}/{{version}}/{{name_of_thing}}/{{crash_id}}
+        """
+        version = 'v1'
+        return '%s/%s/%s/%s' % (prefix, version, name_of_thing, crash_id)
+
+
+    #--------------------------------------------------------------------------
+    @staticmethod
     def do_save_raw_crash(boto_s3_store, raw_crash, dumps, crash_id):
         raw_crash_as_string = boto_s3_store._convert_mapping_to_string(
             raw_crash
@@ -214,6 +225,20 @@ class BotoS3CrashStorage(CrashStorageBase):
             "processed_crash",
             processed_crash_as_string
         )
+        if processed_crash['legacy_processing'] == 0:
+            # index only processed crashes
+            # this will result a bunch of keys of the form
+            #
+            boto_s3_store._submit_to_boto_s3(
+                crash_id,
+                "index/%s/%s/%s" % (
+                    crash_id[-6:],
+                    processed_crash['product'],
+                    processed_crash['version'],
+                ),
+                ""
+            )
+
 
     #--------------------------------------------------------------------------
     def save_processed(self, processed_crash):
@@ -475,6 +500,27 @@ class BotoS3CrashStorage(CrashStorageBase):
         except AttributeError:
             # already deleted, ignorable
             pass
+
+    #--------------------------------------------------------------------------
+    def list_from_index(self, date_as_compact_str, product, version):
+        """list items from an index.
+        for example, processed crashes for 2015-09-24 for Firefox 41.0, would
+        use the key "
+        """
+        conn = self._connect()
+        bucket = self._get_bucket(conn, self.config.bucket_name)
+
+        key = '%s/index/%s/%s/%s' % (
+            self.config.prefix,
+            crash_id[-6:],
+            product,
+            version,
+        )
+
+        result = bucket.list(key)
+
+        for key in result:
+            yield key[-32:]
 
 
 #==============================================================================
