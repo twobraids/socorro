@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/bash -x
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -24,9 +24,10 @@ COPY
 TO STDOUT WITH CSV HEADER
 EOF
 
-export PGPASSWORD=$databasePassword
-psql -U $databaseUserName -h $databaseHost $databaseName \
-        -c "$SQL" > ${OUTPUT_DIR}/${OUTPUT_FILE}
+export PGPASSWORD=$SECRETS_POSTGRESQL_DATABASE_PASSWORD
+psql -U $SECRETS_POSTGRESQL_DATABASE_USERNAME \
+        -h $RESOURCE_POSTGRESQL_DATABASE_HOSTNAME \
+        breakpad -c "$SQL" > ${OUTPUT_DIR}/${OUTPUT_FILE}
 fatal $? "psql failed"
 
 unlock $NAME

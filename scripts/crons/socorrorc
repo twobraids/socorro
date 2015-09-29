@@ -6,7 +6,7 @@ PATH=$PATH:$HOME/bin:~/python_extras/bin
 PYTHONPATH=~/python_extras/lib:${APPDIR}
 PYTHON=${SOCORRO_DIR}/socorro-virtualenv/bin/python
 SOCORRO_CONFIG=/etc/socorro/common.conf
-export APPDIR PATH PYTHONPATH SOCORRO_CONFIG
+export APPDIR PATH PYTHONPATH SOCORRO_CONFIG SOCORRO_DIR
 
 if [ -f $SOCORRO_CONFIG ]
 then
