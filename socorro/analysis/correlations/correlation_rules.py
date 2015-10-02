@@ -24,7 +24,7 @@ class CorrelationRule(Rule):
     )
     required_config.add_aggregation(
         'min_crashes',
-        lambda g, l: 10 if l.number_to_process > 1000 else 1
+        lambda g, l, u: 10 if l.number_to_process > 1000 else 1
     )
     required_config.add_option(
         "release",
