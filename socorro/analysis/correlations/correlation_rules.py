@@ -427,3 +427,24 @@ def stdout_context(config):
 ##        print
 
 
+
+correlation_rule_sets = [
+    [
+        "raw_transform",
+        "processor.json_rewrite",
+        "socorro.lib.transform_rules.TransformRuleSystem",
+        "apply_all_rules",
+        "socorro.analysis.correlations.correlation_rules.CorrelationCoreCountRule"
+    ],
+]
+
+from socorro.processor.processor_2015 import Processor2015
+
+#==============================================================================
+class CorrelationProcessorAlgorithm2015(Processor2015):
+    """this is the class that processor uses to transform """
+
+    Processor2015.required_config.rule_sets.set_default(
+        dumps(correlation_rule_sets),
+        force=True
+    )
