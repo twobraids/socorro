@@ -445,6 +445,6 @@ class CorrelationProcessorAlgorithm2015(Processor2015):
     """this is the class that processor uses to transform """
 
     Processor2015.required_config.rule_sets.set_default(
-        dumps(correlation_rule_sets),
+        ujson.dumps(correlation_rule_sets),
         force=True
     )
