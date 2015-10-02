@@ -269,6 +269,15 @@ class Processor2015(RequiredConfig):
         return processed_crash
 
     #--------------------------------------------------------------------------
+    def close(self):
+        for a_rule_system in self.rule_system:
+            try:
+                a_rule_system.close()
+            except AttributeError:
+                # if it has no "close", that's fine
+                pass
+
+    #--------------------------------------------------------------------------
     def reject_raw_crash(self, crash_id, reason):
         self._log_job_start(crash_id)
         self.config.logger.warning('%s rejected: %s', crash_id, reason)

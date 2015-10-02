@@ -67,7 +67,7 @@ class CorrelationRule(Rule):
         return False
 
     #--------------------------------------------------------------------------
-    def save_report(self):
+    def close(self):
         summary = self.summarize()
         with self.config.destination.destination_class(
             self.config.destination

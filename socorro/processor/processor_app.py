@@ -223,6 +223,7 @@ class ProcessorApp(FetchTransformSaveApp):
         if self.companion_process:
             self.companion_process.close()
         self.iterator.close()
+        self.processor.close()
 
 
 if __name__ == '__main__':
