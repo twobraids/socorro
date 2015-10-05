@@ -270,6 +270,7 @@ class Processor2015(RequiredConfig):
 
     #--------------------------------------------------------------------------
     def close(self):
+        self.config.logger.debug('closing down the rule system')
         for a_rule_system in self.rule_system:
             try:
                 a_rule_system.close()
