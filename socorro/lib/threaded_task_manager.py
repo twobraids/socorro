@@ -239,8 +239,6 @@ class ThreadedTaskManager(TaskManager):
                 self.quit_check()
                 #self.logger.debug("queuing job %s", job_params)
                 self.task_queue.put((self.task_func, job_params))
-            else:
-                self.logger.debug("the loop didn't actually loop")
         except Exception:
             self.logger.error('queuing jobs has failed', exc_info=True)
         except KeyboardInterrupt:
@@ -261,7 +259,6 @@ class ThreadedTaskManager(TaskManager):
         This is useful for maintaining transactional integrity on a resource
         connection."""
         return threading.currentThread().getName()
-
 
 
 #==============================================================================
