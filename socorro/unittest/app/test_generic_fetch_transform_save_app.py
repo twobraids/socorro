@@ -22,7 +22,7 @@ class TestFetchTransformSaveApp(TestCase):
             def _setup_source_and_destination(self):
                 pass
 
-            def source_iterator(self):
+            def _basic_iterator(self):
                 for x in xrange(5):
                     yield ((x,), {})
 
@@ -34,6 +34,7 @@ class TestFetchTransformSaveApp(TestCase):
           'logger': logger,
           'number_of_threads': 2,
           'maximum_queue_size': 2,
+          'number_of_submissions': 'all',
           'source': DotDict({'crashstorage_class': None}),
           'destination': DotDict({'crashstorage_class': None}),
           'producer_consumer': DotDict({'producer_consumer_class':
@@ -55,7 +56,7 @@ class TestFetchTransformSaveApp(TestCase):
 
     def test_bogus_source_and_destination(self):
         class NonInfiniteFTSAppClass(FetchTransformSaveApp):
-            def source_iterator(self):
+            def _basic_iterator(self):
                 for x in self.source.new_crashes():
                     yield ((x,), {})
 
@@ -100,6 +101,7 @@ class TestFetchTransformSaveApp(TestCase):
           'logger': logger,
           'number_of_threads': 2,
           'maximum_queue_size': 2,
+          'number_of_submissions': 'all',
           'source': DotDict({'crashstorage_class':
                                  FakeStorageSource}),
           'destination': DotDict({'crashstorage_class':
@@ -134,6 +136,8 @@ class TestFetchTransformSaveApp(TestCase):
 
             def new_crashes(self):
                 if self.first:
+                    # make the iterator act as if exhausted on the very
+                    # first try
                     self.first = False
                 else:
                     for k in range(999):
@@ -163,6 +167,7 @@ class TestFetchTransformSaveApp(TestCase):
           'logger': logger,
           'number_of_threads': 2,
           'maximum_queue_size': 2,
+          'number_of_submissions': 'forever',
           'source': DotDict({'crashstorage_class':
                                  FakeStorageSource}),
           'destination': DotDict({'crashstorage_class':
@@ -182,6 +187,8 @@ class TestFetchTransformSaveApp(TestCase):
         no_finished_function_counter = 0
         for x, y in zip(xrange(1002), (a for a in fts_app.source_iterator())):
             if x == 0:
+                # the iterator is exhausted on the 1st try and should have
+                # yielded a None before starting over
                 ok_(y is None)
             elif x < 1000:
                 if x - 1 != y[0][0] and not error_detected:
@@ -216,6 +223,7 @@ class TestFetchTransformSaveApp(TestCase):
           'logger': logger,
           'number_of_threads': 2,
           'maximum_queue_size': 2,
+          'number_of_submissions': 'forever',
           'source': DotDict({'crashstorage_class':
                                  None}),
           'destination': DotDict({'crashstorage_class':
@@ -266,6 +274,7 @@ class TestFetchTransformSaveApp(TestCase):
           'logger': logger,
           'number_of_threads': 2,
           'maximum_queue_size': 2,
+          'number_of_submissions': 'forever',
           'source': DotDict({'crashstorage_class':
                                  FakeStorageSource}),
           'destination': DotDict({'crashstorage_class':

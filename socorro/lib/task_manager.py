@@ -150,6 +150,7 @@ class TaskManager(RequiredConfig):
             while True:
                 for job_params in self._get_iterator():  # may never raise
                                                          # StopIteration
+                    self.config.logger.debug('received %r', job_params)
                     self.quit_check()
                     if job_params is None:
                         if self.config.quit_on_empty_queue:
