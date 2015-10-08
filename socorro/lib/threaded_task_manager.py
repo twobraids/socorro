@@ -224,6 +224,7 @@ class ThreadedTaskManager(TaskManager):
         try:
             for job_params in self._get_iterator():  # may never raise
                                                      # StopIteration
+                self.config.logger.debug('received %r', job_params)
                 if job_params is None:
                     if self.config.quit_on_empty_queue:
                         self.wait_for_empty_queue(

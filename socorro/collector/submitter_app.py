@@ -243,6 +243,8 @@ class SubmitterApp(FetchTransformSaveWithSeparateNewCrashSourceApp):
                 'socorro.collector.breakpad_submitter_utilities'
                 '.BreakpadPOSTDestination',
             "number_of_submissions": "all",
+            "worker_task.worker_task_impl":
+                "socorro.app.fts_worker_methods.RawCrashCopyWorkerMethod",
         }
 
     #--------------------------------------------------------------------------
@@ -262,53 +264,11 @@ class SubmitterApp(FetchTransformSaveWithSeparateNewCrashSourceApp):
         time.sleep(self.config.producer_consumer.number_of_threads * 2)
 
     #--------------------------------------------------------------------------
-    def _infinite_iterator(self):
-        """the default iterators will yield None objects if there is nothing
-        in the queue.  The submitter doesn't want those, so it declines to
-        to yield them"""
-        while True:
-            for crash_id in self._basic_iterator():
-                if crash_id is not None:
-                    yield crash_id
-
-    #--------------------------------------------------------------------------
-    def _limited_iterator(self):
-        i = 0
-        while True:
-            for crash_id in self._basic_iterator():
-                if crash_id is None:
-                    continue
-                if i == int(self.config.number_of_submissions):
-                    break
-                i += 1
-                yield crash_id
-            if i == int(self.config.number_of_submissions):
-                break
-
-    #--------------------------------------------------------------------------
-    def _transform(self, crash_id):
-        """this transform function only transfers raw data from the
-        source to the destination without changing the data."""
-        paths = None
-        if self.config.submitter.dry_run:
-            print crash_id
-        else:
-            # in the case where the path has a non-None value, that means
-            # we need to lookup the crash using something other than the
-            # crash_id.  This is the case when the old
-            # SubmitterFileSystemWalkerSource class is the source.  It returns
-            # a list of file paths.  If 'paths' is None, then we can use the
-            # crash_id to lookup the crash. If 'paths' is not None, then we
-            # have to use it to lookup the crash rather than the crash_id.
-            self.config.logger.debug('paths: %s', paths)
-            raw_crash = self.source.get_raw_crash(crash_id)
-            self.config.logger.debug('raw_crash: %s', raw_crash)
-            dumps = self.source.get_raw_dumps_as_files(crash_id)
-            self.destination.save_raw_crash_with_file_dumps(
-                raw_crash,
-                dumps,
-                crash_id
-            )
+    def _filter_disallowed_values(self, current_value):
+        """in this base class there are no disallowed values coming from the
+        iterators.  Other users of these iterator may have some standards and
+        can detect and reject them here"""
+        return current_value is None
 
 
 if __name__ == '__main__':

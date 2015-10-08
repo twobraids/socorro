@@ -146,6 +146,7 @@ class SocorroApp(RequiredConfig):
     #--------------------------------------------------------------------------
     def __init__(self, config):
         self.config = config
+        # give a name to this running instance of the program.
         self.app_instance_name = self._app_instance_name()
 
     #--------------------------------------------------------------------------
