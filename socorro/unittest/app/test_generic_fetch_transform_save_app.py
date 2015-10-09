@@ -7,6 +7,7 @@ from mock import Mock
 
 from socorro.app.fetch_transform_save_app import FetchTransformSaveApp
 from socorro.lib.threaded_task_manager import ThreadedTaskManager
+from socorro.lib.task_manager import TaskManager
 from socorro.lib.util import DotDict, SilentFakeLogger
 from socorro.unittest.testbase import TestCase
 
@@ -22,7 +23,7 @@ class TestFetchTransformSaveApp(TestCase):
             def _setup_source_and_destination(self):
                 pass
 
-            def _basic_iterator(self):
+            def _create_iter(self):
                 for x in xrange(5):
                     yield ((x,), {})
 
@@ -38,7 +39,7 @@ class TestFetchTransformSaveApp(TestCase):
           'source': DotDict({'crashstorage_class': None}),
           'destination': DotDict({'crashstorage_class': None}),
           'producer_consumer': DotDict({'producer_consumer_class':
-                                          ThreadedTaskManager,
+                                          TaskManager,
                                         'logger': logger,
                                         'number_of_threads': 1,
                                         'maximum_queue_size': 1}
