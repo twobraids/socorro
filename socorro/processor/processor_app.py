@@ -71,6 +71,8 @@ class ProcessorApp(FetchTransformSaveWithSeparateNewCrashSourceApp):
         return {
             "source.crashstorage_class": FSDatedPermanentStorage,
             "destination.crashstorage_class": FSDatedPermanentStorage,
+            "worker_task.worker_task_impl":
+                "socorro.app.fts_worker_methods.ProcessorWorkerMethod",
         }
 
     #--------------------------------------------------------------------------
@@ -80,82 +82,18 @@ class ProcessorApp(FetchTransformSaveWithSeparateNewCrashSourceApp):
         self.task_manager.quit_check()
 
     #--------------------------------------------------------------------------
-    def _transform(self, crash_id):
-        """this implementation is the framework on how a raw crash is
-        converted into a processed crash.  The 'crash_id' passed in is used as
-        a key to fetch the raw crash from the 'source', the conversion funtion
-        implemented by the 'processor_class' is applied, the
-        processed crash is saved to the 'destination'"""
-        try:
-            raw_crash = self.source.get_raw_crash(crash_id)
-            dumps = self.source.get_raw_dumps_as_files(crash_id)
-        except CrashIDNotFound:
-            self.processor.reject_raw_crash(
-                crash_id,
-                'this crash cannot be found in raw crash storage'
-            )
-            return
-        except Exception, x:
-            self.config.logger.warning(
-                'error loading crash %s',
-                crash_id,
-                exc_info=True
-            )
-            self.processor.reject_raw_crash(
-                crash_id,
-                'error in loading: %s' % x
-            )
-            return
-
-        try:
-            processed_crash = self.source.get_unredacted_processed(
-                crash_id
-            )
-        except CrashIDNotFound:
-            processed_crash = DotDict()
-
-        try:
-            if 'uuid' not in raw_crash:
-                raw_crash.uuid = crash_id
-            processed_crash = (
-                self.processor.process_crash(
-                    raw_crash,
-                    dumps,
-                    processed_crash,
-                )
-            )
-            """ bug 866973 - save_raw_and_processed() instead of just
-                save_processed().  The raw crash may have been modified
-                by the processor rules.  The individual crash storage
-                implementations may choose to honor re-saving the raw_crash
-                or not.
-            """
-            self.destination.save_raw_and_processed(
-                raw_crash,
-                None,
-                processed_crash,
-                crash_id
-            )
-            self.config.logger.info('saved - %s', crash_id)
-        finally:
-            # earlier, we created the dumps as files on the file system,
-            # we need to clean up after ourselves.
-            for a_dump_pathname in dumps.itervalues():
-                try:
-                    if "TEMPORARY" in a_dump_pathname:
-                        os.unlink(a_dump_pathname)
-                except OSError, x:
-                    # the file does not actually exist
-                    self.config.logger.info(
-                        'deletion of dump failed: %s',
-                        x,
-                    )
-
-    #--------------------------------------------------------------------------
-    def _setup_source_and_destination(self):
+    def _setup_source_and_destination(self, transform_fn=None):
         """this method simply instatiates the source, destination,
         new_crash_source, and the processor algorithm implementation."""
-        super(ProcessorApp, self)._setup_source_and_destination()
+        self.processor = self.config.processor.processor_class(
+            self.config.processor,
+            self.quit_check
+        )
+
+        super(ProcessorApp, self)._setup_source_and_destination(
+            transform_fn=self.processor.process_crash
+        )
+
         if self.config.companion_process.companion_class:
             self.companion_process = \
                 self.config.companion_process.companion_class(
@@ -170,11 +108,6 @@ class ProcessorApp(FetchTransformSaveWithSeparateNewCrashSourceApp):
         # this function will be called by the MainThread periodically
         # while the threaded_task_manager processes crashes.
         self.waiting_func = None
-
-        self.processor = self.config.processor.processor_class(
-            self.config.processor,
-            self.quit_check
-        )
 
     #--------------------------------------------------------------------------
     def _cleanup(self):
