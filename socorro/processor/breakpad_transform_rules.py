@@ -2,7 +2,7 @@ import re
 import os
 import subprocess
 import threading
-import ujson
+import json
 import tempfile
 
 from contextlib import contextmanager, closing
@@ -107,7 +107,7 @@ class BreakpadStackwalkerRule(Rule):
             )
         )
         with open(file_pathname, "w") as f:
-            ujson.dump(dict(raw_crash), f)
+            json.dump(dict(raw_crash), f)
         try:
             yield file_pathname
         finally:
@@ -168,7 +168,7 @@ class BreakpadStackwalkerRule(Rule):
         )
         with closing(subprocess_handle.stdout):
             try:
-                stackwalker_output = ujson.load(subprocess_handle.stdout)
+                stackwalker_output = json.load(subprocess_handle.stdout)
             except Exception, x:
                 processor_notes.append(
                     "MDSW output failed in json: %s" % x
@@ -350,7 +350,7 @@ class ExternalProcessRule(Rule):
     #--------------------------------------------------------------------------
     def _interpret_external_command_output(self, fp, processor_meta):
         try:
-            return ujson.load(fp)
+            return json.load(fp)
         except Exception, x:
             processor_meta.processor_notes.append(
                 "%s output failed in json: %s" % (
@@ -552,7 +552,7 @@ class BreakpadStackwalkerRule2015(ExternalProcessRule):
             )
         )
         with open(file_pathname, "w") as f:
-            ujson.dump(raw_crash, f)
+            json.dump(raw_crash, f)
         try:
             yield file_pathname
         finally:
