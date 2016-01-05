@@ -145,5 +145,46 @@ class RawAndProcessedCopierApp(FetchTransformSaveWithSeparateNewCrashSourceApp):
         )
         self.config.logger.info('saved - %s', crash_id)
 
+#==============================================================================
+class ReprocessMissedCrashesApp(FetchTransformSaveWithSeparateNewCrashSourceApp):
+    app_name = 'missed crash resubmitter'
+    app_version = '1.0'
+    app_description = __doc__
+
+    #--------------------------------------------------------------------------
+    @staticmethod
+    def get_application_defaults():
+        return {
+            'source.crashstorage_class':
+                'socorro.external.boto.crashstorage.BotoS3CrashStorage',
+            "destination.crashstorage_class":
+                'socorro.external.rabbitmq.crashstorage.RabbitMQCrashStorage',
+            "destination.routing_key": "socorro.reprocessing",
+            "new_crash_source.new_crash_source_class":
+                "socorro.external.stdio.stdin_new_crash_source",
+
+        }
+
+    #--------------------------------------------------------------------------
+    def _transform(self, crash_id):
+        """grab a raw crash and then try to get it's processed version. if that
+        fails, then this crash needs to be processed, queue it by saving it 
+        to the destination crashstore."""
+
+        try:
+            raw_crash = self.source.get_raw_crash(crash_id)
+            processed_crash = self.source.get_processed(
+                crash_id
+            )
+            self.config.logger.info('no need to reprocess %s', crash_id)
+        except CrashIDNotFound:
+            self.destination.save_raw_crash(
+                raw_crash,
+                None,
+                crash_id
+            )
+            self.config.logger.info('saved - %s', crash_id)
+
+
 if __name__ == '__main__':
     main(CrashMoverApp)
