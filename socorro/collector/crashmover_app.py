@@ -159,20 +159,20 @@ class ReprocessMissedCrashesApp(FetchTransformSaveWithSeparateNewCrashSourceApp)
                 'socorro.external.boto.crashstorage.BotoS3CrashStorage',
             "destination.crashstorage_class":
                 'socorro.external.rabbitmq.crashstorage.RabbitMQCrashStorage',
-            "destination.routing_key": "socorro.reprocessing",
+            "destination.standard_queue_name": "socorro.reprocessing",
             "new_crash_source.new_crash_source_class":
-                "socorro.external.stdio.stdin_new_crash_source",
+                "socorro.external.stdio.stdin_new_crash_source.StdinNewCrashSource",
 
         }
 
     #--------------------------------------------------------------------------
     def _transform(self, crash_id):
         """grab a raw crash and then try to get it's processed version. if that
-        fails, then this crash needs to be processed, queue it by saving it 
+        fails, then this crash needs to be processed, queue it by saving it
         to the destination crashstore."""
 
+        raw_crash = self.source.get_raw_crash(crash_id)
         try:
-            raw_crash = self.source.get_raw_crash(crash_id)
             processed_crash = self.source.get_processed(
                 crash_id
             )
