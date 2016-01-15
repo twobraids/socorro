@@ -1,5 +1,7 @@
 from sys import maxint
 
+from configman import Namespace
+
 from socorro.external.crashstorage_base import CrashStorageBase
 
 #==============================================================================
