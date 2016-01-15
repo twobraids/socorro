@@ -115,7 +115,7 @@ class FractalDimensionCrashStorage(CrashStorageBase):
         crashed_thread_number = int(a_processed_crash
             ['json_dump']["crash_info"]["crashing_thread"])
         return a_processed_crash \
-               ['json_dump']['threads']['frames'][crashed_thread_number]
+               ['json_dump']['threads'][crashed_thread_number]['frames']
 
     #--------------------------------------------------------------------------
     @staticmethod
