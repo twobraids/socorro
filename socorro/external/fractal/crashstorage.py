@@ -120,7 +120,6 @@ class FractalDimensionCrashStorage(CrashStorageBase):
     #--------------------------------------------------------------------------
     @staticmethod
     def convert_frame_to_points(frames):
-        offset = int(frames['offset'][2:], 16)
         max_frames = 0
         min_offset = maxint
         max_offset = 0
