@@ -136,7 +136,9 @@ class FractalDimensionCrashStorage(CrashStorageBase):
             points.append((x, y))
         return points, max_frames, min_offset, max_offset
 
+    #--------------------------------------------------------------------------
     def close(self):
+        self.config.logger.debug('fractal crashstore closes & saves image file')
         self.create_image(
             self.config.image_file_name,
             self.points,
