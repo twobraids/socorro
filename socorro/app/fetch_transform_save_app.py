@@ -396,6 +396,7 @@ class FetchTransformSaveApp(App):
         self._setup_task_manager()
         self._setup_source_and_destination()
         self.task_manager.blocking_start(waiting_func=self.waiting_func)
+        self.config.logger.info('should close crashstores now.')
         self.close()
         self.config.logger.info('done.')
 
