@@ -112,8 +112,8 @@ class FractalDimensionCrashStorage(CrashStorageBase):
     #--------------------------------------------------------------------------
     @staticmethod
     def get_thread_stack(a_processed_crash):
-        crashed_thread_number = a_processed_crash \
-            ['json_dump']["crash_info"]["crashing_thread"]
+        crashed_thread_number = int(a_processed_crash
+            ['json_dump']["crash_info"]["crashing_thread"])
         return a_processed_crash \
                ['json_dump']['threads']['frames'][crashed_thread_number]
 
