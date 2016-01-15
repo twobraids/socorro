@@ -136,6 +136,15 @@ class FractalDimensionCrashStorage(CrashStorageBase):
             points.append((x, y))
         return points, max_frames, min_offset, max_offset
 
+    def close(self):
+        self.create_image(
+            self.config.image_file_name,
+            self.points,
+            self.max_y,
+            self.min_x,
+            self.max_x
+        )
+
     #--------------------------------------------------------------------------
     def save_processed(self, a_processed_crash):
         frames = self.get_thread_stack(a_processed_crash)
