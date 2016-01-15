@@ -1,5 +1,7 @@
 from sys import maxint
 
+from PIL import Image, ImageDraw
+
 from configman import Namespace
 
 from socorro.external.crashstorage_base import CrashStorageBase
@@ -53,9 +55,9 @@ class FractalDimensionCrashStorage(CrashStorageBase):
     def scale_point(
         self,
         a_point,
-        min_point_range=min_point_range,
-        max_point_range=max_point_range,
-        image_dimensions=image_size
+        min_point_range,
+        max_point_range,
+        image_dimensions
     ):
         x, y = a_point
         min_x, min_y = min_point_range
