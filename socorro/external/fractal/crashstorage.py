@@ -105,7 +105,6 @@ class FractalDimensionCrashStorage(CrashStorageBase):
         self.min_x = maxint
         self.max_x = 0
 
-
     #--------------------------------------------------------------------------
     @staticmethod
     def get_thread_stack(a_processed_crash):
