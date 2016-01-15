@@ -155,10 +155,3 @@ class FractalDimensionCrashStorage(CrashStorageBase):
                 max_offset
             )
 
-    #--------------------------------------------------------------------------
-    def accumulate_points(self, points, max_frames, min_offset, max_offset):
-
-
-
-
-
