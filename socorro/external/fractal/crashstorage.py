@@ -90,11 +90,11 @@ class FractalDimensionCrashStorage(CrashStorageBase):
     def accumulate_points(self, points, max_y, min_x, max_x):
         self.points.extend(points)
         if max_x > self.max_x:
-            self.max_x = x
+            self.max_x = max_x
         if min_x < self.min_x:
-            self.min_x = x
+            self.min_x = min_x
         if max_y > self.max_y:
-            self.max_y = y
+            self.max_y = max_y
 
     #--------------------------------------------------------------------------
     def __init__(self, config, quit_check_callback=None):
